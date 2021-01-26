@@ -10,9 +10,8 @@ struct record_base {
   int indx, state;
   double lat, lon, t;
   string type;
-  float speed;
-  float accel;
-  vector<float> p_cluster = {-1.0,-1.0};
+  double speed;
+  double accel;
 };
 
 // ACTIVITY //
@@ -45,7 +44,6 @@ struct heading_base {
 // CLUSTER //
 struct cluster_base {
   vector<record_base> points;
-  vector<record_base> pre_points;
   record_base centroid;
   size_t duration;
   heading_base heading;
@@ -53,7 +51,7 @@ struct cluster_base {
   bool on_carto = true;
   bool visited = false;
   polyaffpro_base pap;
-  void add_point(record_base rec, record_base rec_prev);
+  void add_point(record_base rec);
 };
 
 heading_base measure_heading(cluster_base c1, cluster_base c0);
@@ -73,9 +71,11 @@ struct traj_base {
   list <pair<int, double>> path;      // <id_poly, time entering(decimal hours)>
   void add_cluster(cluster_base &C , int n);
   double average_speed;
+  double average_accel;
   double v_max;
   double v_min;
   double a_max;
+  double a_min;
   vector<double> p_cluster;
   int means_class;
   double means_p;

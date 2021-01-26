@@ -50,10 +50,9 @@ presence_base::presence_base(double lat_, double lon_, size_t id_act_, size_t t_
 }
 
 // CLUSTER //
-void cluster_base::add_point(record_base rec, record_base rec_prev) {
+void cluster_base::add_point(record_base rec) {
 
   points.push_back(rec);
-  pre_points.push_back(rec_prev);
 
   //update centroid
   centroid.lat = points.front().lat;
@@ -77,10 +76,10 @@ void traj_base::add_cluster(cluster_base &C, int n) {
       if (distance_record(sp.centroid, record[n]) <= config_.min_data_distance) {
         double inst_speed_rec = distance_record(record[n], record[n - 1]) / (record[n].itime - record[n - 1].itime);
         if (inst_speed_rec < config_.max_inst_speed) {
-          sp.add_point(record[n], record[n - 1]);
+          sp.add_point(record[n]);
           sp.visited = true;
           find_cor = true;
-          C.inst_speed = distance_record(C.points.front(), C.pre_points.front()) / (C.points.front().itime - C.pre_points.front().itime);
+          C.inst_speed = C.points.front().speed;
           if (C.inst_speed < config_.max_inst_speed && !C.visited)
             stop_point.push_back(C);
           C = sp;
@@ -93,20 +92,18 @@ void traj_base::add_cluster(cluster_base &C, int n) {
       }
     }
     if (!find_cor) {
-      C.inst_speed = distance_record(C.points.front(), C.pre_points.front()) / (C.points.front().itime - C.pre_points.front().itime);
+      C.inst_speed = C.points.front().speed;
       if (C.inst_speed < config_.max_inst_speed && !C.visited)
         stop_point.push_back(C);
       C.points.clear();
-      C.pre_points.clear();
-      C.add_point(record[n], record[n - 1]);
+      C.add_point(record[n]);
     }
   }
   else {
     C.inst_speed = 0.0;
     stop_point.push_back(C);
     C.points.clear();
-    C.pre_points.clear();
-    C.add_point(record[n], record[n - 1]);
+    C.add_point(record[n]);
   }
 
 }

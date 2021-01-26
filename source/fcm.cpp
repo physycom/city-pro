@@ -41,7 +41,7 @@ double FCM::update_membership(){
      *
     */
     long k, i;
-    double new_uik;
+    float new_uik;
     double max_diff = 0.0, diff;
 
     if(m_data==nullptr || m_data->rows()==0){
@@ -87,7 +87,7 @@ void FCM::compute_centers(){
     }
     for (i = 0; i < m_data->rows(); i++) { // compute (u^m) for each cluster for each point
         for (j = 0; j < m_num_clusters; j++) {
-            t(i,j) = pow((*m_membership)(i,j), m_m);
+            t(i,j) = float(pow((*m_membership)(i,j), m_m));
         }
     }
     for (j = 0; j < m_num_clusters; j++) { // loop for each cluster
@@ -98,7 +98,7 @@ void FCM::compute_centers(){
                 numerator += t(i,j) * (*m_data)(i,k);
                 denominator += t(i,j);
             }
-            (*m_cluster_center)(j,k) = numerator / denominator;
+            (*m_cluster_center)(j,k) = float(numerator / denominator);
         }
     }
 }
@@ -124,14 +124,14 @@ double FCM::get_dist(long i, long k){
   return sqrt(sqsum);
 }
 
-double FCM::compute_membership_point(long i, long k){
+float FCM::compute_membership_point(long i, long k){
     /*
      * i the cluster
      * k is the data point
     */
     //cout << __func__ <<"  num of cluster: "<<m_num_clusters<<endl;
     long j;
-    double t, seg=0.0;
+    double t, seg = 0.0;
     double exp = 2 / (m_m - 1);
     double dik, djk;
     if(m_num_clusters==0){
@@ -153,7 +153,7 @@ double FCM::compute_membership_point(long i, long k){
     //std::cin.get();
 
     //cout << "seg: "<<seg << " u: "<<(1.0/seg)<<endl;
-    return 1.0 / seg;
+    return float(1.0 /seg);
 }
 
 
@@ -206,7 +206,7 @@ void FCM::init_membership(){
     mem = 1.0 / m_num_clusters;
     for(j=0;j<m_num_clusters;j++){
         for(i=0;i<m_data->rows();i++){
-            (*m_membership)(i,j) = mem;
+            (*m_membership)(i,j) = float(mem);
         }
     }
 }

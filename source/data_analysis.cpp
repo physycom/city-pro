@@ -124,17 +124,16 @@ void make_traj() {
   for (auto &t : traj_temp) {
     cnt_tot_data += int(t.record.size());
     cluster_base C;
-    record_base rec_fake;
-    C.add_point(t.record.front(), rec_fake);
+    C.add_point(t.record.front());
     for (int n = 1; n < t.record.size(); ++n) {
       if (distance_record(C.centroid, t.record[n]) < config_.min_data_distance) {
-        C.add_point(t.record[n], t.record[n - 1]);
+        C.add_point(t.record[n]);
       }
       else if (distance_record(C.centroid, t.record[n]) >= config_.min_data_distance) {
         t.add_cluster(C, n);
       }
     }
-    double last_speed = distance_record(C.points.front(), C.pre_points.front()) / (C.points.front().itime - C.pre_points.front().itime);
+    double last_speed = C.points.front().speed;
     if (last_speed < config_.max_inst_speed && !C.visited)
       t.stop_point.push_back(C);
     cnt_tot_sp += int(t.stop_point.size());
@@ -176,7 +175,7 @@ void make_traj() {
     else if (t.stop_point.size() > 1) {
       dataloss.n_traj_tot++;
       dataloss.n_data_oncarto += int(t.stop_point.size());
-      t.time = t.stop_point.back().points.back().itime - t.stop_point.front().points.front().itime;
+      t.time = int(t.stop_point.back().points.back().itime - t.stop_point.front().points.front().itime);
       t.length = distance_record(t.stop_point.back().points.back(), t.stop_point.front().points.front());
       //for (int sp = 0; sp < t.stop_point.size() - 1; ++sp){
       //  t.stop_point[sp].heading = measure_heading(t.stop_point[sp + 1], t.stop_point[sp]);
@@ -203,18 +202,18 @@ void make_traj() {
   std::cout << "Num Traj:                   " << traj.size() << std::endl;
 
   // check
-  //for (auto &t : traj) {
-  //  for (int n = 0; n < t.stop_point.size() - 1; ++n) {
-  //    double dist = distance_record(t.stop_point[n].centroid, t.stop_point[n + 1].centroid);
-  //    if (dist < 30.0) {
-  //      std::cout << "Distance Error, improve the algos!" << std::endl;
-  //      std::cout << "id: " << t.id_act << " dist " << dist << " nrec " << t.record.size() << " nstops:" << t.stop_point.size() << std::endl;
-  //      std::cin.get();
-  //    }
-  //  }
-  //}
   for (auto &t : traj) {
-    t.time = t.stop_point.back().points.back().itime - t.stop_point.front().points.front().itime;
+    for (int n = 0; n < t.stop_point.size() - 1; ++n) {
+      double dist = distance_record(t.stop_point[n].centroid, t.stop_point[n + 1].centroid);
+      if (dist < 30.0) {
+        std::cout << "Distance Error, improve the algos!" << std::endl;
+        std::cout << "id: " << t.id_act << " dist " << dist << " nrec " << t.record.size() << " nstops:" << t.stop_point.size() << std::endl;
+        std::cin.get();
+      }
+    }
+  }
+  for (auto &t : traj) {
+    t.time = int(t.stop_point.back().points.back().itime - t.stop_point.front().points.front().itime);
     t.length = distance_record(t.stop_point.back().points.back(), t.stop_point.front().points.front());
   }
 
@@ -223,9 +222,11 @@ void make_traj() {
     ofstream out_stats(config_.cartout_basename + config_.name_pro + "_stats.csv");
     out_stats << "id_act;length;time;av_speed;ndat" << std::endl;
     for (auto &t : traj) {
-      t.time = t.stop_point.back().points.back().itime - t.stop_point.front().points.front().itime;
+      t.time = int(t.stop_point.back().points.back().itime - t.stop_point.front().points.front().itime);
       t.length = distance_record(t.stop_point.back().points.back(), t.stop_point.front().points.front());
       t.average_speed = t.length / t.time;
+      int time2 = int(t.stop_point.back().points.back().itime - t.stop_point[1].points.front().itime);
+      t.average_accel = (t.stop_point.back().points.back().speed - t.stop_point[1].points.front().speed) / time2;
       out_stats << t.id_act << ";" << t.length << ";" << t.time << ";" << t.average_speed << ";" << t.stop_point.size() << std::endl;
     }
     out_stats.close();
@@ -556,25 +557,25 @@ void make_polygons_analysis() {
       }
       // 0 : start or stop point
       if (config_.polygons_code[1] == "0") {
-        if (tag_start == location_type | tag_stop == location_type) {
+        if (tag_start == location_type || tag_stop == location_type) {
           cnt_from++;
-          if (tag_stop == 0 | tag_start == 0) {
+          if (tag_stop == 0 || tag_start == 0) {
             cnt_pg_other++;
             traj_tmp.push_back(t);
           }
-          else if (tag_stop == 1 | tag_start == 1) {
+          else if (tag_stop == 1 || tag_start == 1) {
             cnt_pg_center++;
             traj_tmp.push_back(t);
           }
-          else if (tag_stop == 2 | tag_start == 2) {
+          else if (tag_stop == 2 || tag_start == 2) {
             cnt_pg_coast++;
             traj_tmp.push_back(t);
           }
-          else if (tag_stop == 3 | tag_start == 3) {
+          else if (tag_stop == 3 || tag_start == 3) {
             cnt_pg_cities++;
             traj_tmp.push_back(t);
           }
-          else if (tag_stop == 4 | tag_start == 4) {
+          else if (tag_stop == 4 || tag_start == 4) {
             cnt_pg_station++;
           }
           else {
@@ -698,9 +699,9 @@ void make_polygons_analysis() {
       }
       // 0 : both directions
       if (config_.polygons_code[2] == "0") {
-        if ((tag_start == start_type | tag_stop == stop_type) && tag_start != tag_stop) {
+        if ((tag_start == start_type || tag_stop == stop_type) && tag_start != tag_stop) {
           cnt_from++;
-          if (tag_stop == 0 | tag_start == 0) {
+          if (tag_stop == 0 || tag_start == 0) {
             cnt_pg_other++;
           }
           else if (tag_start == start_type && tag_stop == stop_type) {
@@ -715,9 +716,9 @@ void make_polygons_analysis() {
       }
       // 1: from start to stop
       else if (config_.polygons_code[2] == "1") {
-        if ((tag_start == start_type | tag_stop == stop_type) && tag_start != tag_stop) {
+        if ((tag_start == start_type || tag_stop == stop_type) && tag_start != tag_stop) {
           cnt_from++;
-          if (tag_stop == 0 | tag_start == 0) {
+          if (tag_stop == 0 || tag_start == 0) {
             cnt_pg_other++;
           }
           else if (tag_start == start_type && tag_stop == stop_type) {
@@ -755,22 +756,29 @@ void make_multimodality() {
   for (auto &t : traj) {
     t.v_max = 0.0;
     t.v_min = 1000.0;
-    t.a_max = 0.0; //add a_max for better recognition
+    t.a_max = 0.0;
+    t.a_min = 1000.0;
     for (int sp = 1; sp < t.stop_point.size(); ++sp) {
-      double distance = distance_record(t.stop_point[sp].points.front(), t.stop_point[sp].pre_points.front());
-      int time = t.stop_point[sp].points.front().itime - t.stop_point[sp].pre_points.front().itime;
-      double speed = distance / time;
-      if (speed > t.v_max)
+      double speed = t.stop_point[sp].points.front().speed;
+      if (speed >= t.v_max)
         t.v_max = speed;
       if (speed < t.v_min)
         t.v_min = speed;
+
+      if (sp >= 2) {
+        double accel = t.stop_point[sp].points.front().accel;
+        if (accel >= t.a_max)
+          t.a_max = accel;
+        if (accel < t.a_min)
+          t.a_min = accel;
+      }
     }
   }
-  //for (auto &t : traj) features_data.push_back(t.length);
-  //for (auto &t : traj) features_data.push_back(t.time);
-  for (auto &t : traj) features_data.push_back(t.average_speed);
-  for (auto &t : traj) features_data.push_back(t.v_max);
-  for (auto &t : traj) features_data.push_back(t.v_min);
+
+  for (auto &t : traj) features_data.push_back(float(t.average_speed));
+  for (auto &t : traj) features_data.push_back(float(t.v_max));
+  for (auto &t : traj) features_data.push_back(float(t.v_min));
+  //for (auto &t : traj) features_data.push_back(float(t.a_max));
 
   int num_tm = config_.num_tm;
   int num_N = int(traj.size());
@@ -822,7 +830,10 @@ void make_multimodality() {
         max_p = (*(fcm->get_membership()))(n, m);
       }
     }
-    traj[n].means_class = max_idx;
+    if (max_p < config_.threshold_p)
+      traj[n].means_class = 10; //fake class index for hybrid traj
+    else
+      traj[n].means_class = max_idx;
     traj[n].means_p = max_p;
   }
   for (auto &t : traj) centers_fcm[t.means_class].cnt++;

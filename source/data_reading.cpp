@@ -137,6 +137,13 @@ void load_data()
     }
   }
   cout << "Activity: " << int(activity.size()) << endl;
+  for (auto &a : activity){
+    for (int i = 1; i < a.record.size(); ++i){
+      a.record[i].speed = distance_record(a.record[i], a.record[i - 1]) / (a.record[i].itime - a.record[i - 1].itime);
+      if (i>=2)
+        a.record[i].accel = (a.record[i].speed-a.record[i-1].speed)/ (a.record[i].itime - a.record[i - 1].itime);
+    }
+  }
 }
 
 //------------------------------------------------------------------------------------------------------

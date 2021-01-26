@@ -15,7 +15,7 @@ class FCM{
     double update_membership(); // returns the max diff
     void compute_centers();
     double get_dist(long, long);
-    double compute_membership_point(long, long);
+    float compute_membership_point(long, long);
     void set_data(MatrixXf *);
     void set_membership(MatrixXf *);
     void init_membership();
