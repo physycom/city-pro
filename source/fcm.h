@@ -39,3 +39,9 @@ class FCM{
 
 #endif
 
+// DUNN INDEX //
+double d_eu_distance(vector<double> v1, vector<double>v2);
+double intra_distance(int i);
+double inter_distance(int i, int j);
+double measure_dunn_index();
+

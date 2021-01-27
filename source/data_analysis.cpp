@@ -474,6 +474,7 @@ void make_bp_traj() {
   list <pair<int, double>> path, join_path;
   int cnt = 0, cnt_bestpoly = 0;
 
+  std::cout << "**********************************" << std::endl;
   for (auto &n : traj) {
     int ipoly_old = -8000000;
     path.clear();
@@ -506,7 +507,6 @@ void make_bp_traj() {
     }
     dataloss.n_traj_poly_thresh = int(traj.size());
     std::cout << "Num Traj after poly unique: " << traj.size() << std::endl;
-
   }
 
   make_fluxes();
@@ -780,6 +780,9 @@ void make_multimodality() {
   for (auto &t : traj) features_data.push_back(float(t.v_min));
   //for (auto &t : traj) features_data.push_back(float(t.a_max));
 
+  std::cout << "**********************************" << std::endl;
+  std::cout << "Multimodality num classes:      " << config_.num_tm << std::endl;
+
   int num_tm = config_.num_tm;
   int num_N = int(traj.size());
   int num_feat = 3; //v_average, v_max, v_min
@@ -814,12 +817,15 @@ void make_multimodality() {
 
   for (int n = 0; n < num_tm; ++n) {
     centers_fcm_base cw;
+    cw.idx = n;
     for (int m = 0; m < num_feat; ++m)
       cw.feat_vector.push_back((*(fcm->get_cluster_center()))(n, m));
     centers_fcm.push_back(cw);
   }
 
+  std::cout << "Multimodality p threshold:      " << config_.threshold_p << std::endl;
   // save results
+  int cnt_recong = 0;
   for (int n = 0; n < traj.size(); ++n) {
     int max_idx;
     double max_p = 0.0;
@@ -832,11 +838,21 @@ void make_multimodality() {
     }
     if (max_p < config_.threshold_p)
       traj[n].means_class = 10; //fake class index for hybrid traj
-    else
+    else{
       traj[n].means_class = max_idx;
+      cnt_recong++;
+    }
     traj[n].means_p = max_p;
   }
   for (auto &t : traj) centers_fcm[t.means_class].cnt++;
+  std::cout << "Multimodality traj recognized: " << cnt_recong << std::endl;
+
+  double dunn_i = measure_dunn_index();
+  std::cout << "Multimodality dunn index:       " << dunn_i << std::endl;
+
+  //temp
+  //ofstream out_scan(config_.cartout_basename + "scan_param.csv", ios::out | ios::app);
+  //out_scan << config_.num_tm << ";" << config_.threshold_p << ";" << dunn_i << std::endl;
 
   if (config_.enable_print) {
     ofstream out_fcm_center(config_.cartout_basename + config_.name_pro + "_fcm_centers.csv");

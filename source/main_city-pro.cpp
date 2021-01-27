@@ -109,34 +109,8 @@ int main(int argc, char **argv) {
     make_bp_traj();
     
 
-    //AnalizzaTraj();
-    //CalcolaFlussi();
-
-
-    //StampaFlussiAll("../output/pesi/" + config_.city_tag + ".flussi_all");
-    //StampaFlussiSubnet("../output/pesi/" + config_.city_tag + ".flussi");
-    //StampaFlussiSubnet_IT_ST("../output/pesi/" + config_.city_tag + ".flussi_it_st");
-    //StampaFlussiSubnet_IT_ST_MT_SR("../output/pesi/" + config_.city_tag + ".flussi_it_st_mt_sr");
-    //StampaHisto("../output/histo/");
-
-    //CreaMatricePresenze();
-
-    //EsploraPresenzeAll();
-    //EsploraPresenzeSM();
-    //EsploraPresenzeSt();
-    //EsploraPresenzeRialto();
-    //EsploraPresenzeAccad();
-    //EsploraBersaglio(30);
-    //PercentWay();
-    ////EsploraTime(30);
-    //EsploraTimeWalk();
-
     //ElaboraMatricePresenze();
     //ImportaSubnet("../output/pesi/Rimini.flussi.sub");
-    //ModellaModello();
-
-    //GridMap();
-
 
     clock_t end = clock();
     double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;

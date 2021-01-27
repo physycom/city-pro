@@ -23,10 +23,12 @@ struct seed_base {
   int cnt;
   bool operator<(const seed_base &s) const { return dd > s.dd; }
 };
-//---------------------------------------------------------------------
+
+// CENTERS FCM //
 struct centers_fcm_base {
   vector<double> feat_vector;
   double sigma = 0.0;
   int cnt = 0;
+  int idx;
 };
 //---------------------------------------------------------------------
