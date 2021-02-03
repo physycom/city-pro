@@ -48,6 +48,7 @@ struct cluster_base {
   size_t duration;
   heading_base heading;
   double inst_speed; //inst speed from previous cluster, the first is always 0.0;
+  double inst_accel; 
   bool on_carto = true;
   bool visited = false;
   polyaffpro_base pap;
@@ -71,11 +72,14 @@ struct traj_base {
   list <pair<int, double>> path;      // <id_poly, time entering(decimal hours)>
   void add_cluster(cluster_base &C , int n);
   double average_speed;
+  double average_inst_speed;
   double average_accel;
   double v_max;
   double v_min;
   double a_max;
   double a_min;
+  double sigma_speed;
+  double sigma_accel;
   vector<double> p_cluster;
   int means_class;
   double means_p;

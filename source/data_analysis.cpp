@@ -72,6 +72,15 @@ void sort_activity() {
     }
     a.average_speed = a.length / double(a.dt);
   }
+
+  // measure speed and accel
+  for (auto &a : activity) {
+    for (int i = 1; i < a.record.size(); ++i) {
+      a.record[i].speed = distance_record(a.record[i], a.record[i - 1]) / (a.record[i].itime - a.record[i - 1].itime);
+      if (i >= 2)
+        a.record[i].accel = (a.record[i].speed - a.record[i - 1].speed) / (a.record[i].itime - a.record[i - 1].itime);
+    }
+  }
 }
 //----------------------------------------------------------------------------------------------------
 void bin_activity() {
@@ -112,9 +121,9 @@ void make_traj() {
   //    }
   //  }
   //for (auto &t : traj_temp)
-  //  if (t.id_act == 27858)
+  //  if (t.id_act == 4145819496)
   //    for (auto &r:t.record)
-  //      std::cout << r.lat<<"  " << r.lon << std::endl;
+  //      std::cout << r.lat<<"  " << r.lon << " " << r.itime << std::endl;
   //std::cin.get();
 
 
@@ -213,20 +222,28 @@ void make_traj() {
     }
   }
   for (auto &t : traj) {
-    t.time = int(t.stop_point.back().points.back().itime - t.stop_point.front().points.front().itime);
-    t.length = distance_record(t.stop_point.back().points.back(), t.stop_point.front().points.front());
+    t.time = int(t.stop_point.back().points.front().itime - t.stop_point.front().points.front().itime);
+    t.length = 0.0;
+    for (int sp = 1; sp < t.stop_point.size(); ++sp) {
+      double dist_pp = distance_record(t.stop_point[sp - 1].points.front(), t.stop_point[sp].points.front());
+      t.length += dist_pp;
+      //t.stop_point[sp].inst_speed = dist_pp / (t.stop_point[sp].points.front().itime - t.stop_point[sp - 1].points.front().itime);
+      t.stop_point[sp].inst_speed = abs(distance_record(t.stop_point[sp - 1].points.back(), t.stop_point[sp].points.front()) / (t.stop_point[sp].points.front().itime - t.stop_point[sp - 1].points.back().itime));
+      if (sp > 1)
+        t.stop_point[sp].inst_accel = (t.stop_point[sp].points.front().speed - t.stop_point[sp - 1].points.front().speed) / (t.stop_point[sp].points.front().itime - t.stop_point[sp - 1].points.front().itime);
+    }
+    //t.average_speed = 0.0;
+    //for (int sp = 1; sp < t.stop_point.size(); ++sp) t.average_speed += t.stop_point[sp].inst_speed;
+    //t.average_speed /= int(t.stop_point.size() - 1);
+    t.average_speed = t.length / t.time;
+    int time2 = int(t.stop_point.back().points.back().itime - t.stop_point[1].points.front().itime);
+    t.average_accel = (t.stop_point.back().inst_speed - t.stop_point[1].inst_speed) / time2;
   }
-
 
   if (config_.enable_print) {
     ofstream out_stats(config_.cartout_basename + config_.name_pro + "_stats.csv");
     out_stats << "id_act;length;time;av_speed;ndat" << std::endl;
     for (auto &t : traj) {
-      t.time = int(t.stop_point.back().points.back().itime - t.stop_point.front().points.front().itime);
-      t.length = distance_record(t.stop_point.back().points.back(), t.stop_point.front().points.front());
-      t.average_speed = t.length / t.time;
-      int time2 = int(t.stop_point.back().points.back().itime - t.stop_point[1].points.front().itime);
-      t.average_accel = (t.stop_point.back().points.back().speed - t.stop_point[1].points.front().speed) / time2;
       out_stats << t.id_act << ";" << t.length << ";" << t.time << ";" << t.average_speed << ";" << t.stop_point.size() << std::endl;
     }
     out_stats.close();
@@ -758,34 +775,55 @@ void make_multimodality() {
     t.v_min = 1000.0;
     t.a_max = 0.0;
     t.a_min = 1000.0;
-    for (int sp = 1; sp < t.stop_point.size(); ++sp) {
-      double speed = t.stop_point[sp].points.front().speed;
+    t.sigma_speed = 0.0;
+    t.average_inst_speed = 0.0;
+    int window_size = 2;
+    for (int sp = window_size; sp < t.stop_point.size(); ++sp) {
+      double speed = 0.0;
+      for (int n = 0; n < window_size; ++n)
+        speed += t.stop_point[sp - n].inst_speed;
+      speed /= window_size;
+
       if (speed >= t.v_max)
         t.v_max = speed;
       if (speed < t.v_min)
         t.v_min = speed;
+      t.sigma_speed += pow((speed - t.average_speed), 2);
+      t.average_inst_speed += speed;
 
-      if (sp >= 2) {
-        double accel = t.stop_point[sp].points.front().accel;
+      if (sp >= window_size + 1) {
+        double accel = 0.0;
+        for (int n = 0; n < window_size; ++n)
+          accel += t.stop_point[sp - n].inst_accel;
+        accel /= window_size;
+
         if (accel >= t.a_max)
           t.a_max = accel;
         if (accel < t.a_min)
           t.a_min = accel;
+        t.sigma_accel += pow((accel - t.average_accel), 2);
       }
     }
+
+    t.sigma_speed /= (t.stop_point.size() - window_size);
+    t.average_inst_speed /= (t.stop_point.size() - window_size);
+    t.sigma_speed = sqrt(t.sigma_speed);
+
+    t.sigma_accel /= (t.stop_point.size() - window_size);
+    t.sigma_accel = sqrt(t.sigma_accel);
   }
 
   for (auto &t : traj) features_data.push_back(float(t.average_speed));
   for (auto &t : traj) features_data.push_back(float(t.v_max));
   for (auto &t : traj) features_data.push_back(float(t.v_min));
-  //for (auto &t : traj) features_data.push_back(float(t.a_max));
+  for (auto &t : traj) features_data.push_back(float(distance_record(t.stop_point.front().points.front(), t.stop_point.back().points.front()) / t.length));
 
   std::cout << "**********************************" << std::endl;
   std::cout << "Multimodality num classes:      " << config_.num_tm << std::endl;
 
   int num_tm = config_.num_tm;
   int num_N = int(traj.size());
-  int num_feat = 3; //v_average, v_max, v_min
+  int num_feat = 4; //v_average, v_max, v_min
   double epsilon_fcm = 0.005;
   FCM *fcm;
   fcm = new FCM(2, epsilon_fcm);
@@ -797,6 +835,7 @@ void make_multimodality() {
   //initialize U[0] randomly
   random_device rnd_device;
   mt19937 mersenne_engine{ rnd_device() };  // Generates random integers
+  mersenne_engine.seed(5);
   uniform_real_distribution<float> dist{ 0.0, 1.0 };
   auto gen = [&dist, &mersenne_engine]() {
     return dist(mersenne_engine);
@@ -838,7 +877,7 @@ void make_multimodality() {
     }
     if (max_p < config_.threshold_p)
       traj[n].means_class = 10; //fake class index for hybrid traj
-    else{
+    else {
       traj[n].means_class = max_idx;
       cnt_recong++;
     }
@@ -847,17 +886,9 @@ void make_multimodality() {
   for (auto &t : traj) centers_fcm[t.means_class].cnt++;
   std::cout << "Multimodality traj recognized: " << cnt_recong << std::endl;
 
-  double dunn_i = measure_dunn_index();
-  std::cout << "Multimodality dunn index:       " << dunn_i << std::endl;
-
-  //temp
-  //ofstream out_scan(config_.cartout_basename + "scan_param.csv", ios::out | ios::app);
-  //out_scan << config_.num_tm << ";" << config_.threshold_p << ";" << dunn_i << std::endl;
-
   if (config_.enable_print) {
     ofstream out_fcm_center(config_.cartout_basename + config_.name_pro + "_fcm_centers.csv");
-    out_fcm_center << "idx;av_speed;v_max;v_min;cnt" << std::endl;
-    for (int c = 0; c < centers_fcm.size(); ++c){
+    for (int c = 0; c < centers_fcm.size(); ++c) {
       out_fcm_center << c;
       for (auto &cc : centers_fcm[c].feat_vector)
         out_fcm_center << ";" << cc;
@@ -866,10 +897,21 @@ void make_multimodality() {
     out_fcm_center.close();
 
     ofstream out_fcm(config_.cartout_basename + config_.name_pro + "_fcm.csv");
-    out_fcm << "lenght;time;av_speed;v_max;v_min;class;p" << std::endl;
+    out_fcm << "lenght;time;av_speed;v_max;v_min;cnt;av_accel;a_max;class;p" << std::endl;
     for (auto &t : traj)
-      out_fcm << t.length << ";" << t.time << ";" << t.average_speed << ";" << t.v_max << ";" << t.v_min << ";" << t.means_class << ";" << t.means_p << std::endl;
+      out_fcm << t.length << ";" << t.time << ";" << t.average_speed << ";" << t.v_max << ";" << t.v_min << ";" << t.stop_point.size() << ";" << t.average_accel << ";" << t.a_max << ";" << t.means_class << ";" << t.means_p << std::endl;
     out_fcm.close();
+
+    for (auto c = 0; c < centers_fcm.size(); ++c) {
+      ofstream out_classes(config_.cartout_basename + config_.name_pro + "_class_" + to_string(c) + ".csv");
+      for (auto &t : traj)
+        if (t.means_class == c) {
+          out_classes << t.id_act << ";" << t.length << ";" << t.time << ";" << t.average_speed << ";" << t.v_max << ";" << t.v_min << ";" << t.p_cluster[t.means_class] << ";" << t.stop_point.size() << std::endl;
+          for (auto &sp : t.stop_point)
+            out_classes << sp.inst_speed << ";" << sp.inst_accel << std::endl;
+        }
+      out_classes.close();
+    }
   }
 }
 //----------------------------------------------------------------------------------------------------

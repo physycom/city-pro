@@ -301,7 +301,14 @@ void draw_outofcarto() {
 // ********************************************************************************************************
 void draw_traj_work() {
 
-  while (traj[traj_work].row_n_rec < 50) traj_work++;
+  //int indx;
+  //for (auto &c : centers_fcm)
+  //  if (c.feat_vector[0] < 5.0)
+  //    indx = c.idx;
+
+  //while (traj[traj_work].means_class != indx || traj[traj_work].average_speed < 5.0) traj_work++;
+  while (traj[traj_work].means_class != indx ) traj_work++;
+
 
   int i = traj_work; if (i < 0 || i > traj.size() - 1) return;
   for (auto sp : traj[i].stop_point) {
@@ -313,14 +320,16 @@ void draw_traj_work() {
       glPopMatrix();
     }
   }
+  std::cout << traj[i].average_speed << "  " << traj[i].average_inst_speed << "  " << traj[i].v_max << "  " << traj[i].v_min << std::endl;
   for (auto sp : traj[i].stop_point) {
     glPushMatrix();
     glColor3d(1.0, 0.0, 0.0);
+    std::cout << sp.inst_speed << std::endl;
     glTranslated(sp.centroid.lon, sp.centroid.lat, 0.08);
     glCallList(SMALL_SQUARE);
     glPopMatrix();
   }
-
+  std::cout << "-------------------" << std::endl;
   glColor3d(1.0, 1.0, 1.0);
 
   glDisable(GL_DEPTH_TEST);
@@ -331,6 +340,8 @@ void draw_traj_work() {
   s2 += "  length= " + to_string(traj[i].length);
   s2 += "  time= " + to_string(traj[i].time);
   s2 += "  n points = " + to_string(traj[i].stop_point.size());
+  s2 += "  speed = " + to_string(traj[i].average_speed);
+  s2 += "  speed2 = " + to_string(traj[i].average_inst_speed);
   line2->value(s2.c_str());
   glEnable(GL_DEPTH_TEST);
 }
