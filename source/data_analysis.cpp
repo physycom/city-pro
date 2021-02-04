@@ -114,19 +114,6 @@ void make_traj() {
 
   activity.clear(); activity.shrink_to_fit();// clean memory, the info are passed to traj and presence
 
-  //for (auto &t : traj_temp)
-  //  if (t.id_act == 27858){
-  //    for (int r=1; r<t.record.size(); ++r){
-  //      std::cout  <<"  "<<distance_record(t.record[r], t.record[r-1])/(t.record[r].itime- t.record[r-1].itime) << std::endl;
-  //    }
-  //  }
-  //for (auto &t : traj_temp)
-  //  if (t.id_act == 4145819496)
-  //    for (auto &r:t.record)
-  //      std::cout << r.lat<<"  " << r.lon << " " << r.itime << std::endl;
-  //std::cin.get();
-
-
   // filter data on distance and inst_speed
   int cnt_tot_data = 0;
   int cnt_tot_sp = 0;
@@ -227,14 +214,10 @@ void make_traj() {
     for (int sp = 1; sp < t.stop_point.size(); ++sp) {
       double dist_pp = distance_record(t.stop_point[sp - 1].points.front(), t.stop_point[sp].points.front());
       t.length += dist_pp;
-      //t.stop_point[sp].inst_speed = dist_pp / (t.stop_point[sp].points.front().itime - t.stop_point[sp - 1].points.front().itime);
       t.stop_point[sp].inst_speed = abs(distance_record(t.stop_point[sp - 1].points.back(), t.stop_point[sp].points.front()) / (t.stop_point[sp].points.front().itime - t.stop_point[sp - 1].points.back().itime));
       if (sp > 1)
         t.stop_point[sp].inst_accel = (t.stop_point[sp].points.front().speed - t.stop_point[sp - 1].points.front().speed) / (t.stop_point[sp].points.front().itime - t.stop_point[sp - 1].points.front().itime);
     }
-    //t.average_speed = 0.0;
-    //for (int sp = 1; sp < t.stop_point.size(); ++sp) t.average_speed += t.stop_point[sp].inst_speed;
-    //t.average_speed /= int(t.stop_point.size() - 1);
     t.average_speed = t.length / t.time;
     int time2 = int(t.stop_point.back().points.back().itime - t.stop_point[1].points.front().itime);
     t.average_accel = (t.stop_point.back().inst_speed - t.stop_point[1].inst_speed) / time2;
@@ -467,7 +450,7 @@ void make_fluxes() {
   if (config_.enable_multimodality) {
     // empty initialization
     for (auto &p : poly)
-      for (int n = 0; n < config_.num_tm; ++n)
+      for (int n = 0; n < centers_fcm.size(); ++n)
         p.classes_flux[n] = 0.0;
 
     //fill with value
@@ -479,7 +462,7 @@ void make_fluxes() {
 
     //measure sigma for standardize color in draw fluxes 
     for (auto &p : poly)
-      for (int n = 0; n < config_.num_tm; ++n)
+      for (int n = 0; n < centers_fcm.size(); ++n)
         centers_fcm[n].sigma += (p.classes_flux[n] * p.classes_flux[n]);
 
     for (auto &c : centers_fcm) c.sigma = sqrt(c.sigma / poly.size());
@@ -823,7 +806,7 @@ void make_multimodality() {
 
   int num_tm = config_.num_tm;
   int num_N = int(traj.size());
-  int num_feat = 4; //v_average, v_max, v_min
+  int num_feat = 4; //v_average, v_max, v_min, sinuosity
   double epsilon_fcm = 0.005;
   FCM *fcm;
   fcm = new FCM(2, epsilon_fcm);
@@ -886,6 +869,99 @@ void make_multimodality() {
   for (auto &t : traj) centers_fcm[t.means_class].cnt++;
   std::cout << "Multimodality traj recognized: " << cnt_recong << std::endl;
 
+  /////////// SECOND CLASSIFICATION FOR SLOWER CLASS (they will SPLIT in 2 classes)//////////////// 
+  int slow_id, medium_id;
+  double min_v=10000.0;
+  for (auto &c: centers_fcm)
+    if (c.feat_vector[0] < min_v){
+      slow_id = c.idx;
+      min_v = c.feat_vector[0];
+  }
+  for (auto &c:centers_fcm) if (c.feat_vector[0]>min_v && c.feat_vector[0]<20.0) medium_id = c.idx;
+
+  vector<float> features_data2;
+  for (auto &t : traj) if (t.means_class==slow_id) features_data2.push_back(float(t.average_speed));
+  for (auto &t : traj) if (t.means_class==slow_id) features_data2.push_back(float(t.v_max));
+  for (auto &t : traj) if (t.means_class==slow_id) features_data2.push_back(float(t.v_min));
+  for (auto &t : traj) if (t.means_class==slow_id) features_data2.push_back(float(distance_record(t.stop_point.front().points.front(), t.stop_point.back().points.front()) / t.length));
+
+  std::cout << "**********************************" << std::endl;
+
+  int num_tm2 = 2;
+  int num_N2 = int(centers_fcm[slow_id].cnt);
+  std::cout << "Slower Multimodality num classes:      " << num_tm2 << std::endl;
+  std::cout << "Slower Multimodality num samples:      " << num_N2 << std::endl;
+  int num_feat2 = 4; //v_average, v_max, v_min, sinuosity
+  double epsilon_fcm2 = 0.005;
+  FCM *fcm2;
+  fcm2 = new FCM(2, epsilon_fcm2);
+  Map<MatrixXf> data_tr2(features_data2.data(), num_N2, num_feat2);
+  MatrixXf data2 = data_tr2;
+  fcm2->set_data(&data2);
+  fcm2->set_num_clusters(num_tm2);
+
+  //initialize U[0] randomly
+  random_device rnd_device2;
+  mt19937 mersenne_engine2{ rnd_device2() };  // Generates random integers
+  uniform_real_distribution<float> dist2{ 0.0, 1.0 };
+  auto gen2 = [&dist2, &mersenne_engine2]() {
+    return dist2(mersenne_engine2);
+  };
+  vector<float> vec_rnd2(num_N2*num_tm2);
+  generate(begin(vec_rnd2), end(vec_rnd2), gen2);
+  Map<MatrixXf> membership_temp2(vec_rnd2.data(), num_N2, num_tm2);
+  MatrixXf membership2 = membership_temp2;
+  fcm2->set_membership(&membership2);
+  double diff2 = 1.0;
+  fcm2->compute_centers();
+  fcm2->update_membership();
+  while (diff2 > epsilon_fcm2) {
+    fcm2->compute_centers();
+    diff2 = fcm2->update_membership();
+  }
+  vector<centers_fcm_base> centers_fcm_slow;
+  for (int n = 0; n < num_tm2; ++n) {
+    centers_fcm_base cw;
+    cw.idx = n;
+    for (int m = 0; m < num_feat2; ++m)
+      cw.feat_vector.push_back((*(fcm2->get_cluster_center()))(n, m));
+    centers_fcm_slow.push_back(cw);
+  }
+  
+  // update results
+  int slow_id2, medium_id2;
+  if (centers_fcm_slow[0].feat_vector[0] <centers_fcm_slow[1].feat_vector[0]) {slow_id2=0; medium_id2=1;}
+  else {slow_id2=1; medium_id2=0;}
+  int idx_2fcm=0;
+  for (int n = 0; n < traj.size(); ++n) {
+    if(traj[n].means_class == slow_id){
+    traj[n].p_cluster[slow_id] = (*(fcm2->get_membership()))(idx_2fcm, slow_id2);
+    traj[n].p_cluster.push_back((*(fcm2->get_membership()))(idx_2fcm, medium_id2));
+    if ((*(fcm2->get_membership()))(idx_2fcm, slow_id2) > (*(fcm2->get_membership()))(idx_2fcm, medium_id2)) {
+      traj[n].means_class = slow_id;
+      traj[n].means_p =traj[n].p_cluster[slow_id];
+    }
+    else{
+      traj[n].means_class = num_tm;
+      traj[n].means_p =traj[n].p_cluster[num_tm];
+    }
+      idx_2fcm++;
+    }
+  }
+  // update centers_fcm: feat vector
+  centers_fcm[slow_id].feat_vector = centers_fcm_slow[slow_id2].feat_vector;
+  centers_fcm.push_back(centers_fcm_slow[medium_id2]);
+  // update centers_fcm: idx
+  centers_fcm[num_tm].idx = num_tm;
+  // update centers_fcm: cnt
+  for (auto &c : centers_fcm) c.cnt=0;
+  for (auto &t : traj) centers_fcm[t.means_class].cnt++;
+
+
+  // measure validation parameter ( intercluster dist/intracluster dist)
+  //double dunn_index = measure_dunn_index();
+  //std::cout << "Dunn index                      :      " << dunn_index << std::endl;
+ 
   if (config_.enable_print) {
     ofstream out_fcm_center(config_.cartout_basename + config_.name_pro + "_fcm_centers.csv");
     for (int c = 0; c < centers_fcm.size(); ++c) {

@@ -111,9 +111,9 @@ void draw_fluxes()
     for (int i = 1; i<int(poly.size()); i++) {
       double fluxes = poly[i].classes_flux[means_work];
       if (fluxes > 4.5 * centers_fcm[means_work].sigma) { glColor3d(1.0, 1.0, 0.0); glLineWidth(5); }
-      else if (fluxes > 2.0 * centers_fcm[means_work].sigma) { glColor3d(1.0, 0.0, 0.0); glLineWidth(4); }
-      else if (fluxes > 1.0 * centers_fcm[means_work].sigma) { glColor3d(0.0, 1.0, 0.0); glLineWidth(3); }
-      else if (fluxes > 0.5 * centers_fcm[means_work].sigma) { glColor3d(0.0, 0.0, 1.0); glLineWidth(2); }
+      else if (fluxes > 2.5 * centers_fcm[means_work].sigma) { glColor3d(1.0, 0.0, 0.0); glLineWidth(4); }
+      else if (fluxes > 1.5 * centers_fcm[means_work].sigma) { glColor3d(0.0, 1.0, 0.0); glLineWidth(3); }
+      else if (fluxes > 1.0 * centers_fcm[means_work].sigma) { glColor3d(0.0, 0.0, 1.0); glLineWidth(2); }
       else { glColor3d(0.4, 0.4, 0.4); glLineWidth(1); }
       glBegin(GL_LINE_STRIP);
       for (int j = 0; j < poly[i].points.size(); j++)
@@ -301,15 +301,6 @@ void draw_outofcarto() {
 // ********************************************************************************************************
 void draw_traj_work() {
 
-  //int indx;
-  //for (auto &c : centers_fcm)
-  //  if (c.feat_vector[0] < 5.0)
-  //    indx = c.idx;
-
-  //while (traj[traj_work].means_class != indx || traj[traj_work].average_speed < 5.0) traj_work++;
-  while (traj[traj_work].means_class != indx ) traj_work++;
-
-
   int i = traj_work; if (i < 0 || i > traj.size() - 1) return;
   for (auto sp : traj[i].stop_point) {
     for (auto &spp : sp.points) {
@@ -336,7 +327,7 @@ void draw_traj_work() {
 
   string s2 = "n = " + to_string(traj_work);
   s2 += "  activity_id = " + to_string(traj[i].id_act);
-  s2 += "  nDat= " + to_string(traj[i].row_n_rec);
+  s2 += "  row_n_rec = " + to_string(traj[i].row_n_rec);
   s2 += "  length= " + to_string(traj[i].length);
   s2 += "  time= " + to_string(traj[i].time);
   s2 += "  n points = " + to_string(traj[i].stop_point.size());
@@ -413,7 +404,6 @@ void draw_scene() {
   if (show_poly)       draw_poly_work();
   if (show_traj)       draw_traj_work();
   if (show_path)       draw_path();
-  //if (show_record_intime) draw_record_intime();
   if (show_fluxes)    draw_fluxes();
   if (show_startstop)  draw_startstop();
   //if (show_subnet) draw_subnet();

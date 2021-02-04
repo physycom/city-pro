@@ -78,7 +78,7 @@ void set_off()
 void plus_cb(Fl_Widget*)
 {
   if (show_traj) { traj_work++; if (traj_work >= traj.size())  traj_work = int(traj.size()) - 1; }
-  if (show_fluxes || show_startstop) { means_work++; if (means_work >= config_.num_tm)  means_work = config_.num_tm - 1; }
+  if (show_fluxes || show_startstop) { means_work++; if (means_work >= config_.num_tm+1)  means_work = config_.num_tm; }
   re_draw = true;
 }
 void minus_cb(Fl_Widget*)
