@@ -103,6 +103,7 @@ int main(int argc, char **argv) {
     if(config_.enable_bin_act) 
       bin_activity();
     make_traj();
+    std::cout << "finito traj" << std::endl;
     make_polygons_analysis();
     if (config_.enable_multimodality)
       make_multimodality();

@@ -83,9 +83,9 @@ void load_data()
     string line;
     vector<string> strs;
     record_base rw;
-    map<size_t, vector<record_base>> activity_collect;
+    map<long long int, vector<record_base>> activity_collect;
 
-    size_t id_act = 0;
+    long long int id_act = 0;
     int cnt = 0;
     if (!fp_in) {
       cout << "load_data: error in reading " << data_file << endl;

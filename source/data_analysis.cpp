@@ -113,7 +113,6 @@ void make_traj() {
   }
 
   activity.clear(); activity.shrink_to_fit();// clean memory, the info are passed to traj and presence
-
   // filter data on distance and inst_speed
   int cnt_tot_data = 0;
   int cnt_tot_sp = 0;

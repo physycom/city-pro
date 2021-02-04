@@ -17,7 +17,7 @@ struct record_base {
 // ACTIVITY //
 struct activity_base {
   bool ok = true;
-  size_t id_act;
+  long long int id_act;
   int indx, dt;
   double latm, lonm, var;
   double length;
@@ -29,7 +29,7 @@ struct activity_base {
 // PRESENCE //
 struct presence_base {
   double lat, lon;
-  size_t id_act;
+  long long int id_act;
   size_t itime_start, itime_end;
   int row_n_rec;
   presence_base() {};
@@ -61,7 +61,7 @@ heading_base measure_heading(cluster_base c1, cluster_base c0);
 // TRAJ //
 struct traj_base {
   bool ok = true;
-  size_t id_act;
+  long long int id_act;
   int n_poly_unique;
   double length;
   int time;
