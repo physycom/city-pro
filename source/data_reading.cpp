@@ -2,10 +2,10 @@
 #include "record.h"
 #include "carto.h"
 #include "data_reading.h"
-//#include "analisi_dati.h"
 #include "config.h"
 #include <boost/algorithm/string.hpp>
 #include <physycom/geometry.hpp>
+#include <physycom/string.hpp>
 
 vector <poly_base> poly;
 vector <activity_base> activity;
@@ -169,4 +169,34 @@ void load_polygon() {
     }
   }
   std::cout << "Polygon:  " << polygon.size() << std::endl;
+}
+//------------------------------------------------------------------------------------------------------
+map<string, vector<int>> subnets;
+vector<string> subnet_label;
+void load_subnet() {
+  ifstream sub(config_.file_subnet);
+  if (!sub)
+  {
+    cout << "load_data: error in reading: " << config_.file_subnet << endl;
+    return;
+  }
+
+  subnets.clear();
+
+  string line;
+  vector<string> tokens;
+  while (getline(sub, line))
+  {
+    physycom::split(tokens, line, string("\t"), physycom::token_compress_on);
+    for (int i = 1; i < (int)tokens.size(); ++i) subnets[tokens[0]].push_back(stoi(tokens[i]));
+  }
+
+
+  for (auto &p : subnets)
+  {
+    subnet_label.push_back(p.first);
+    sort(p.second.begin(), p.second.end());
+    p.second.erase(unique(p.second.begin(), p.second.end()), p.second.end());
+  }
+
 }

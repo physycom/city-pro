@@ -33,7 +33,7 @@ struct presence_base {
   size_t itime_start, itime_end;
   int row_n_rec;
   presence_base() {};
-  presence_base(double lat_, double lon_, size_t id_act_, size_t t_start, size_t t_stop, int row_n_rec_);
+  presence_base(double lat_, double lon_, long long int id_act_, size_t t_start, size_t t_stop, int row_n_rec_);
 };
 
 // HEADING //

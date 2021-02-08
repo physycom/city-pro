@@ -10,8 +10,6 @@
 #include "gltrans.h"
 #include "data_analysis.h"
 #include "config.h"
-//#include "bestPath.h"
-//#include "ale/subnet_gra.h"
 
 //#include <physycom/geometry.hpp>
 
@@ -42,7 +40,7 @@ extern int    graphicInView, timeInView;
 extern double alfa_zoom, delta_lon, delta_lat, lat0, lon0, dlon, dlat, time_value;
 
 extern Fl_Output *line1, *line2;
-extern int poly_work, node_work, traj_work, means_work;
+extern int poly_work, node_work, traj_work, means_work, subnet_work;
 
 extern int screen_width, screen_height;
 string name;
@@ -50,8 +48,8 @@ extern int node_1, node_2;
 extern double sigma;
 
 // subnet
-//extern map<string, vector<int>> subnets;
-//extern string subnet_select;
+extern map<string, vector<int>> subnets;
+extern vector<string> subnet_label;
 
 // ********************************************************************************************************
 void draw_init(void)
@@ -385,6 +383,29 @@ void draw_polygons() {
   glPopMatrix();
 }
 // ********************************************************************************************************
+void draw_subnet()
+{
+  string subnet_select = subnet_label[subnet_work];
+  color_palette(2);
+  glLineWidth(3.0);
+  glPushMatrix();
+  for (const auto &n : subnets[subnet_select]) {
+    glBegin(GL_LINE_STRIP);
+    for (const auto &j : poly[n].points) glVertex3d(j.lon, j.lat, 0.3);
+    glEnd();
+  }
+
+  glPopMatrix();
+  glLineWidth(1.0);
+  glColor3d(1.0, 1.0, 1.0);
+
+  glDisable(GL_DEPTH_TEST);
+  string s2 = "Subnet: " + subnet_select;
+  line2->value(s2.c_str());
+  glEnable(GL_DEPTH_TEST);
+
+}
+// ********************************************************************************************************
 void draw_scene() {
   re_draw = false;
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -406,7 +427,7 @@ void draw_scene() {
   if (show_path)       draw_path();
   if (show_fluxes)    draw_fluxes();
   if (show_startstop)  draw_startstop();
-  //if (show_subnet) draw_subnet();
+  if (show_subnet) draw_subnet();
   if (show_polygons) draw_polygons();
   glPopMatrix();
   glPopMatrix();

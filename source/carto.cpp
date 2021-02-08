@@ -308,7 +308,6 @@ void make_mapping(void)
   for (int j = 0; j < jmax; j++) A[j] = new mapping_base[imax];  // A[jmax][imax]
   for (int n = 0; n< int(arc.size()); n++) n_arc_put += A_put_arc(n);
   for (int n = 1; n < node.size(); n++) n_node_put += A_put_node(n);
-
 }
 //------------------------------------------------------------------------------------------------------
 int find_near_poly(double x, double y, double &dist, int &id_poly) {

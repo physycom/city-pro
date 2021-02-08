@@ -12,6 +12,9 @@
 #include <random>
 #include <iterator>
 #include <functional>
+#include <set>
+#include <featsel.hpp>
+
 
 using namespace Eigen;
 using namespace std;
@@ -133,7 +136,8 @@ void make_traj() {
       t.stop_point.push_back(C);
     cnt_tot_sp += int(t.stop_point.size());
   }
-  std::cout << "Distance filter:       " << double(cnt_tot_sp) / cnt_tot_data * 100. << "%" << std::endl;
+  std::cout << "Record before filters :  " << cnt_tot_data << std::endl;
+  std::cout << "Distance filter       :  " << double(cnt_tot_sp) / cnt_tot_data * 100. << "%" << std::endl;
   dataloss.n_data_tot = cnt_tot_data;
   dataloss.n_data_meter = cnt_tot_sp;
 
@@ -870,19 +874,19 @@ void make_multimodality() {
 
   /////////// SECOND CLASSIFICATION FOR SLOWER CLASS (they will SPLIT in 2 classes)//////////////// 
   int slow_id, medium_id;
-  double min_v=10000.0;
-  for (auto &c: centers_fcm)
-    if (c.feat_vector[0] < min_v){
+  double min_v = 10000.0;
+  for (auto &c : centers_fcm)
+    if (c.feat_vector[0] < min_v) {
       slow_id = c.idx;
       min_v = c.feat_vector[0];
-  }
-  for (auto &c:centers_fcm) if (c.feat_vector[0]>min_v && c.feat_vector[0]<20.0) medium_id = c.idx;
+    }
+  for (auto &c : centers_fcm) if (c.feat_vector[0] > min_v && c.feat_vector[0] < 20.0) medium_id = c.idx;
 
   vector<float> features_data2;
-  for (auto &t : traj) if (t.means_class==slow_id) features_data2.push_back(float(t.average_speed));
-  for (auto &t : traj) if (t.means_class==slow_id) features_data2.push_back(float(t.v_max));
-  for (auto &t : traj) if (t.means_class==slow_id) features_data2.push_back(float(t.v_min));
-  for (auto &t : traj) if (t.means_class==slow_id) features_data2.push_back(float(distance_record(t.stop_point.front().points.front(), t.stop_point.back().points.front()) / t.length));
+  for (auto &t : traj) if (t.means_class == slow_id) features_data2.push_back(float(t.average_speed));
+  for (auto &t : traj) if (t.means_class == slow_id) features_data2.push_back(float(t.v_max));
+  for (auto &t : traj) if (t.means_class == slow_id) features_data2.push_back(float(t.v_min));
+  for (auto &t : traj) if (t.means_class == slow_id) features_data2.push_back(float(distance_record(t.stop_point.front().points.front(), t.stop_point.back().points.front()) / t.length));
 
   std::cout << "**********************************" << std::endl;
 
@@ -926,24 +930,24 @@ void make_multimodality() {
       cw.feat_vector.push_back((*(fcm2->get_cluster_center()))(n, m));
     centers_fcm_slow.push_back(cw);
   }
-  
+
   // update results
   int slow_id2, medium_id2;
-  if (centers_fcm_slow[0].feat_vector[0] <centers_fcm_slow[1].feat_vector[0]) {slow_id2=0; medium_id2=1;}
-  else {slow_id2=1; medium_id2=0;}
-  int idx_2fcm=0;
+  if (centers_fcm_slow[0].feat_vector[0] < centers_fcm_slow[1].feat_vector[0]) { slow_id2 = 0; medium_id2 = 1; }
+  else { slow_id2 = 1; medium_id2 = 0; }
+  int idx_2fcm = 0;
   for (int n = 0; n < traj.size(); ++n) {
-    if(traj[n].means_class == slow_id){
-    traj[n].p_cluster[slow_id] = (*(fcm2->get_membership()))(idx_2fcm, slow_id2);
-    traj[n].p_cluster.push_back((*(fcm2->get_membership()))(idx_2fcm, medium_id2));
-    if ((*(fcm2->get_membership()))(idx_2fcm, slow_id2) > (*(fcm2->get_membership()))(idx_2fcm, medium_id2)) {
-      traj[n].means_class = slow_id;
-      traj[n].means_p =traj[n].p_cluster[slow_id];
-    }
-    else{
-      traj[n].means_class = num_tm;
-      traj[n].means_p =traj[n].p_cluster[num_tm];
-    }
+    if (traj[n].means_class == slow_id) {
+      traj[n].p_cluster[slow_id] = (*(fcm2->get_membership()))(idx_2fcm, slow_id2);
+      traj[n].p_cluster.push_back((*(fcm2->get_membership()))(idx_2fcm, medium_id2));
+      if ((*(fcm2->get_membership()))(idx_2fcm, slow_id2) > (*(fcm2->get_membership()))(idx_2fcm, medium_id2)) {
+        traj[n].means_class = slow_id;
+        traj[n].means_p = traj[n].p_cluster[slow_id];
+      }
+      else {
+        traj[n].means_class = num_tm;
+        traj[n].means_p = traj[n].p_cluster[num_tm];
+      }
       idx_2fcm++;
     }
   }
@@ -953,14 +957,14 @@ void make_multimodality() {
   // update centers_fcm: idx
   centers_fcm[num_tm].idx = num_tm;
   // update centers_fcm: cnt
-  for (auto &c : centers_fcm) c.cnt=0;
+  for (auto &c : centers_fcm) c.cnt = 0;
   for (auto &t : traj) centers_fcm[t.means_class].cnt++;
 
 
   // measure validation parameter ( intercluster dist/intracluster dist)
   //double dunn_index = measure_dunn_index();
   //std::cout << "Dunn index                      :      " << dunn_index << std::endl;
- 
+
   if (config_.enable_print) {
     ofstream out_fcm_center(config_.cartout_basename + config_.name_pro + "_fcm_centers.csv");
     for (int c = 0; c < centers_fcm.size(); ++c) {
@@ -988,5 +992,128 @@ void make_multimodality() {
       out_classes.close();
     }
   }
+}
+//----------------------------------------------------------------------------------------------------
+void dump_fluxes() {
+  ofstream out(config_.cartout_basename + "/weights/" + config_.name_pro + ".fluxes");
+  if (config_.enable_multimodality) {
+    out << "id;id_local;nodeF;nodeT;lenght;total_fluxes";
+    for (auto &c : centers_fcm)
+      out << ";" << "class_" + to_string(c.idx);
+    out << std::endl;
+    for (auto &p:poly) {
+      out << p.id << ";" << p.id_local << ";" << p.cid_Fjnct << ";" << p.cid_Tjnct << ";" << p.length << ";" << p.n_traj_FT + p.n_traj_TF;
+      for (auto &pc : p.classes_flux)
+        out << ";" << pc.second;
+      out << std::endl;
+    }
+  }
+  else {
+    out << "id;id_local;nodeF;nodeT;total_fluxes;length" << endl;
+    for (auto &p : poly) {
+      out << p.id << ";" << p.id_local << ";" << p.cid_Fjnct << ";" << p.cid_Tjnct << ";" <<p.length<<";"<< p.n_traj_FT + p.n_traj_TF << std::endl;
+    }
+  }
+  out.close();
+}
+//----------------------------------------------------------------------------------------------------
+//------------------------- POLYSTAT -----------------------------------------------------------------
+set<long long int> nodes;
+map<long long int, map<long long int, int>> node_poly;
+map<int, long long int> lid_cid;
+map<long long int, int> cid_lid;
+
+void make_node_map(const vector<polystat_base> &poly)
+{
+  for (const auto p : poly)
+  {
+    nodes.insert(p.nF);
+    nodes.insert(p.nT);
+    node_poly[p.nF][p.nT] = p.id_local;
+    node_poly[p.nT][p.nF] = p.id_local;
+  }
+
+  int node_lid = 0;
+  for (const auto &n : nodes)
+  {
+    lid_cid[node_lid] = n;
+    cid_lid[n] = node_lid++;
+  }
+}
+//----------------------------------------------------------------------------------------------------
+vector<string> sub_types({"tot"});
+vector<polystat_base> import_poly_stat(const string &filename)
+{
+  ifstream input(filename);
+  if (!input)
+  {
+    cerr << "make subnet error to open input : " << filename << endl;
+    exit(4);
+  }
+
+  string line;
+  vector<polystat_base> polystat;
+  getline(input, line);   // skip header
+  vector<string> tokens;
+  physycom::split(tokens, line, string(";"), physycom::token_compress_off);
+  if (tokens.size() > 6)
+    for (int idx = 6; idx < tokens.size(); ++idx)
+      sub_types.push_back(tokens[idx]);
+  getline(input, line);   // skip first fake poly
+
+  while (getline(input, line))
+  {
+    polystat.emplace_back(line);
+  }
+  make_node_map(polystat);
+  return polystat;
+}
+//----------------------------------------------------------------------------------------------------
+void make_subnet() {
+  string file_fluxes = config_.cartout_basename + "/weights/" + config_.name_pro + ".fluxes";
+
+  auto poly = import_poly_stat(file_fluxes);
+  vector<double> sub_fractions({ 0.1, 0.15, 0.2 });
+
+  std::cout << "**********************************" << std::endl;
+  cout << "Subnet poly parsed : " << poly.size() << endl;
+  cout << "Subnet node parsed : " << nodes.size() << endl;
+
+  map<string, vector<int>> subnets;
+
+  // allocate indices matrix
+  int **ind;
+  ind = new int*[poly.size()];
+  for (int i = 0; i < (int)poly.size(); ++i) ind[i] = new int[2];
+
+  for (const auto &t : sub_types)
+  {
+    for (const auto &f : sub_fractions)
+    {
+      string label = t + "_" + to_string(int(f * 100));
+      cout << "Processing : " << t << " @ " << f << endl;
+      sort(poly.begin(), poly.end(), [t](const polystat_base &p1, const polystat_base &p2) { return p1.flux.at(t) > p2.flux.at(t); });
+      for (int i = 0; i < (int)poly.size(); ++i)
+      {
+        ind[i][0] = cid_lid[poly[i].nF];
+        ind[i][1] = cid_lid[poly[i].nT];
+      }
+
+      auto nodesel = FeatureSelection(ind, (int)poly.size(), int(f * nodes.size()), true, false);
+      for (const auto &p : nodesel.begin()->second) subnets[label].push_back(node_poly[lid_cid[p.first]][lid_cid[p.second]]);
+      sort(subnets[label].begin(), subnets[label].end());
+      cout << "Selected poly : " << subnets[label].size() << endl;
+    }
+    std::cout << "----------------------------------" << std::endl;
+  }
+
+  ofstream out(file_fluxes + ".sub");
+  for (const auto &i : subnets)
+  {
+    out << i.first << "\t";
+    for (const auto &p : i.second) out << p << "\t";
+    out << endl;
+  }
+  out.close();
 }
 //----------------------------------------------------------------------------------------------------

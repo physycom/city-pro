@@ -58,6 +58,9 @@ void config::set_config(jsoncons::json jconf)
   this->num_tm = jconf.has_member("num_tm") ? jconf["num_tm"].as<int>() : 2;
   this->threshold_p = jconf.has_member("threshold_p") ? jconf["threshold_p"].as<double>() : 0.85;
   this->enable_bin_act = jconf.has_member("enable_bin_act") ? jconf["enable_bin_act"].as<bool>() : false;
+  this->enable_fluxes_print = jconf.has_member("enable_fluxes_print") ? jconf["enable_fluxes_print"].as<bool>() : false;
+  this->enable_subnet = jconf.has_member("enable_subnet") ? jconf["enable_subnet"].as<bool>() : false;
+  this->file_subnet = jconf.has_member("file_subnet") ? jconf["file_subnet"].as<std::string>() : "fluxes.sub";
   this->enable_print   = jconf.has_member("enable_print") ? jconf["enable_print"].as<bool>() : false;
 
   vector<string> tokens;

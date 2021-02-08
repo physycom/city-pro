@@ -18,7 +18,6 @@
 #include "form.h"
 #include "record.h"
 #include "draw.h"
-//#include "ale/subnet_gra.h"
 #include "config.h"
 
 Fl_Window       *form;
@@ -31,13 +30,14 @@ Fl_Button       *button_exit, *button_plus, *button_minus;
 Fl_Check_Button *button_data, *button_outofcarto, *button_path, *button_poly, *button_node;
 Fl_Check_Button *button_traj, *button_fluxes, *button_startstop;
 Fl_Check_Button *button_polygons;
-//Fl_Check_Button *button_subnet;
+Fl_Check_Button *button_subnet;
 
 extern list <int> path;
 extern int poly_work;
 extern config config_;
 extern vector<traj_base> traj;
 extern vector<activity_base> activity;
+extern map<string, vector<int>> subnets;
 
 int screen_w = SCREEN_WIDTH, screen_h = SCREEN_HEIGHT;
 int w_est, h_est, space, b_w, b_h;
@@ -54,6 +54,7 @@ bool show_polygons = false;
 double alfa_zoom = ZOOM_START, time_value = 0.0;
 int traj_work = 0;
 int means_work = 0;
+int subnet_work = 0;
 string subnet_select;
 
 //-------------------------------------------------------------------------------------------------
@@ -68,9 +69,9 @@ void set_off()
   button_fluxes->clear();
   button_startstop->clear();
   button_polygons->clear();
+  button_subnet->clear();
   show_data = show_outofcarto = show_path = show_poly = show_node = show_traj = false;
-  show_fluxes = show_polygons = show_startstop = false;
-  //show_subnet = false;
+  show_fluxes = show_polygons = show_startstop = show_subnet = false;
   re_draw = true;
   line2->value("");
 }
@@ -79,12 +80,14 @@ void plus_cb(Fl_Widget*)
 {
   if (show_traj) { traj_work++; if (traj_work >= traj.size())  traj_work = int(traj.size()) - 1; }
   if (show_fluxes || show_startstop) { means_work++; if (means_work >= config_.num_tm+1)  means_work = config_.num_tm; }
+  if (show_subnet) { subnet_work++; if (subnet_work >= subnets.size()) means_work = int(subnets.size()-1); }
   re_draw = true;
 }
 void minus_cb(Fl_Widget*)
 {
   if (show_traj) { traj_work--; if (traj_work < 0)  traj_work = 0; }
   if (show_fluxes || show_startstop) { means_work--; if (means_work < 0)  means_work = 0; }
+  if (show_subnet) { subnet_work--; if (subnet_work < 0)  subnet_work = 0; }
   re_draw = true;
 }
 void exit_cb(Fl_Widget*) { form->hide(); }
@@ -99,6 +102,7 @@ void show_traj_cb(Fl_Widget*) { set_off(); button_traj->set(); show_traj = !show
 void show_fluxes_cb(Fl_Widget*) { set_off(); button_fluxes->set(); show_fluxes = !show_fluxes; }
 void show_startstop_cb(Fl_Widget*) { set_off(); button_startstop->set(); show_startstop = !show_startstop; }
 void show_polygons_cb(Fl_Widget*) { set_off(); button_polygons->set(); show_polygons = !show_polygons; }
+void show_subnet_cb(Fl_Widget*) { set_off(); button_subnet->set(); show_subnet= !show_subnet; }
 //-------------------------------------------------------------------------------------------------
 void make_window(void)
 {
@@ -184,14 +188,20 @@ void make_window(void)
   button_node->callback(show_node_cb);
   if (show_node) button_node->set();
   // ------------  Path -----------------------------------------------------------------
-  button_path = new Fl_Check_Button(4 * space + screen_w + b_w, r_offset_h, b_w, b_h, "Path"); r_offset_h += b_h;
+  button_path = new Fl_Check_Button(4 * space + screen_w + b_w, r_offset_h, b_w, b_h, "Path"); 
+  r_offset_h += b_h;
   button_path->callback(show_path_cb);
   if (show_path) button_path->set();
   // ------------  Poly -----------------------------------------------------------------
-  button_polygons = new Fl_Check_Button(4 * space + screen_w + b_w, r_offset_h, b_w, b_h, "Polygons"); r_offset_h += b_h;
+  button_polygons = new Fl_Check_Button(4 * space + screen_w + b_w, r_offset_h, b_w, b_h, "Polygons");
+  r_offset_h += b_h;
   button_polygons->callback(show_polygons_cb);
   if (show_polygons) button_polygons->set();
-
+  // ------------  Subnet  -----------------------------------------------------------------
+  button_subnet = new Fl_Check_Button(4 * space + screen_w + b_w, r_offset_h, b_w, b_h, "Subnet");
+  r_offset_h += b_h;
+  button_subnet->callback(show_subnet_cb);
+  if (show_subnet) button_subnet->set();
   //-----------------------------------------------------------------------------------
   form->end();
   form->show();

@@ -40,7 +40,7 @@ void data_loss::dump() {
   out_traj.close();
 }
 // PRESENCE //
-presence_base::presence_base(double lat_, double lon_, size_t id_act_, size_t t_start, size_t t_stop, int row_n_rec_) {
+presence_base::presence_base(double lat_, double lon_, long long int id_act_, size_t t_start, size_t t_stop, int row_n_rec_) {
   this->lat = lat_;
   this->lon = lon_;
   this->id_act = id_act_;

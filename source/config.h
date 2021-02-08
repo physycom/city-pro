@@ -46,6 +46,9 @@ struct config {
 
   bool enable_threshold;
   bool enable_bin_act;
+  bool enable_fluxes_print;
+  bool enable_subnet;
+  std::string file_subnet;
   bool enable_print;
 
   config();

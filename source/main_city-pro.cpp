@@ -103,15 +103,18 @@ int main(int argc, char **argv) {
     if(config_.enable_bin_act) 
       bin_activity();
     make_traj();
-    std::cout << "finito traj" << std::endl;
     make_polygons_analysis();
     if (config_.enable_multimodality)
       make_multimodality();
     make_bp_traj();
     
+    if (config_.enable_fluxes_print)
+      dump_fluxes();
 
-    //ElaboraMatricePresenze();
-    //ImportaSubnet("../output/pesi/Rimini.flussi.sub");
+    if (config_.enable_subnet)
+      make_subnet();
+
+    load_subnet();
 
     clock_t end = clock();
     double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;

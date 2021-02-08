@@ -1,5 +1,6 @@
 #pragma once
 #include "record.h"
+#include <physycom/string.hpp>
 
 void sort_activity();
 void bin_activity();
@@ -9,6 +10,8 @@ void make_bp_traj();
 void make_fluxes();
 void make_polygons_analysis();
 void make_multimodality();
+void dump_fluxes();
+void make_subnet();
 //---------------------------------------------------------------------
 
 // SEED //
@@ -32,3 +35,40 @@ struct centers_fcm_base {
   int idx;
 };
 //---------------------------------------------------------------------
+// POLYSTAT //
+struct polystat_base
+{
+  enum
+  {
+    OFFSET_ID = 0,
+    OFFSET_IDLOC = 1,
+    OFFSET_NF = 2,
+    OFFSET_NT = 3,
+    OFFSET_LENGTH = 4,
+    OFFSET_FLUXTOT = 5
+
+  };
+
+  int id, id_local;
+  long long int nF, nT;
+  double length;
+  map<string, int> flux;
+
+  polystat_base() {};
+  polystat_base(const string &line)
+  {
+    vector<string> tokens;
+    physycom::split(tokens, line, string(";"), physycom::token_compress_off);
+    id = stoi(tokens[OFFSET_ID]);
+    id_local = stoi(tokens[OFFSET_IDLOC]);
+    nF = stoll(tokens[OFFSET_NF]);
+    nT = stoll(tokens[OFFSET_NT]);
+    length = stod(tokens[OFFSET_LENGTH]);
+    flux["tot"] = stoi(tokens[OFFSET_FLUXTOT]);
+    if (tokens.size()!=6)
+      for (int idxc = 6; idxc<tokens.size(); idxc++){
+        string name = "class_" + std::to_string(idxc - 6);
+        flux[name] = stoi(tokens[idxc]);
+      }
+  }
+};

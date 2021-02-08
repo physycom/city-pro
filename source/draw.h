@@ -10,6 +10,7 @@ void draw_traj_work();
 void draw_fluxes();
 void draw_startstop();
 void draw_polygons();
+void draw_subnet();
 
 
 void color_palette(const int &i);

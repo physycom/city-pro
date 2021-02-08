@@ -7,7 +7,6 @@
 #include "frame.h"
 #include "gltrans.h"
 #include "carto.h"
-//#include "bestPath.h"
 
 extern bool show_poly, show_node, show_path, re_draw;
 extern Fl_Output *line1;
