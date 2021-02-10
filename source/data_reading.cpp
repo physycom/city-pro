@@ -92,7 +92,7 @@ void load_data()
       exit(1);
     }
     int cnt_row = 0;
-    getline(fp_in, line); // salto l'header
+    getline(fp_in, line); // skip header
     while (fp_in) {
       getline(fp_in, line);
       boost::split(strs, line, boost::is_any_of(";"), boost::token_compress_off);

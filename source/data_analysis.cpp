@@ -73,6 +73,7 @@ void sort_activity() {
     for (auto r = 0; r != a.record.size() - 1; r++) {
       a.length += distance_record(a.record[r], a.record[r + 1]);
     }
+    a.dt = a.record.back().itime - a.record.front().itime;
     a.average_speed = a.length / double(a.dt);
   }
 
@@ -82,6 +83,20 @@ void sort_activity() {
       a.record[i].speed = distance_record(a.record[i], a.record[i - 1]) / (a.record[i].itime - a.record[i - 1].itime);
       if (i >= 2)
         a.record[i].accel = (a.record[i].speed - a.record[i - 1].speed) / (a.record[i].itime - a.record[i - 1].itime);
+    }
+  }
+
+
+  //temporarily added for analysis 
+  if (1==0) {
+    ofstream out_dur(config_.cartout_basename + config_.city_tag + "_duration_pre.csv");
+    ofstream out_deltat(config_.cartout_basename + config_.city_tag + "_deltat_pre.csv");
+    out_dur << "id_act;duration;n_rec" << std::endl;
+    out_deltat << "id_act;deltat" << std::endl;
+    for (auto &a : activity) {
+      out_dur << a.id_act << ";" << a.dt << ";" << a.record.size() << std::endl;
+      for (int s = 1; s < a.record.size(); ++s)
+        out_deltat << a.id_act << ";" << a.record[s].itime - a.record[s - 1].itime << std::endl;
     }
   }
 }
@@ -147,6 +162,19 @@ void make_traj() {
   //  for (auto &sp : t.stop_point)
   //    out_spot << sp.points.front().itime << ";" << sp.points.front().lat << ";" << sp.points.front().lon << std::endl;
 
+  // temporarily added for duration analysis
+  if (1 == 0) {
+    ofstream out_dur(config_.cartout_basename + config_.city_tag + "_duration_post.csv");
+    out_dur << "id_act;duration;n_rec_raw;n_rec_filt" << std::endl;
+    for (auto &t : traj_temp) {
+      out_dur << t.id_act << ";" << t.stop_point.back().points.front().itime- t.stop_point.front().points.front().itime << ";" <<t.row_n_rec<<";"<< t.stop_point.size() << std::endl;
+    }
+  }
+
+  //temporarly added for duration analysis
+  //ofstream out_nogeoref(config_.cartout_basename + config_.city_tag + "_nogeoref.csv");
+  //out_nogeoref << "id_act;itime" << std::endl;
+
   //filter stops on carto geolocalization
   for (auto &t : traj_temp) {
     vector<cluster_base> sp_oncarto;
@@ -155,6 +183,8 @@ void make_traj() {
       if (sp.on_carto && sp.pap.d > config_.min_poly_distance) sp.on_carto = false;
       if (!sp.on_carto) data_notoncarto.push_back(sp);
       if (sp.on_carto) sp_oncarto.push_back(sp);
+      //temporarly added for duration analysis
+      //if (sp.on_carto == false) out_nogeoref << t.id_act << ";" << sp.points.front().itime << std::endl;
     }
     t.stop_point = sp_oncarto;
   }
@@ -986,8 +1016,8 @@ void make_multimodality() {
       for (auto &t : traj)
         if (t.means_class == c) {
           out_classes << t.id_act << ";" << t.length << ";" << t.time << ";" << t.average_speed << ";" << t.v_max << ";" << t.v_min << ";" << t.p_cluster[t.means_class] << ";" << t.stop_point.size() << std::endl;
-          for (auto &sp : t.stop_point)
-            out_classes << sp.inst_speed << ";" << sp.inst_accel << std::endl;
+          //for (auto &sp : t.stop_point)
+          //  out_classes << sp.inst_speed << ";" << sp.inst_accel << std::endl;
         }
       out_classes.close();
     }

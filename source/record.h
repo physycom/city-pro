@@ -19,11 +19,9 @@ struct activity_base {
   bool ok = true;
   long long int id_act;
   int indx, dt;
-  double latm, lonm, var;
   double length;
   double average_speed;
   vector <record_base> record;
-
 };
 
 // PRESENCE //
