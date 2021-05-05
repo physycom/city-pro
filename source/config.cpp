@@ -55,6 +55,7 @@ void config::set_config(jsoncons::json jconf)
   this->threshold_polyunique = jconf.has_member("threshold_polyunique") ? jconf["threshold_polyunique"].as<int>() : 3;
 
   this->enable_multimodality = jconf.has_member("enable_multimodality") ? jconf["enable_multimodality"].as<bool>() : false;
+  this->enable_slow_classification = jconf.has_member("enable_slow_classification") ? jconf["enable_slow_classification"].as<bool>() : false;
   this->num_tm = jconf.has_member("num_tm") ? jconf["num_tm"].as<int>() : 2;
   this->threshold_p = jconf.has_member("threshold_p") ? jconf["threshold_p"].as<double>() : 0.85;
   this->enable_bin_act = jconf.has_member("enable_bin_act") ? jconf["enable_bin_act"].as<bool>() : false;

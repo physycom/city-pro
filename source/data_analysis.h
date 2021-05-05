@@ -33,6 +33,7 @@ struct centers_fcm_base {
   double sigma = 0.0;
   int cnt = 0;
   int idx;
+  std::map < std::string, int> cnt_polygons;
 };
 //---------------------------------------------------------------------
 // POLYSTAT //

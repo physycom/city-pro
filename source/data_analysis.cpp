@@ -66,7 +66,6 @@ void sort_activity() {
       a.record.back().state = 2;
     }
   }
-
   // measure lenght and average speed
   for (auto &a : activity) {
     a.length = 0.0;
@@ -119,7 +118,6 @@ void bin_activity() {
 }
 //----------------------------------------------------------------------------------------------------
 void make_traj() {
-
   vector <traj_base> traj_temp;
   traj_base tw;
   for (auto &a : activity) {
@@ -156,15 +154,15 @@ void make_traj() {
   dataloss.n_data_tot = cnt_tot_data;
   dataloss.n_data_meter = cnt_tot_sp;
 
-  //ofstream out_spot(config_.cartout_basename + "_presence.csv");
-  //out_spot << "time;lat;lon" << std::endl;
+  //ofstream out_spot(config_.cartout_basename + config_.name_pro + "_filtered_data.csv");
+  //out_spot << "id_act;time;lat;lon" << std::endl;
   //for (auto &t : traj_temp)
   //  for (auto &sp : t.stop_point)
-  //    out_spot << sp.points.front().itime << ";" << sp.points.front().lat << ";" << sp.points.front().lon << std::endl;
+  //    out_spot << t.id_act << ";" << sp.points.front().itime << ";" << sp.points.front().lat << ";" << sp.points.front().lon << std::endl;
 
   // temporarily added for duration analysis
   if (1 == 0) {
-    ofstream out_dur(config_.cartout_basename + config_.city_tag + "_duration_post.csv");
+    ofstream out_dur(config_.cartout_basename + config_.name_pro + "_duration_post.csv");
     out_dur << "id_act;duration;n_rec_raw;n_rec_filt" << std::endl;
     for (auto &t : traj_temp) {
       out_dur << t.id_act << ";" << t.stop_point.back().points.front().itime- t.stop_point.front().points.front().itime << ";" <<t.row_n_rec<<";"<< t.stop_point.size() << std::endl;
@@ -172,8 +170,8 @@ void make_traj() {
   }
 
   //temporarly added for duration analysis
-  //ofstream out_nogeoref(config_.cartout_basename + config_.city_tag + "_nogeoref.csv");
-  //out_nogeoref << "id_act;itime" << std::endl;
+  //ofstream out_nogeoref(config_.cartout_basename + config_.name_pro + "_nogeoref.csv");
+  //out_nogeoref << "id_act;lat;lon;time" << std::endl;
 
   //filter stops on carto geolocalization
   for (auto &t : traj_temp) {
@@ -184,12 +182,18 @@ void make_traj() {
       if (!sp.on_carto) data_notoncarto.push_back(sp);
       if (sp.on_carto) sp_oncarto.push_back(sp);
       //temporarly added for duration analysis
-      //if (sp.on_carto == false) out_nogeoref << t.id_act << ";" << sp.points.front().itime << std::endl;
+      //if (sp.on_carto == false) out_nogeoref << t.id_act << ";" << sp.points.front().lat<<";"<<sp.points.front().lon<<";"<<sp.points.front().itime << std::endl;
     }
     t.stop_point = sp_oncarto;
   }
   dataloss.n_data_outcarto = int(data_notoncarto.size());
   std::cout << "Georeferencing filter out carto: " << double(dataloss.n_data_outcarto) / cnt_tot_sp * 100. << "%" << std::endl;
+
+  //temporarly added
+  //ofstream out_nothresh(config_.cartout_basename + config_.name_pro + "_nothresh.csv");
+  //out_nothresh << "lenght;time;av_speed" << std::endl;
+  //
+
 
   // split data in 2 classes: traj (more than 1 point) and presence (1 point)
   for (auto &t : traj_temp) {
@@ -215,6 +219,8 @@ void make_traj() {
           traj.push_back(t);
           dataloss.n_data_threshold += int(t.stop_point.size());
         }
+        //else
+          //out_nothresh << t.length << ";" << t.time << ";" << t.length / t.time << std::endl;
       }
       else
         traj.push_back(t);
@@ -230,11 +236,18 @@ void make_traj() {
   std::cout << "Num Presence:               " << presence.size() << std::endl;
   std::cout << "Num Traj:                   " << traj.size() << std::endl;
 
+
+  //print presence
+  //ofstream out_pres(config_.cartout_basename + config_.name_pro + "_presence.csv");
+  //out_pres << "id_act;timestart;timeend;lat;lon" << std::endl;
+  //for (auto pp : presence)
+  //  out_pres << pp.id_act << ";" << pp.itime_start <<";"<<pp.itime_end<< ";" << pp.lat << ";" << pp.lon << std::endl;
+
   // check
   for (auto &t : traj) {
     for (int n = 0; n < t.stop_point.size() - 1; ++n) {
       double dist = distance_record(t.stop_point[n].centroid, t.stop_point[n + 1].centroid);
-      if (dist < 30.0) {
+      if (dist < config_.min_data_distance) {
         std::cout << "Distance Error, improve the algos!" << std::endl;
         std::cout << "id: " << t.id_act << " dist " << dist << " nrec " << t.record.size() << " nstops:" << t.stop_point.size() << std::endl;
         std::cin.get();
@@ -258,7 +271,7 @@ void make_traj() {
 
   if (config_.enable_print) {
     ofstream out_stats(config_.cartout_basename + config_.name_pro + "_stats.csv");
-    out_stats << "id_act;length;time;av_speed;ndat" << std::endl;
+    out_stats << "id_act;lenght;time;av_speed;ndat" << std::endl;
     for (auto &t : traj) {
       out_stats << t.id_act << ";" << t.length << ";" << t.time << ";" << t.average_speed << ";" << t.stop_point.size() << std::endl;
     }
@@ -501,6 +514,29 @@ void make_fluxes() {
     for (auto &c : centers_fcm) c.sigma = sqrt(c.sigma / poly.size());
 
   }
+
+  // temporary added for direction analysis of rimini fluxes
+  //std::map<std::string, int> fluxes_direttrici;
+  //std::vector<std::string> rimini_direttrici;
+  //rimini_direttrici.push_back("Via_Emilia");
+  //rimini_direttrici.push_back("Via_Marecchiese");
+  //rimini_direttrici.push_back("Via_Consolare_Rimini-San_Marino");
+  //rimini_direttrici.push_back("Via_Flaminia");
+  //rimini_direttrici.push_back("Via_Popilia");
+  //for (auto &rd : rimini_direttrici)
+  //  fluxes_direttrici[rd] = 0;
+  //
+  //double direttrici_total = 0.;
+  //for (auto &p : poly) {
+  //  if (std::find(rimini_direttrici.begin(), rimini_direttrici.end(), p.name) != rimini_direttrici.end()){
+  //    
+  //    fluxes_direttrici[p.name] += (p.n_traj_FT + p.n_traj_TF);
+  //    direttrici_total += (p.n_traj_FT + p.n_traj_TF);
+  //  }
+  //}
+  //std::cout << "total: "<<direttrici_total << std::endl;
+  //for (auto &fd : fluxes_direttrici)
+  //  std::cout << fd.first << "   " << (fd.second/direttrici_total)*100<<" %" << std::endl;
 }
 //----------------------------------------------------------------------------------------------------
 void make_bp_traj() {
@@ -559,6 +595,15 @@ void make_polygons_analysis() {
     int cnt_pg_other = 0;
     int cnt_pg_station = 0;
     int cnt_from = 0;
+    for (auto c : centers_fcm){
+      std::cout << c.idx << std::endl;
+      c.cnt_polygons["center"] = 0;
+      c.cnt_polygons["cities"] = 0;
+      c.cnt_polygons["coast"] = 0;
+      c.cnt_polygons["station"] = 0;
+      c.cnt_polygons["other"] = 0;
+      c.cnt_polygons["from"] = 0;
+    }
 
     int location_type = 3;
     if (config_.polygons_code[0].find("center") == 0) location_type = 1;
@@ -592,24 +637,45 @@ void make_polygons_analysis() {
       if (config_.polygons_code[1] == "0") {
         if (tag_start == location_type || tag_stop == location_type) {
           cnt_from++;
-          if (tag_stop == 0 || tag_start == 0) {
+          if (centers_fcm.size() != 0)
+            if (t.means_class != 10)
+              centers_fcm[t.means_class].cnt_polygons["from"]++;
+
+          if ((tag_start==location_type && tag_stop == 0) ||(tag_stop==location_type && tag_start == 0)) {
             cnt_pg_other++;
+            if (centers_fcm.size() != 0)
+              if (t.means_class!=10)
+                centers_fcm[t.means_class].cnt_polygons["other"]++;
             traj_tmp.push_back(t);
           }
-          else if (tag_stop == 1 || tag_start == 1) {
+          else if ((tag_start == location_type && tag_stop == 1) || (tag_stop == location_type && tag_start == 1)) {
             cnt_pg_center++;
+            if (centers_fcm.size() != 0)
+              if (t.means_class != 10)
+                centers_fcm[t.means_class].cnt_polygons["center"]++;
             traj_tmp.push_back(t);
           }
-          else if (tag_stop == 2 || tag_start == 2) {
+          else if ((tag_start == location_type && tag_stop == 2) || (tag_stop == location_type && tag_start == 2)) {
             cnt_pg_coast++;
+
+            if (centers_fcm.size() != 0)
+              if (t.means_class != 10)
+                centers_fcm[t.means_class].cnt_polygons["coast"]++;
             traj_tmp.push_back(t);
           }
-          else if (tag_stop == 3 || tag_start == 3) {
+          else if ((tag_start == location_type && tag_stop == 3) || (tag_stop == location_type && tag_start == 3)) {
             cnt_pg_cities++;
+
+            if (centers_fcm.size() != 0)
+              if (t.means_class != 10)
+                centers_fcm[t.means_class].cnt_polygons["cities"]++;
             traj_tmp.push_back(t);
           }
-          else if (tag_stop == 4 || tag_start == 4) {
+          else if ((tag_start == location_type && tag_stop == 4) || (tag_stop == location_type && tag_start == 4)) {
             cnt_pg_station++;
+            if (centers_fcm.size() != 0)
+              if (t.means_class != 10)
+                centers_fcm[t.means_class].cnt_polygons["station"]++;
           }
           else {
             std::cout << "tag_stop: " << tag_stop << std::endl;
@@ -621,24 +687,43 @@ void make_polygons_analysis() {
       else if (config_.polygons_code[1] == "1") {
         if (tag_start == location_type) {
           cnt_from++;
+          if (centers_fcm.size() != 0)
+            if (t.means_class != 10)
+              centers_fcm[t.means_class].cnt_polygons["from"]++;
+
           if (tag_stop == 0) {
             cnt_pg_other++;
+            if (centers_fcm.size() != 0)
+              if (t.means_class != 10)
+                centers_fcm[t.means_class].cnt_polygons["other"]++;
             traj_tmp.push_back(t);
           }
           else if (tag_stop == 1) {
             cnt_pg_center++;
+            if (centers_fcm.size() != 0)
+              if (t.means_class != 10)
+                centers_fcm[t.means_class].cnt_polygons["center"]++;
             traj_tmp.push_back(t);
           }
           else if (tag_stop == 2) {
             cnt_pg_coast++;
+            if (centers_fcm.size() != 0)
+              if (t.means_class != 10)
+                centers_fcm[t.means_class].cnt_polygons["coast"]++;
             traj_tmp.push_back(t);
           }
           else if (tag_stop == 3) {
             cnt_pg_cities++;
+            if (centers_fcm.size() != 0)
+              if (t.means_class != 10)
+                centers_fcm[t.means_class].cnt_polygons["cities"]++;
             traj_tmp.push_back(t);
           }
           else if (tag_stop == 4) {
             cnt_pg_station++;
+            if (centers_fcm.size() != 0)
+              if (t.means_class != 10)
+                centers_fcm[t.means_class].cnt_polygons["station"]++;
           }
           else {
             std::cout << "tag_stop: " << tag_stop << std::endl;
@@ -650,24 +735,43 @@ void make_polygons_analysis() {
       else if (config_.polygons_code[1] == "2") {
         if (tag_stop == location_type) {
           cnt_from++;
+          if (centers_fcm.size() != 0)
+            if (t.means_class != 10)
+              centers_fcm[t.means_class].cnt_polygons["from"]++;
+
           if (tag_start == 0) {
             cnt_pg_other++;
+            if (centers_fcm.size() != 0)
+              if (t.means_class != 10)
+                centers_fcm[t.means_class].cnt_polygons["other"]++;
             traj_tmp.push_back(t);
           }
           else if (tag_start == 1) {
             cnt_pg_center++;
+            if (centers_fcm.size() != 0)
+              if (t.means_class != 10)
+                centers_fcm[t.means_class].cnt_polygons["center"]++;
             traj_tmp.push_back(t);
           }
           else if (tag_start == 2) {
             cnt_pg_coast++;
+            if (centers_fcm.size() != 0)
+              if (t.means_class != 10)
+                centers_fcm[t.means_class].cnt_polygons["coast"]++;
             traj_tmp.push_back(t);
           }
           else if (tag_start == 3) {
             cnt_pg_cities++;
+            if (centers_fcm.size() != 0)
+              if (t.means_class != 10)
+                centers_fcm[t.means_class].cnt_polygons["cities"]++;
             traj_tmp.push_back(t);
           }
           else if (tag_start == 4) {
             cnt_pg_station++;
+            if (centers_fcm.size() != 0)
+              if (t.means_class != 10)
+                centers_fcm[t.means_class].cnt_polygons["station"]++;
           }
           else {
             std::cout << "tag start: " << tag_start << std::endl;
@@ -680,12 +784,20 @@ void make_polygons_analysis() {
         std::cin.get();
       }
     }
-    std::cout << "Polygons:    Center Traj   " << (cnt_pg_center / double(cnt_from))*100.0 << "%" << std::endl;
-    std::cout << "Polygons:    Cities Traj   " << (cnt_pg_cities / double(cnt_from)) * 100.0 << "%" << std::endl;
-    std::cout << "Polygons:    Coast Traj    " << (cnt_pg_coast / double(cnt_from)) * 100.0 << "%" << std::endl;
+    std::cout << "Polygons:    Center Traj            " << (cnt_pg_center / double(cnt_from))*100.0 << "%" << std::endl;
+    std::cout << "Polygons:    Cities Traj            " << (cnt_pg_cities / double(cnt_from)) * 100.0 << "%" << std::endl;
+    std::cout << "Polygons:    Coast Traj             " << (cnt_pg_coast / double(cnt_from)) * 100.0 << "%" << std::endl;
     std::cout << "Polygons:    Station Traj  " << (cnt_pg_station / double(cnt_from))*100.0 << "%" << std::endl;
-    std::cout << "Polygons:    Other Traj    " << (cnt_pg_other / double(cnt_from))*100.0 << "%" << std::endl;
-    std::cout << "Num Traj after polygons    " << traj_tmp.size() << std::endl;
+    std::cout << "Polygons:    Other Traj             " << (cnt_pg_other / double(cnt_from))*100.0 << "%" << std::endl;
+    std::cout << "Num Traj after polygons             " << traj_tmp.size() << std::endl;
+    for (auto c : centers_fcm) {
+      std::cout << "----------------------------------" << std::endl;
+      std::cout << "Class "<<c.idx<< ": Polygons:    Center Traj   " << (c.cnt_polygons["center"]/ double(c.cnt_polygons["from"]))*100.0 << "%" << std::endl;
+      std::cout << "Class "<<c.idx<< ": Polygons:    Cities Traj   " << (c.cnt_polygons["cities"] / double(c.cnt_polygons["from"])) * 100.0 << "%" << std::endl;
+      std::cout << "Class "<<c.idx<< ": Polygons:    Coast Traj    " << (c.cnt_polygons["coast"] / double(c.cnt_polygons["from"])) * 100.0 << "%" << std::endl;
+      std::cout << "Class "<<c.idx<< ": Polygons:    Station Traj      " << (c.cnt_polygons["station"] / double(c.cnt_polygons["from"]))*100.0 << "%" << std::endl;
+      std::cout << "Class "<<c.idx<< ": Polygons:    Other Traj    " << (c.cnt_polygons["other"] / double(c.cnt_polygons["from"]))*100.0 << "%" << std::endl;
+    }
   }
   // 3 args [location_start, location_sto, code_number (0 both way, 1 oneway)]
   else if (config_.polygons_code.size() == 3) {
@@ -693,6 +805,12 @@ void make_polygons_analysis() {
     int cnt_start2stop = 0;
     int cnt_from = 0;
     int cnt_pg_other = 0;
+    for (auto c : centers_fcm) {
+      c.cnt_polygons["stop2start"] = 0;
+      c.cnt_polygons["start2stop"] = 0;
+      c.cnt_polygons["other"] = 0;
+      c.cnt_polygons["from"] = 0;
+    }
 
     //initialize start type
     int start_type = 3;
@@ -732,17 +850,30 @@ void make_polygons_analysis() {
       }
       // 0 : both directions
       if (config_.polygons_code[2] == "0") {
-        if ((tag_start == start_type || tag_stop == stop_type) && tag_start != tag_stop) {
+        if ((tag_start == start_type || tag_start == stop_type) && tag_start != tag_stop) {
           cnt_from++;
+          if (centers_fcm.size() != 0)
+            if (t.means_class != 10)
+              centers_fcm[t.means_class].cnt_polygons["from"]++;
+
           if (tag_stop == 0 || tag_start == 0) {
             cnt_pg_other++;
+            if (centers_fcm.size() != 0)
+              if (t.means_class != 10)
+                centers_fcm[t.means_class].cnt_polygons["other"]++;
           }
           else if (tag_start == start_type && tag_stop == stop_type) {
             cnt_start2stop++;
+            if (centers_fcm.size() != 0)
+              if (t.means_class != 10)
+                centers_fcm[t.means_class].cnt_polygons["start2stop"]++;
             traj_tmp.push_back(t);
           }
           else if (tag_stop == start_type && tag_start == stop_type) {
             cnt_stop2start++;
+            if (centers_fcm.size() != 0)
+              if (t.means_class != 10)
+                centers_fcm[t.means_class].cnt_polygons["stop2start"]++;
             traj_tmp.push_back(t);
           }
         }
@@ -751,15 +882,28 @@ void make_polygons_analysis() {
       else if (config_.polygons_code[2] == "1") {
         if ((tag_start == start_type || tag_stop == stop_type) && tag_start != tag_stop) {
           cnt_from++;
+          if (centers_fcm.size() != 0)
+            if (t.means_class != 10)
+              centers_fcm[t.means_class].cnt_polygons["from"]++;
+
           if (tag_stop == 0 || tag_start == 0) {
             cnt_pg_other++;
+            if (centers_fcm.size() != 0)
+              if (t.means_class != 10)
+                centers_fcm[t.means_class].cnt_polygons["other"]++;
           }
           else if (tag_start == start_type && tag_stop == stop_type) {
             cnt_start2stop++;
+            if (centers_fcm.size() != 0)
+              if (t.means_class != 10)
+                centers_fcm[t.means_class].cnt_polygons["start2stop"]++;
             traj_tmp.push_back(t);
           }
           else if (tag_stop == start_type && tag_start == stop_type) {
             cnt_stop2start++;
+            if (centers_fcm.size() != 0)
+              if (t.means_class != 10)
+                centers_fcm[t.means_class].cnt_polygons["stop2start"]++;
           }
         }
       }
@@ -772,6 +916,13 @@ void make_polygons_analysis() {
     std::cout << "Polygons:    Stop-start traj " << (cnt_stop2start / double(cnt_from)) * 100.0 << "%" << std::endl;
     std::cout << "Polygons:    Other Traj      " << (cnt_pg_other / double(cnt_from))*100.0 << "%" << std::endl;
     std::cout << "Num Traj after polygons      " << traj_tmp.size() << std::endl;
+
+    for (auto c : centers_fcm) {
+      std::cout << "----------------------------------" << std::endl;
+      std::cout << "Class " << c.idx << ": Polygons:    Start - stop traj " << (c.cnt_polygons["start2stop"] / double(c.cnt_polygons["from"]))*100.0 << "%" << std::endl;
+      std::cout << "Class " << c.idx << ": Polygons:    Stop-start traj   " << (c.cnt_polygons["stop2start"] / double(c.cnt_polygons["from"])) * 100.0 << "%" << std::endl;
+      std::cout << "Class " << c.idx << ": Polygons:    Other Traj        " << (c.cnt_polygons["other"] / double(c.cnt_polygons["from"]))*100.0 << "%" << std::endl;
+    }
   }
   else {
     std::cout << " Code for polygon analysis missed or wrong!" << std::endl;
@@ -833,6 +984,8 @@ void make_multimodality() {
   for (auto &t : traj) features_data.push_back(float(t.v_max));
   for (auto &t : traj) features_data.push_back(float(t.v_min));
   for (auto &t : traj) features_data.push_back(float(distance_record(t.stop_point.front().points.front(), t.stop_point.back().points.front()) / t.length));
+  //for (auto &t : traj) features_data.push_back(float(t.length));
+  //for (auto &t : traj) features_data.push_back(float(t.time));
 
   std::cout << "**********************************" << std::endl;
   std::cout << "Multimodality num classes:      " << config_.num_tm << std::endl;
@@ -840,6 +993,7 @@ void make_multimodality() {
   int num_tm = config_.num_tm;
   int num_N = int(traj.size());
   int num_feat = 4; //v_average, v_max, v_min, sinuosity
+  //int num_feat = 3; //v_average, v_max, v_min
   double epsilon_fcm = 0.005;
   FCM *fcm;
   fcm = new FCM(2, epsilon_fcm);
@@ -902,6 +1056,7 @@ void make_multimodality() {
   for (auto &t : traj) centers_fcm[t.means_class].cnt++;
   std::cout << "Multimodality traj recognized: " << cnt_recong << std::endl;
 
+  if (config_.enable_slow_classification){
   /////////// SECOND CLASSIFICATION FOR SLOWER CLASS (they will SPLIT in 2 classes)//////////////// 
   int slow_id, medium_id;
   double min_v = 10000.0;
@@ -917,6 +1072,8 @@ void make_multimodality() {
   for (auto &t : traj) if (t.means_class == slow_id) features_data2.push_back(float(t.v_max));
   for (auto &t : traj) if (t.means_class == slow_id) features_data2.push_back(float(t.v_min));
   for (auto &t : traj) if (t.means_class == slow_id) features_data2.push_back(float(distance_record(t.stop_point.front().points.front(), t.stop_point.back().points.front()) / t.length));
+  //for (auto &t : traj) if (t.means_class == slow_id) features_data2.push_back(float(t.length));
+  //for (auto &t : traj) if (t.means_class == slow_id) features_data2.push_back(float(t.time));
 
   std::cout << "**********************************" << std::endl;
 
@@ -924,6 +1081,7 @@ void make_multimodality() {
   int num_N2 = int(centers_fcm[slow_id].cnt);
   std::cout << "Slower Multimodality num classes:      " << num_tm2 << std::endl;
   std::cout << "Slower Multimodality num samples:      " << num_N2 << std::endl;
+  //int num_feat2 = 1; //v_average, v_max, v_min, sinuosity
   int num_feat2 = 4; //v_average, v_max, v_min, sinuosity
   double epsilon_fcm2 = 0.005;
   FCM *fcm2;
@@ -989,7 +1147,8 @@ void make_multimodality() {
   // update centers_fcm: cnt
   for (auto &c : centers_fcm) c.cnt = 0;
   for (auto &t : traj) centers_fcm[t.means_class].cnt++;
-
+  
+  }
 
   // measure validation parameter ( intercluster dist/intracluster dist)
   //double dunn_index = measure_dunn_index();
@@ -1006,18 +1165,21 @@ void make_multimodality() {
     out_fcm_center.close();
 
     ofstream out_fcm(config_.cartout_basename + config_.name_pro + "_fcm.csv");
-    out_fcm << "lenght;time;av_speed;v_max;v_min;cnt;av_accel;a_max;class;p" << std::endl;
+    out_fcm << "id_act;lenght;time;av_speed;v_max;v_min;cnt;av_accel;a_max;class;p" << std::endl;
     for (auto &t : traj)
-      out_fcm << t.length << ";" << t.time << ";" << t.average_speed << ";" << t.v_max << ";" << t.v_min << ";" << t.stop_point.size() << ";" << t.average_accel << ";" << t.a_max << ";" << t.means_class << ";" << t.means_p << std::endl;
+      out_fcm << t.id_act<<";"<<t.length << ";" << t.time << ";" << t.average_speed << ";" << t.v_max << ";" << t.v_min << ";" << t.stop_point.size() << ";" << t.average_accel << ";" << t.a_max << ";" << t.means_class << ";" << t.means_p << std::endl;
     out_fcm.close();
 
     for (auto c = 0; c < centers_fcm.size(); ++c) {
       ofstream out_classes(config_.cartout_basename + config_.name_pro + "_class_" + to_string(c) + ".csv");
+      ofstream out_classes_points(config_.cartout_basename + config_.name_pro + "_class_" + to_string(c) + "points.csv");
+      out_classes << "id_act;lenght;time;speed;v_max;v_min;p_cluster;n_stop_points" << std::endl;
+      out_classes_points << "id_act;lat;lon;time" << std::endl;
       for (auto &t : traj)
         if (t.means_class == c) {
           out_classes << t.id_act << ";" << t.length << ";" << t.time << ";" << t.average_speed << ";" << t.v_max << ";" << t.v_min << ";" << t.p_cluster[t.means_class] << ";" << t.stop_point.size() << std::endl;
-          //for (auto &sp : t.stop_point)
-          //  out_classes << sp.inst_speed << ";" << sp.inst_accel << std::endl;
+          for (auto &sp : t.stop_point)
+            out_classes_points << t.id_act<< ";" << sp.centroid.lat<<";"<<sp.centroid.lon<<";"<<sp.points.front().itime << std::endl;
         }
       out_classes.close();
     }

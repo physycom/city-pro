@@ -100,12 +100,16 @@ int main(int argc, char **argv) {
     load_polygon();
     load_data();
     sort_activity(); 
+
     if(config_.enable_bin_act) 
       bin_activity();
+
     make_traj();
-    make_polygons_analysis();
+
     if (config_.enable_multimodality)
       make_multimodality();
+    
+    make_polygons_analysis();
     make_bp_traj();
     
     if (config_.enable_fluxes_print)

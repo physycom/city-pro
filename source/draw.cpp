@@ -93,6 +93,28 @@ void draw_poly()
   glPushMatrix();
   for (int i = 1; i<int(poly.size()); i++) {
     glColor3d(0.4, 0.4, 0.4);
+    glLineWidth(1);
+    //if (poly[i].name == "Via_Emilia"){
+    //  glColor3d(1.0, 0.0, 0.0);
+    //  glLineWidth(3);
+    //}
+    //if (poly[i].name=="Via_Marecchiese"){
+    //  glColor3d(1.0, 0.0, 0.0);
+    //  glLineWidth(3);
+    //}
+    //if (poly[i].name == "Via_Consolare_Rimini-San_Marino"){
+    //  glColor3d(1.0, 0.0, 0.0);
+    //  glLineWidth(3);
+    //}
+    //if (poly[i].name == "Via_Flaminia"){
+    //  glColor3d(1.0, 0.0, 0.0);
+    //  glLineWidth(3);
+    //}
+    //if (poly[i].name == "Via_Popilia"){
+    //  glColor3d(1.0, 0.0, 0.0);
+    //  glLineWidth(3);
+    //}
+
     glBegin(GL_LINE_STRIP);
     for (int j = 0; j < poly[i].points.size(); j++)
       glVertex3d(poly[i].points[j].lon, poly[i].points[j].lat, 0.05);

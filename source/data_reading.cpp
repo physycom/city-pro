@@ -102,6 +102,12 @@ void load_data()
         rw.itime = stol(strs[3]);
         rw.lat = stod(strs[4]);
         rw.lon = stod(strs[5]);
+        // new version
+        //id_act = stoll(strs[0]);
+        //rw.itime = stol(strs[1]);
+        //rw.lat = stod(strs[2]);
+        //rw.lon = stod(strs[3]);
+
         if ((rw.lat > config_.lat_min && rw.lat < config_.lat_max) && (rw.lon > config_.lon_min && rw.lon < config_.lon_max))
         {
           if ((rw.itime > config_.start_time) && (rw.itime < config_.end_time))
@@ -109,7 +115,7 @@ void load_data()
             rw.t = (double)((rw.itime - config_.start_time) / 3600.);
             int n_day = int(rw.t / 24.0);
             if (config_.slice_time.size() != 0) {
-              if (rw.t <= config_.slice_time[0] + n_day * 24.00 && rw.t > config_.slice_time[1] + n_day * 24.0) {
+              if (rw.t <= config_.slice_time[1] + n_day * 24.00 && rw.t > config_.slice_time[0] + n_day * 24.0) {
                 cnt_in++;
                 activity_collect[id_act].push_back(rw);
               }
@@ -158,6 +164,7 @@ void load_polygon() {
       pw.id = n_polygon;
       if (pw.pro["name"] == "center") pw.tag_type = 1;
       else if (pw.pro["name"].find("coast") == 0) pw.tag_type = 2;
+      //else if (pw.pro["name"].find("BorgoSanGiuliano") == 0) pw.tag_type = 4;
       else if (pw.pro["name"].find("station") == 0) pw.tag_type = 4;
       else pw.tag_type = 3;
       polygon.push_back(pw);

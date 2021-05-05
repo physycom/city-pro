@@ -41,6 +41,7 @@ struct config {
   int    threshold_polyunique;
 
   bool enable_multimodality;
+  bool enable_slow_classification;
   int num_tm;            // number of cluster for multimodality classification
   double threshold_p;    // threshold of p for multimodality classification (0.0-1.0)
 
