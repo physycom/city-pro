@@ -62,10 +62,17 @@ add_library(city-pro_lib            ${CMAKE_SOURCE_DIR}/source/carto.cpp
                                     ${CMAKE_SOURCE_DIR}/source/gltrans.cpp
                                     ${CMAKE_SOURCE_DIR}/source/record.cpp
 									)
+target_link_libraries(city-pro_lib
+  ${OPENGL_glu_LIBRARY}
+  ${OPENGL_gl_LIBRARY}
+  ${OPENGL_LIBRARIES}
+  ${FLTK_LIBRARIES}
+  Threads::Threads
+  ${Boost_LIBRARIES}
+)
 
 add_executable(city-pro             ${CMAKE_SOURCE_DIR}/source/main_city-pro.cpp)
 
-target_link_libraries(city-pro      ${OPENGL_glu_LIBRARY} ${OPENGL_gl_LIBRARY} ${FLTK_LIBRARIES} Threads::Threads ${Boost_LIBRARIES})
 target_link_libraries(city-pro      city-pro_lib)
 
 
