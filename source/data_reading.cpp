@@ -53,7 +53,8 @@ void load_poly()
   if (fp0 == NULL) { cout << "fopen error in " << poly_pro_file << endl; exit(5); }
   if (fscanf(fp0, "%*[^\n]\n")) {}; // skip header
 
-  int frc, n2c, fow, oneway, kmh, lanes; char *name = new char[70];
+  int frc, n2c, fow, oneway, lanes; char *name = new char[70];
+  double kmh;
   unsigned long long int id_poly, cid_Fjnct, cid_Tjnct;
   float meters;
 

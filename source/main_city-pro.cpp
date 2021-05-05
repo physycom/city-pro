@@ -105,7 +105,6 @@ int main(int argc, char **argv) {
       bin_activity();
 
     make_traj();
-
     if (config_.enable_multimodality)
       make_multimodality();
     
