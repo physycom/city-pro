@@ -331,16 +331,16 @@ void draw_traj_work() {
       glPopMatrix();
     }
   }
-  std::cout << traj[i].average_speed << "  " << traj[i].average_inst_speed << "  " << traj[i].v_max << "  " << traj[i].v_min << std::endl;
+  //std::cout << traj[i].average_speed << "  " << traj[i].average_inst_speed << "  " << traj[i].v_max << "  " << traj[i].v_min << std::endl;
   for (auto sp : traj[i].stop_point) {
     glPushMatrix();
     glColor3d(1.0, 0.0, 0.0);
-    std::cout << sp.inst_speed << std::endl;
+    //std::cout << sp.inst_speed << std::endl;
     glTranslated(sp.centroid.lon, sp.centroid.lat, 0.08);
     glCallList(SMALL_SQUARE);
     glPopMatrix();
   }
-  std::cout << "-------------------" << std::endl;
+  //std::cout << "-------------------" << std::endl;
   glColor3d(1.0, 1.0, 1.0);
 
   glDisable(GL_DEPTH_TEST);

@@ -51,6 +51,17 @@ struct cluster_base {
   bool visited = false;
   polyaffpro_base pap;
   void add_point(record_base rec);
+  cluster_base() {};
+  void replace(const cluster_base &other) {
+    centroid = other.centroid;
+    duration = other.duration;
+    heading = other.heading;
+    inst_speed = other.inst_speed;
+    inst_accel = other.inst_accel;
+    on_carto = other.on_carto;
+    visited = other.visited;
+    pap = other.pap;
+  }
 };
 
 heading_base measure_heading(cluster_base c1, cluster_base c0);

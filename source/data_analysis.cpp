@@ -72,7 +72,7 @@ void sort_activity() {
     for (auto r = 0; r != a.record.size() - 1; r++) {
       a.length += distance_record(a.record[r], a.record[r + 1]);
     }
-    a.dt = a.record.back().itime - a.record.front().itime;
+    a.dt = int(a.record.back().itime - a.record.front().itime);
     a.average_speed = a.length / double(a.dt);
   }
 
