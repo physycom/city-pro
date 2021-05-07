@@ -514,7 +514,14 @@ void make_fluxes() {
     for (auto &c : centers_fcm) c.sigma = sqrt(c.sigma / poly.size());
 
   }
-
+  if (config_.enable_fluxes_print)
+  { 
+    ofstream out_fluxes(config_.cartout_basename + config_.name_pro + "_fluxes.csv");
+    out_fluxes<<"cid;lid;ntrajFT;ntrajTF"<<std::endl;
+    for (auto &p : poly){
+      out_fluxes << p.cid_poly <<";"<<p.id<<";"<<p.n_traj_FT<<";"<<p.n_traj_TF<<std::endl;
+    }
+  }
   // temporary added for direction analysis of rimini fluxes
   //std::map<std::string, int> fluxes_direttrici;
   //std::vector<std::string> rimini_direttrici;
