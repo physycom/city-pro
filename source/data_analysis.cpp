@@ -87,17 +87,17 @@ void sort_activity() {
 
 
   //temporarily added for analysis 
-  if (1==0) {
-    ofstream out_dur(config_.cartout_basename + config_.city_tag + "_duration_pre.csv");
-    ofstream out_deltat(config_.cartout_basename + config_.city_tag + "_deltat_pre.csv");
-    out_dur << "id_act;duration;n_rec" << std::endl;
-    out_deltat << "id_act;deltat" << std::endl;
-    for (auto &a : activity) {
-      out_dur << a.id_act << ";" << a.dt << ";" << a.record.size() << std::endl;
-      for (int s = 1; s < a.record.size(); ++s)
-        out_deltat << a.id_act << ";" << a.record[s].itime - a.record[s - 1].itime << std::endl;
-    }
-  }
+  //if (1==1) {
+  //  ofstream out_dur(config_.cartout_basename + config_.city_tag + "_duration_pre.csv");
+  //  ofstream out_deltat(config_.cartout_basename + config_.city_tag + "_deltat_s_pre.csv");
+  //  out_dur << "id_act;duration;n_rec" << std::endl;
+  //  out_deltat << "id_act;deltat;deltas" << std::endl;
+  //  for (auto &a : activity) {
+  //    out_dur << a.id_act << ";" << a.dt << ";" << a.record.size() << std::endl;
+  //    for (int s = 1; s < a.record.size(); ++s)
+  //      out_deltat << a.id_act << ";" << a.record[s].itime - a.record[s - 1].itime <<";"<< distance_record(a.record[s-1], a.record[s]) << std::endl;
+  //  }
+  //}
 }
 //----------------------------------------------------------------------------------------------------
 void bin_activity() {
@@ -513,14 +513,6 @@ void make_fluxes() {
 
     for (auto &c : centers_fcm) c.sigma = sqrt(c.sigma / poly.size());
 
-  }
-  if (config_.enable_fluxes_print)
-  { 
-    ofstream out_fluxes(config_.cartout_basename + config_.name_pro + "_fluxes.csv");
-    out_fluxes<<"cid;lid;ntrajFT;ntrajTF"<<std::endl;
-    for (auto &p : poly){
-      out_fluxes << p.cid_poly <<";"<<p.id<<";"<<p.n_traj_FT<<";"<<p.n_traj_TF<<std::endl;
-    }
   }
   // temporary added for direction analysis of rimini fluxes
   //std::map<std::string, int> fluxes_direttrici;
@@ -1208,9 +1200,9 @@ void dump_fluxes() {
     }
   }
   else {
-    out << "id;id_local;nodeF;nodeT;total_fluxes;length" << endl;
+    out << "id;id_local;nodeF;nodeT;total_fluxes;length;n_traj_FT;n_traj_TF;cid" << endl;
     for (auto &p : poly) {
-      out << p.id << ";" << p.id_local << ";" << p.cid_Fjnct << ";" << p.cid_Tjnct << ";" <<p.length<<";"<< p.n_traj_FT + p.n_traj_TF << std::endl;
+      out << p.id << ";" << p.id_local << ";" << p.cid_Fjnct << ";" << p.cid_Tjnct << ";" <<p.length<<";"<< p.n_traj_FT + p.n_traj_TF <<";"<<p.n_traj_FT<<";"<<p.n_traj_TF<<";"<<p.cid_poly<< std::endl;
     }
   }
   out.close();
