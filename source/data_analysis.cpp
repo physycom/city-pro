@@ -150,6 +150,7 @@ void make_traj() {
     cnt_tot_sp += int(t.stop_point.size());
   }
   std::cout << "Record before filters :  " << cnt_tot_data << std::endl;
+  std::cout << "Record after filters :  " << cnt_tot_sp << std::endl;
   std::cout << "Distance filter       :  " << double(cnt_tot_sp) / cnt_tot_data * 100. << "%" << std::endl;
   dataloss.n_data_tot = cnt_tot_data;
   dataloss.n_data_meter = cnt_tot_sp;
@@ -165,7 +166,7 @@ void make_traj() {
     ofstream out_dur(config_.cartout_basename + config_.name_pro + "_duration_post.csv");
     out_dur << "id_act;duration;n_rec_raw;n_rec_filt" << std::endl;
     for (auto &t : traj_temp) {
-      out_dur << t.id_act << ";" << t.stop_point.back().points.front().itime- t.stop_point.front().points.front().itime << ";" <<t.row_n_rec<<";"<< t.stop_point.size() << std::endl;
+      out_dur << t.id_act << ";" << t.stop_point.back().points.front().itime - t.stop_point.front().points.front().itime << ";" << t.row_n_rec << ";" << t.stop_point.size() << std::endl;
     }
   }
 
@@ -207,6 +208,7 @@ void make_traj() {
     }
     else if (t.stop_point.size() > 1) {
       dataloss.n_traj_tot++;
+      dataloss.n_data_no_single_record += int(t.stop_point.size());
       dataloss.n_data_oncarto += int(t.stop_point.size());
       t.time = int(t.stop_point.back().points.back().itime - t.stop_point.front().points.front().itime);
       t.length = distance_record(t.stop_point.back().points.back(), t.stop_point.front().points.front());
@@ -229,7 +231,8 @@ void make_traj() {
   traj_temp.clear(); traj_temp.shrink_to_fit();
 
   std::cout << "Georeferencing filter on carto : " << double(dataloss.n_data_oncarto) / cnt_tot_sp * 100. << "%" << std::endl;
-  std::cout << "Activiry with single record    : " << double(dataloss.n_data_single_record) / cnt_tot_sp * 100. << "%" << std::endl;
+  std::cout << "Activity with single record    : " << double(dataloss.n_data_single_record) / cnt_tot_sp * 100. << "%" << std::endl;
+  std::cout << "Data of Activity with more than 1 record: " << double(dataloss.n_data_no_single_record) / cnt_tot_sp * 100. << "%" << std::endl;
   std::cout << "Threshold filter:      " << double(dataloss.n_data_threshold) / cnt_tot_sp * 100. << "%" << std::endl;
 
 
@@ -238,10 +241,10 @@ void make_traj() {
 
 
   //print presence
-  //ofstream out_pres(config_.cartout_basename + config_.name_pro + "_presence.csv");
-  //out_pres << "id_act;timestart;timeend;lat;lon" << std::endl;
-  //for (auto pp : presence)
-  //  out_pres << pp.id_act << ";" << pp.itime_start <<";"<<pp.itime_end<< ";" << pp.lat << ";" << pp.lon << std::endl;
+  ofstream out_pres(config_.cartout_basename + config_.name_pro + "_presence.csv");
+  out_pres << "id_act;timestart;timeend;lat;lon" << std::endl;
+  for (auto pp : presence)
+    out_pres << pp.id_act << ";" << pp.itime_start <<";"<<pp.itime_end<< ";" << pp.lat << ";" << pp.lon << std::endl;
 
   // check
   for (auto &t : traj) {
@@ -594,7 +597,7 @@ void make_polygons_analysis() {
     int cnt_pg_other = 0;
     int cnt_pg_station = 0;
     int cnt_from = 0;
-    for (auto c : centers_fcm){
+    for (auto c : centers_fcm) {
       std::cout << c.idx << std::endl;
       c.cnt_polygons["center"] = 0;
       c.cnt_polygons["cities"] = 0;
@@ -640,10 +643,10 @@ void make_polygons_analysis() {
             if (t.means_class != 10)
               centers_fcm[t.means_class].cnt_polygons["from"]++;
 
-          if ((tag_start==location_type && tag_stop == 0) ||(tag_stop==location_type && tag_start == 0)) {
+          if ((tag_start == location_type && tag_stop == 0) || (tag_stop == location_type && tag_start == 0)) {
             cnt_pg_other++;
             if (centers_fcm.size() != 0)
-              if (t.means_class!=10)
+              if (t.means_class != 10)
                 centers_fcm[t.means_class].cnt_polygons["other"]++;
             traj_tmp.push_back(t);
           }
@@ -791,11 +794,11 @@ void make_polygons_analysis() {
     std::cout << "Num Traj after polygons             " << traj_tmp.size() << std::endl;
     for (auto c : centers_fcm) {
       std::cout << "----------------------------------" << std::endl;
-      std::cout << "Class "<<c.idx<< ": Polygons:    Center Traj   " << (c.cnt_polygons["center"]/ double(c.cnt_polygons["from"]))*100.0 << "%" << std::endl;
-      std::cout << "Class "<<c.idx<< ": Polygons:    Cities Traj   " << (c.cnt_polygons["cities"] / double(c.cnt_polygons["from"])) * 100.0 << "%" << std::endl;
-      std::cout << "Class "<<c.idx<< ": Polygons:    Coast Traj    " << (c.cnt_polygons["coast"] / double(c.cnt_polygons["from"])) * 100.0 << "%" << std::endl;
-      std::cout << "Class "<<c.idx<< ": Polygons:    Station Traj      " << (c.cnt_polygons["station"] / double(c.cnt_polygons["from"]))*100.0 << "%" << std::endl;
-      std::cout << "Class "<<c.idx<< ": Polygons:    Other Traj    " << (c.cnt_polygons["other"] / double(c.cnt_polygons["from"]))*100.0 << "%" << std::endl;
+      std::cout << "Class " << c.idx << ": Polygons:    Center Traj   " << (c.cnt_polygons["center"] / double(c.cnt_polygons["from"]))*100.0 << "%" << std::endl;
+      std::cout << "Class " << c.idx << ": Polygons:    Cities Traj   " << (c.cnt_polygons["cities"] / double(c.cnt_polygons["from"])) * 100.0 << "%" << std::endl;
+      std::cout << "Class " << c.idx << ": Polygons:    Coast Traj    " << (c.cnt_polygons["coast"] / double(c.cnt_polygons["from"])) * 100.0 << "%" << std::endl;
+      std::cout << "Class " << c.idx << ": Polygons:    Station Traj      " << (c.cnt_polygons["station"] / double(c.cnt_polygons["from"]))*100.0 << "%" << std::endl;
+      std::cout << "Class " << c.idx << ": Polygons:    Other Traj    " << (c.cnt_polygons["other"] / double(c.cnt_polygons["from"]))*100.0 << "%" << std::endl;
     }
   }
   // 3 args [location_start, location_sto, code_number (0 both way, 1 oneway)]
@@ -979,10 +982,13 @@ void make_multimodality() {
     t.sigma_accel = sqrt(t.sigma_accel);
   }
 
+  for (auto &t : traj)
+    t.sinuosity = distance_record(t.stop_point.front().points.front(), t.stop_point.back().points.front()) / t.length;
+
   for (auto &t : traj) features_data.push_back(float(t.average_speed));
   for (auto &t : traj) features_data.push_back(float(t.v_max));
   for (auto &t : traj) features_data.push_back(float(t.v_min));
-  for (auto &t : traj) features_data.push_back(float(distance_record(t.stop_point.front().points.front(), t.stop_point.back().points.front()) / t.length));
+  for (auto &t : traj) features_data.push_back(float(t.sinuosity));
   //for (auto &t : traj) features_data.push_back(float(t.length));
   //for (auto &t : traj) features_data.push_back(float(t.time));
 
@@ -1053,100 +1059,100 @@ void make_multimodality() {
     traj[n].means_p = max_p;
   }
   for (auto &t : traj) centers_fcm[t.means_class].cnt++;
-  std::cout << "Multimodality traj recognized: " << cnt_recong << std::endl;
+  std::cout << "Multimodality traj recognized: " << cnt_recong << " (" << (double(cnt_recong) / int(traj.size())) * 100 << "%)" << std::endl;
 
-  if (config_.enable_slow_classification){
-  /////////// SECOND CLASSIFICATION FOR SLOWER CLASS (they will SPLIT in 2 classes)//////////////// 
-  int slow_id, medium_id;
-  double min_v = 10000.0;
-  for (auto &c : centers_fcm)
-    if (c.feat_vector[0] < min_v) {
-      slow_id = c.idx;
-      min_v = c.feat_vector[0];
-    }
-  for (auto &c : centers_fcm) if (c.feat_vector[0] > min_v && c.feat_vector[0] < 20.0) medium_id = c.idx;
+  if (config_.enable_slow_classification) {
+    /////////// SECOND CLASSIFICATION FOR SLOWER CLASS (they will SPLIT in 2 classes)//////////////// 
+    int slow_id, medium_id;
+    double min_v = 10000.0;
+    for (auto &c : centers_fcm)
+      if (c.feat_vector[0] < min_v) {
+        slow_id = c.idx;
+        min_v = c.feat_vector[0];
+      }
+    for (auto &c : centers_fcm) if (c.feat_vector[0] > min_v && c.feat_vector[0] < 20.0) medium_id = c.idx;
 
-  vector<float> features_data2;
-  for (auto &t : traj) if (t.means_class == slow_id) features_data2.push_back(float(t.average_speed));
-  for (auto &t : traj) if (t.means_class == slow_id) features_data2.push_back(float(t.v_max));
-  for (auto &t : traj) if (t.means_class == slow_id) features_data2.push_back(float(t.v_min));
-  for (auto &t : traj) if (t.means_class == slow_id) features_data2.push_back(float(distance_record(t.stop_point.front().points.front(), t.stop_point.back().points.front()) / t.length));
-  //for (auto &t : traj) if (t.means_class == slow_id) features_data2.push_back(float(t.length));
-  //for (auto &t : traj) if (t.means_class == slow_id) features_data2.push_back(float(t.time));
+    vector<float> features_data2;
+    for (auto &t : traj) if (t.means_class == slow_id) features_data2.push_back(float(t.average_speed));
+    for (auto &t : traj) if (t.means_class == slow_id) features_data2.push_back(float(t.v_max));
+    for (auto &t : traj) if (t.means_class == slow_id) features_data2.push_back(float(t.v_min));
+    for (auto &t : traj) if (t.means_class == slow_id) features_data2.push_back(float(t.sinuosity));
+    //for (auto &t : traj) if (t.means_class == slow_id) features_data2.push_back(float(t.length));
+    //for (auto &t : traj) if (t.means_class == slow_id) features_data2.push_back(float(t.time));
 
-  std::cout << "**********************************" << std::endl;
+    std::cout << "**********************************" << std::endl;
 
-  int num_tm2 = 2;
-  int num_N2 = int(centers_fcm[slow_id].cnt);
-  std::cout << "Slower Multimodality num classes:      " << num_tm2 << std::endl;
-  std::cout << "Slower Multimodality num samples:      " << num_N2 << std::endl;
-  //int num_feat2 = 1; //v_average, v_max, v_min, sinuosity
-  int num_feat2 = 4; //v_average, v_max, v_min, sinuosity
-  double epsilon_fcm2 = 0.005;
-  FCM *fcm2;
-  fcm2 = new FCM(2, epsilon_fcm2);
-  Map<MatrixXf> data_tr2(features_data2.data(), num_N2, num_feat2);
-  MatrixXf data2 = data_tr2;
-  fcm2->set_data(&data2);
-  fcm2->set_num_clusters(num_tm2);
+    int num_tm2 = 2;
+    int num_N2 = int(centers_fcm[slow_id].cnt);
+    std::cout << "Slower Multimodality num classes:      " << num_tm2 << std::endl;
+    std::cout << "Slower Multimodality num samples:      " << num_N2 << std::endl;
+    //int num_feat2 = 1; //v_average, v_max, v_min, sinuosity
+    int num_feat2 = 4; //v_average, v_max, v_min, sinuosity
+    double epsilon_fcm2 = 0.005;
+    FCM *fcm2;
+    fcm2 = new FCM(2, epsilon_fcm2);
+    Map<MatrixXf> data_tr2(features_data2.data(), num_N2, num_feat2);
+    MatrixXf data2 = data_tr2;
+    fcm2->set_data(&data2);
+    fcm2->set_num_clusters(num_tm2);
 
-  //initialize U[0] randomly
-  random_device rnd_device2;
-  mt19937 mersenne_engine2{ rnd_device2() };  // Generates random integers
-  uniform_real_distribution<float> dist2{ 0.0, 1.0 };
-  auto gen2 = [&dist2, &mersenne_engine2]() {
-    return dist2(mersenne_engine2);
-  };
-  vector<float> vec_rnd2(num_N2*num_tm2);
-  generate(begin(vec_rnd2), end(vec_rnd2), gen2);
-  Map<MatrixXf> membership_temp2(vec_rnd2.data(), num_N2, num_tm2);
-  MatrixXf membership2 = membership_temp2;
-  fcm2->set_membership(&membership2);
-  double diff2 = 1.0;
-  fcm2->compute_centers();
-  fcm2->update_membership();
-  while (diff2 > epsilon_fcm2) {
+    //initialize U[0] randomly
+    random_device rnd_device2;
+    mt19937 mersenne_engine2{ rnd_device2() };  // Generates random integers
+    uniform_real_distribution<float> dist2{ 0.0, 1.0 };
+    auto gen2 = [&dist2, &mersenne_engine2]() {
+      return dist2(mersenne_engine2);
+    };
+    vector<float> vec_rnd2(num_N2*num_tm2);
+    generate(begin(vec_rnd2), end(vec_rnd2), gen2);
+    Map<MatrixXf> membership_temp2(vec_rnd2.data(), num_N2, num_tm2);
+    MatrixXf membership2 = membership_temp2;
+    fcm2->set_membership(&membership2);
+    double diff2 = 1.0;
     fcm2->compute_centers();
-    diff2 = fcm2->update_membership();
-  }
-  vector<centers_fcm_base> centers_fcm_slow;
-  for (int n = 0; n < num_tm2; ++n) {
-    centers_fcm_base cw;
-    cw.idx = n;
-    for (int m = 0; m < num_feat2; ++m)
-      cw.feat_vector.push_back((*(fcm2->get_cluster_center()))(n, m));
-    centers_fcm_slow.push_back(cw);
-  }
-
-  // update results
-  int slow_id2, medium_id2;
-  if (centers_fcm_slow[0].feat_vector[0] < centers_fcm_slow[1].feat_vector[0]) { slow_id2 = 0; medium_id2 = 1; }
-  else { slow_id2 = 1; medium_id2 = 0; }
-  int idx_2fcm = 0;
-  for (int n = 0; n < traj.size(); ++n) {
-    if (traj[n].means_class == slow_id) {
-      traj[n].p_cluster[slow_id] = (*(fcm2->get_membership()))(idx_2fcm, slow_id2);
-      traj[n].p_cluster.push_back((*(fcm2->get_membership()))(idx_2fcm, medium_id2));
-      if ((*(fcm2->get_membership()))(idx_2fcm, slow_id2) > (*(fcm2->get_membership()))(idx_2fcm, medium_id2)) {
-        traj[n].means_class = slow_id;
-        traj[n].means_p = traj[n].p_cluster[slow_id];
-      }
-      else {
-        traj[n].means_class = num_tm;
-        traj[n].means_p = traj[n].p_cluster[num_tm];
-      }
-      idx_2fcm++;
+    fcm2->update_membership();
+    while (diff2 > epsilon_fcm2) {
+      fcm2->compute_centers();
+      diff2 = fcm2->update_membership();
     }
-  }
-  // update centers_fcm: feat vector
-  centers_fcm[slow_id].feat_vector = centers_fcm_slow[slow_id2].feat_vector;
-  centers_fcm.push_back(centers_fcm_slow[medium_id2]);
-  // update centers_fcm: idx
-  centers_fcm[num_tm].idx = num_tm;
-  // update centers_fcm: cnt
-  for (auto &c : centers_fcm) c.cnt = 0;
-  for (auto &t : traj) centers_fcm[t.means_class].cnt++;
-  
+    vector<centers_fcm_base> centers_fcm_slow;
+    for (int n = 0; n < num_tm2; ++n) {
+      centers_fcm_base cw;
+      cw.idx = n;
+      for (int m = 0; m < num_feat2; ++m)
+        cw.feat_vector.push_back((*(fcm2->get_cluster_center()))(n, m));
+      centers_fcm_slow.push_back(cw);
+    }
+
+    // update results
+    int slow_id2, medium_id2;
+    if (centers_fcm_slow[0].feat_vector[0] < centers_fcm_slow[1].feat_vector[0]) { slow_id2 = 0; medium_id2 = 1; }
+    else { slow_id2 = 1; medium_id2 = 0; }
+    int idx_2fcm = 0;
+    for (int n = 0; n < traj.size(); ++n) {
+      if (traj[n].means_class == slow_id) {
+        traj[n].p_cluster[slow_id] = (*(fcm2->get_membership()))(idx_2fcm, slow_id2);
+        traj[n].p_cluster.push_back((*(fcm2->get_membership()))(idx_2fcm, medium_id2));
+        if ((*(fcm2->get_membership()))(idx_2fcm, slow_id2) > (*(fcm2->get_membership()))(idx_2fcm, medium_id2)) {
+          traj[n].means_class = slow_id;
+          traj[n].means_p = traj[n].p_cluster[slow_id];
+        }
+        else {
+          traj[n].means_class = num_tm;
+          traj[n].means_p = traj[n].p_cluster[num_tm];
+        }
+        idx_2fcm++;
+      }
+    }
+    // update centers_fcm: feat vector
+    centers_fcm[slow_id].feat_vector = centers_fcm_slow[slow_id2].feat_vector;
+    centers_fcm.push_back(centers_fcm_slow[medium_id2]);
+    // update centers_fcm: idx
+    centers_fcm[num_tm].idx = num_tm;
+    // update centers_fcm: cnt
+    for (auto &c : centers_fcm) c.cnt = 0;
+    for (auto &t : traj) centers_fcm[t.means_class].cnt++;
+
   }
 
   // measure validation parameter ( intercluster dist/intracluster dist)
@@ -1166,21 +1172,23 @@ void make_multimodality() {
     ofstream out_fcm(config_.cartout_basename + config_.name_pro + "_fcm.csv");
     out_fcm << "id_act;lenght;time;av_speed;v_max;v_min;cnt;av_accel;a_max;class;p" << std::endl;
     for (auto &t : traj)
-      out_fcm << t.id_act<<";"<<t.length << ";" << t.time << ";" << t.average_speed << ";" << t.v_max << ";" << t.v_min << ";" << t.stop_point.size() << ";" << t.average_accel << ";" << t.a_max << ";" << t.means_class << ";" << t.means_p << std::endl;
+      out_fcm << t.id_act << ";" << t.length << ";" << t.time << ";" << t.average_speed << ";" << t.v_max << ";" << t.v_min << ";" << t.stop_point.size() << ";" << t.average_accel << ";" << t.a_max << ";" << t.means_class << ";" << t.means_p << std::endl;
     out_fcm.close();
 
-    for (auto c = 0; c < centers_fcm.size(); ++c) {
-      ofstream out_classes(config_.cartout_basename + config_.name_pro + "_class_" + to_string(c) + ".csv");
-      ofstream out_classes_points(config_.cartout_basename + config_.name_pro + "_class_" + to_string(c) + "points.csv");
-      out_classes << "id_act;lenght;time;speed;v_max;v_min;p_cluster;n_stop_points" << std::endl;
-      out_classes_points << "id_act;lat;lon;time" << std::endl;
-      for (auto &t : traj)
-        if (t.means_class == c) {
-          out_classes << t.id_act << ";" << t.length << ";" << t.time << ";" << t.average_speed << ";" << t.v_max << ";" << t.v_min << ";" << t.p_cluster[t.means_class] << ";" << t.stop_point.size() << std::endl;
-          for (auto &sp : t.stop_point)
-            out_classes_points << t.id_act<< ";" << sp.centroid.lat<<";"<<sp.centroid.lon<<";"<<sp.points.front().itime << std::endl;
-        }
-      out_classes.close();
+    if (1 == 0) {
+      for (auto c = 0; c < centers_fcm.size(); ++c) {
+        ofstream out_classes(config_.cartout_basename + config_.name_pro + "_class_" + to_string(c) + ".csv");
+        ofstream out_classes_points(config_.cartout_basename + config_.name_pro + "_class_" + to_string(c) + "points.csv");
+        out_classes << "id_act;lenght;time;speed;v_max;v_min;p_cluster;n_stop_points" << std::endl;
+        out_classes_points << "id_act;lat;lon;time" << std::endl;
+        for (auto &t : traj)
+          if (t.means_class == c) {
+            out_classes << t.id_act << ";" << t.length << ";" << t.time << ";" << t.average_speed << ";" << t.v_max << ";" << t.v_min << ";" << t.p_cluster[t.means_class] << ";" << t.stop_point.size() << std::endl;
+            for (auto &sp : t.stop_point)
+              out_classes_points << t.id_act << ";" << sp.centroid.lat << ";" << sp.centroid.lon << ";" << sp.points.front().itime << std::endl;
+          }
+        out_classes.close();
+      }
     }
   }
 }
@@ -1192,7 +1200,7 @@ void dump_fluxes() {
     for (auto &c : centers_fcm)
       out << ";" << "class_" + to_string(c.idx);
     out << std::endl;
-    for (auto &p:poly) {
+    for (auto &p : poly) {
       out << p.id << ";" << p.id_local << ";" << p.cid_Fjnct << ";" << p.cid_Tjnct << ";" << p.length << ";" << p.n_traj_FT + p.n_traj_TF;
       for (auto &pc : p.classes_flux)
         out << ";" << pc.second;
@@ -1202,7 +1210,7 @@ void dump_fluxes() {
   else {
     out << "id;id_local;nodeF;nodeT;total_fluxes;length;n_traj_FT;n_traj_TF;cid" << endl;
     for (auto &p : poly) {
-      out << p.id << ";" << p.id_local << ";" << p.cid_Fjnct << ";" << p.cid_Tjnct << ";" <<p.length<<";"<< p.n_traj_FT + p.n_traj_TF <<";"<<p.n_traj_FT<<";"<<p.n_traj_TF<<";"<<p.cid_poly<< std::endl;
+      out << p.id << ";" << p.id_local << ";" << p.cid_Fjnct << ";" << p.cid_Tjnct << ";" << p.length << ";" << p.n_traj_FT + p.n_traj_TF << ";" << p.n_traj_FT << ";" << p.n_traj_TF << ";" << p.cid_poly << std::endl;
     }
   }
   out.close();
@@ -1232,7 +1240,7 @@ void make_node_map(const vector<polystat_base> &poly)
   }
 }
 //----------------------------------------------------------------------------------------------------
-vector<string> sub_types({"tot"});
+vector<string> sub_types({ "tot" });
 vector<polystat_base> import_poly_stat(const string &filename)
 {
   ifstream input(filename);

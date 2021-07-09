@@ -89,6 +89,7 @@ struct traj_base {
   double a_min;
   double sigma_speed;
   double sigma_accel;
+  double sinuosity;
   vector<double> p_cluster;
   int means_class;
   double means_p;
@@ -104,6 +105,7 @@ struct data_loss {
   int n_data_oncarto = 0;
   int n_data_single_record = 0;
   int n_data_threshold = 0;
+  int n_data_no_single_record = 0;
 
   int n_traj_tot = 0;
   int n_traj_poly_thresh = 0;

@@ -245,8 +245,8 @@ double intra_distance(int i) {
       for (int m = 0; m < traj.size(); ++m)
         if (traj[m].means_class == i)
         {
-          vector<double> v1 = { traj[n].average_speed, traj[n].v_max, traj[n].v_min };
-          vector<double> v2 = { traj[m].average_speed, traj[m].v_max, traj[m].v_min };
+          vector<double> v1 = { traj[n].average_speed, traj[n].v_max, traj[n].v_min, traj[n].sinuosity };
+          vector<double> v2 = { traj[m].average_speed, traj[m].v_max, traj[m].v_min, traj[m].sinuosity };
           double dist = d_eu_distance(v1, v2);
           if (max_dist < dist)
             max_dist = dist;
@@ -262,8 +262,8 @@ double inter_distance(int n, int m) {
       for (auto &t2:traj)
         if (t2.means_class == m)
         {
-          vector<double> v1 = { t1.average_speed, t1.v_max, t1.v_min };
-          vector<double> v2 = { t2.average_speed, t2.v_max, t2.v_min };
+          vector<double> v1 = { t1.average_speed, t1.v_max, t1.v_min, t1.sinuosity };
+          vector<double> v2 = { t2.average_speed, t2.v_max, t2.v_min, t2.sinuosity };
           double dist = d_eu_distance(v1, v2);
           if (min_dist > dist)
             min_dist = dist;
@@ -281,6 +281,7 @@ double measure_dunn_index() {
     if (intra_dist_ci > den)
       den = intra_dist_ci;
   }
+  std::cout << "den measured" << std::endl;
 
   for (int n=0; n<centers_fcm.size()-1; ++n)
     for (int m = n + 1; m < centers_fcm.size(); ++m) {
@@ -289,7 +290,7 @@ double measure_dunn_index() {
         num = inter_n_m;
     }
 
-  //std::cout << "num: " << num << " den: " << den << std::endl;
+  std::cout << "num measured " << std::endl;
   return (num/den);
 }
 //-------------------------------------------------------------------

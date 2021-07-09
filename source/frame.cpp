@@ -29,7 +29,8 @@ int node_1, node_2;
 void Frame::draw() {
 
   if (!valid()) {
-    glClearColor(0.0, 0.0, 0.0, 1);                        // Turn the background color black
+    glClearColor(1.0, 1.0, 0.95, 1);                        // Turn the background color black
+    //glClearColor(0.0, 0.0, 0.0, 1);                        // Turn the background color black
     glViewport(0, 0, w(), h());                               // Make our viewport the whole window
     glMatrixMode(GL_PROJECTION);                           // Select The Projection Matrix
     glLoadIdentity();                                      // Reset The Projection Matrix

@@ -103,11 +103,18 @@ void load_data()
         rw.itime = stol(strs[3]);
         rw.lat = stod(strs[4]);
         rw.lon = stod(strs[5]);
+
         // new version
         //id_act = stoll(strs[0]);
         //rw.itime = stol(strs[1]);
         //rw.lat = stod(strs[2]);
         //rw.lon = stod(strs[3]);
+
+        //temp version (you have to fix bologna_post_fix)
+        //id_act = stoll(strs[1]);
+        //rw.itime = stol(strs[2]);
+        //rw.lat = stod(strs[3]);
+        //rw.lon = stod(strs[4]);
 
         if ((rw.lat > config_.lat_min && rw.lat < config_.lat_max) && (rw.lon > config_.lon_min && rw.lon < config_.lon_max))
         {

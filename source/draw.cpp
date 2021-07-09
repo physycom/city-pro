@@ -92,7 +92,8 @@ void draw_poly()
 {
   glPushMatrix();
   for (int i = 1; i<int(poly.size()); i++) {
-    glColor3d(0.4, 0.4, 0.4);
+    glColor3d(0.0, 0.0, 0.0);
+    //glColor3d(0.4, 0.4, 0.4);
     glLineWidth(1);
     //if (poly[i].name == "Via_Emilia"){
     //  glColor3d(1.0, 0.0, 0.0);
@@ -134,6 +135,10 @@ void draw_fluxes()
       else if (fluxes > 2.5 * centers_fcm[means_work].sigma) { glColor3d(1.0, 0.0, 0.0); glLineWidth(4); }
       else if (fluxes > 1.5 * centers_fcm[means_work].sigma) { glColor3d(0.0, 1.0, 0.0); glLineWidth(3); }
       else if (fluxes > 1.0 * centers_fcm[means_work].sigma) { glColor3d(0.0, 0.0, 1.0); glLineWidth(2); }
+      //if (fluxes > 4.5 * centers_fcm[means_work].sigma) { glColor3d(1.0, 1.0, 0.0); glLineWidth(1); }
+      //else if (fluxes > 2.5 * centers_fcm[means_work].sigma) { glColor3d(1.0, 0.0, 0.0); glLineWidth(1); }
+      //else if (fluxes > 1.5 * centers_fcm[means_work].sigma) { glColor3d(0.0, 1.0, 0.0); glLineWidth(1); }
+      //else if (fluxes > 1.0 * centers_fcm[means_work].sigma) { glColor3d(0.0, 0.0, 1.0); glLineWidth(1); }
       else { glColor3d(0.4, 0.4, 0.4); glLineWidth(1); }
       glBegin(GL_LINE_STRIP);
       for (int j = 0; j < poly[i].points.size(); j++)
@@ -146,6 +151,7 @@ void draw_fluxes()
     string s2 = " class idx = " + to_string(means_work) + " center_features: ";
     for (auto &m : centers_fcm[means_work].feat_vector) s2 += to_string(m) + "  ";
     s2 += "cnt: " + to_string(centers_fcm[means_work].cnt);
+    s2 += "sigma: " + to_string(centers_fcm[means_work].sigma);
     line2->value(s2.c_str());
     glEnable(GL_DEPTH_TEST);
 
