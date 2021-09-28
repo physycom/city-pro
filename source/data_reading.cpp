@@ -60,7 +60,7 @@ void load_poly()
 
   int n = 0;
   // front tail VS start end
-  while (fscanf(fp0, " %lld %lld %lld %f %f %d %d %d %d %d %s",
+  while (fscanf(fp0, " %lld %lld %lld %f %f %d %d %d %f %d %s",
     &id_poly, &cid_Fjnct, &cid_Tjnct, &meters, &frc, &n2c, &fow, &oneway, &kmh, &lanes, name) != EOF) {
     n++;
     if (poly[n].cid_poly == id_poly) {
@@ -99,6 +99,7 @@ void load_data()
       boost::split(strs, line, boost::is_any_of(";"), boost::token_compress_off);
       cnt_row++;
       if (strs.size() > 1) {
+        // main version
         id_act = stoll(strs[1]);
         rw.itime = stol(strs[3]);
         rw.lat = stod(strs[4]);
@@ -115,7 +116,6 @@ void load_data()
         //rw.itime = stol(strs[2]);
         //rw.lat = stod(strs[3]);
         //rw.lon = stod(strs[4]);
-
         if ((rw.lat > config_.lat_min && rw.lat < config_.lat_max) && (rw.lon > config_.lon_min && rw.lon < config_.lon_max))
         {
           if ((rw.itime > config_.start_time) && (rw.itime < config_.end_time))

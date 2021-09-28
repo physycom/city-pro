@@ -92,8 +92,8 @@ void draw_poly()
 {
   glPushMatrix();
   for (int i = 1; i<int(poly.size()); i++) {
-    glColor3d(0.0, 0.0, 0.0);
-    //glColor3d(0.4, 0.4, 0.4);
+    //glColor3d(0.0, 0.0, 0.0);
+    glColor3d(0.4, 0.4, 0.4);
     glLineWidth(1);
     //if (poly[i].name == "Via_Emilia"){
     //  glColor3d(1.0, 0.0, 0.0);
@@ -131,14 +131,14 @@ void draw_fluxes()
     glPushMatrix();
     for (int i = 1; i<int(poly.size()); i++) {
       double fluxes = poly[i].classes_flux[means_work];
-      if (fluxes > 4.5 * centers_fcm[means_work].sigma) { glColor3d(1.0, 1.0, 0.0); glLineWidth(5); }
-      else if (fluxes > 2.5 * centers_fcm[means_work].sigma) { glColor3d(1.0, 0.0, 0.0); glLineWidth(4); }
+      //if (fluxes > 4.5 * centers_fcm[means_work].sigma) { glColor3d(1.0, 1.0, 0.0); glLineWidth(5); }
+      //else if (fluxes > 2.5 * centers_fcm[means_work].sigma) { glColor3d(1.0, 0.0, 0.0); glLineWidth(4); }
+      //else if (fluxes > 1.5 * centers_fcm[means_work].sigma) { glColor3d(0.0, 1.0, 0.0); glLineWidth(3); }
+      //else if (fluxes > 1.0 * centers_fcm[means_work].sigma) { glColor3d(0.0, 0.0, 1.0); glLineWidth(2); }
+      if (fluxes > 4.5 * centers_fcm[means_work].sigma) { glColor3d(1.0, 0.95, 0.0); glLineWidth(3); }
+      else if (fluxes > 2.5 * centers_fcm[means_work].sigma) { glColor3d(1.0, 0.0, 0.0); glLineWidth(3); }
       else if (fluxes > 1.5 * centers_fcm[means_work].sigma) { glColor3d(0.0, 1.0, 0.0); glLineWidth(3); }
-      else if (fluxes > 1.0 * centers_fcm[means_work].sigma) { glColor3d(0.0, 0.0, 1.0); glLineWidth(2); }
-      //if (fluxes > 4.5 * centers_fcm[means_work].sigma) { glColor3d(1.0, 1.0, 0.0); glLineWidth(1); }
-      //else if (fluxes > 2.5 * centers_fcm[means_work].sigma) { glColor3d(1.0, 0.0, 0.0); glLineWidth(1); }
-      //else if (fluxes > 1.5 * centers_fcm[means_work].sigma) { glColor3d(0.0, 1.0, 0.0); glLineWidth(1); }
-      //else if (fluxes > 1.0 * centers_fcm[means_work].sigma) { glColor3d(0.0, 0.0, 1.0); glLineWidth(1); }
+      else if (fluxes > 1.0 * centers_fcm[means_work].sigma) { glColor3d(0.0, 0.0, 1.0); glLineWidth(3); }
       else { glColor3d(0.4, 0.4, 0.4); glLineWidth(1); }
       glBegin(GL_LINE_STRIP);
       for (int j = 0; j < poly[i].points.size(); j++)
@@ -157,13 +157,20 @@ void draw_fluxes()
 
   }
   else {
+    //temporary added 
+    //sigma = 3;
+    ///////////
     glPushMatrix();
     for (int i = 1; i<int(poly.size()); i++) {
       double fluxes = poly[i].n_traj_FT + poly[i].n_traj_TF;
-      if (fluxes > 4.5 * sigma) { glColor3d(1.0, 1.0, 0.0); glLineWidth(5); }
-      else if (fluxes > 2.5 * sigma) { glColor3d(1.0, 0.0, 0.0); glLineWidth(4); }
+      //if (fluxes > 4.5 * sigma) { glColor3d(1.0, 1.0, 0.0); glLineWidth(5); }
+      //else if (fluxes > 2.5 * sigma) { glColor3d(1.0, 0.0, 0.0); glLineWidth(4); }
+      //else if (fluxes > 1.5 * sigma) { glColor3d(0.0, 1.0, 0.0); glLineWidth(3); }
+      //else if (fluxes > 0.5 * sigma) { glColor3d(0.0, 0.0, 1.0); glLineWidth(2); }
+      if (fluxes > 4.5 * sigma) { glColor3d(1.0, 0.95, 0.0); glLineWidth(3); }
+      else if (fluxes > 2.5 * sigma) { glColor3d(1.0, 0.0, 0.0); glLineWidth(3); }
       else if (fluxes > 1.5 * sigma) { glColor3d(0.0, 1.0, 0.0); glLineWidth(3); }
-      else if (fluxes > 0.5 * sigma) { glColor3d(0.0, 0.0, 1.0); glLineWidth(2); }
+      else if (fluxes > 0.5 * sigma) { glColor3d(0.0, 0.0, 1.0); glLineWidth(3); }
       else { glColor3d(0.4, 0.4, 0.4); glLineWidth(1); }
       glBegin(GL_LINE_STRIP);
       for (int j = 0; j < poly[i].points.size(); j++)
@@ -326,13 +333,14 @@ void draw_outofcarto() {
 }
 // ********************************************************************************************************
 void draw_traj_work() {
-
-  int i = traj_work; if (i < 0 || i > traj.size() - 1) return;
+  int i = traj_work; 
+  if (i < 0 || i > traj.size() - 1) return;
   for (auto sp : traj[i].stop_point) {
     for (auto &spp : sp.points) {
       glPushMatrix();
       glColor3d(0.0, 1.0, 0.0);
       glTranslated(spp.lon, spp.lat, 0.05);
+      //glCallList(SS_SQUARE);
       glCallList(SMALL_SQUARE);
       glPopMatrix();
     }
@@ -343,6 +351,7 @@ void draw_traj_work() {
     glColor3d(1.0, 0.0, 0.0);
     //std::cout << sp.inst_speed << std::endl;
     glTranslated(sp.centroid.lon, sp.centroid.lat, 0.08);
+    //glCallList(SS_SQUARE);
     glCallList(SMALL_SQUARE);
     glPopMatrix();
   }
@@ -428,7 +437,7 @@ void draw_subnet()
   glColor3d(1.0, 1.0, 1.0);
 
   glDisable(GL_DEPTH_TEST);
-  string s2 = "Subnet: " + subnet_select;
+  string s2 = "Subnet: " + subnet_select + "  " + std::to_string(int(measure_representativity(subnet_select) * 100)) + "% mobility";;
   line2->value(s2.c_str());
   glEnable(GL_DEPTH_TEST);
 

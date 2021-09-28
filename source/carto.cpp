@@ -350,7 +350,8 @@ bool find_polyaff(double lon, double lat, polyaffpro_base &pap) {
   int n_near = int(A[j][i].arc_id.size());
   if (n_near < 1) return false;
 
-  map<int, arcaffpro_base> poly_aap; arcaffpro_base aapw;
+  map<int, arcaffpro_base> poly_aap; 
+  arcaffpro_base aapw;
   for (auto &n : A[j][i].arc_id) {
     if (arc[n].measure_affinity(lon, lat, aapw)) poly_aap[arc[n].id_poly].add(aapw);
   }
@@ -455,6 +456,42 @@ void make_node()
     poly[i].node_T = cid2id[poly[i].cid_Tjnct];
   }
   cid2id.clear();
+}
+//----------------------------------------------------------------------------------------------------
+void dump_poly_geojson(const std::string &basename)
+{
+  jsoncons::ojson geojson;
+  jsoncons::ojson features = jsoncons::ojson::array();
+  geojson["type"] = "FeatureCollection";
+
+  for (const auto &p : poly)
+  {
+    jsoncons::ojson feature;
+    jsoncons::ojson coordinates = jsoncons::ojson::parse("[]");
+    for (const auto &pt : p.points)
+      coordinates.push_back(jsoncons::ojson::parse("[" + std::to_string(pt.lon) + "," + std::to_string(pt.lat) + "]"));
+    jsoncons::ojson geometry;
+    geometry["coordinates"] = coordinates;
+    geometry["type"] = "LineString";
+    jsoncons::ojson properties;
+    properties["poly_lid"] = p.id_local;
+    properties["poly_cid"] = p.cid_poly;
+    properties["poly_length"] = p.length;
+    properties["poly_nF"] = p.node_F;
+    properties["poly_nT"] = p.node_T;
+    feature["type"] = "Feature";
+    feature["properties"] = properties;
+    feature["geometry"] = geometry;
+    features.push_back(feature);
+  }
+  geojson["features"] = features;
+
+  std::ofstream outgeoj(basename + ".geojson");
+  if (!outgeoj)
+    throw std::runtime_error("Unable to create file : " + basename + ".geojson");
+  //outgeoj << jsoncons::pretty_print(geojson);
+  outgeoj << geojson;
+  outgeoj.close();
 }
 //----------------------------------------------------------------------------------------------------
 FILE *my_fopen(char *fname, char *mode)

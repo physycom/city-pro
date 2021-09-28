@@ -114,8 +114,13 @@ int main(int argc, char **argv) {
     if (config_.enable_fluxes_print)
       dump_fluxes();
 
+    if (config_.enable_MFD)
+      make_MFD(jconf);
+
     if (config_.enable_subnet)
       make_subnet();
+    
+    dump_poly_geojson("city-pro-carto");
 
     load_subnet();
 

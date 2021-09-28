@@ -255,6 +255,7 @@ int main(int argc, char** argv)
 #else
   for (const auto &t : sub_types)
   {
+    std::cout << t << std::endl;
     for (const auto &f : sub_fractions)
     {
       string label = t + "_" + to_string(int(f * 100));

@@ -74,7 +74,6 @@ void traj_base::add_cluster(cluster_base &C, int n) {
     bool find_cor = false;
     for (auto &sp : stop_point) { // fai questo loop al contrario per ottimizzare (più probabile alla fine)
       if (distance_record(sp.centroid, record[n]) <= config_.min_data_distance) {
-
         double inst_speed_rec = distance_record(record[n], record[n - 1]) / (record[n].itime - record[n - 1].itime);
         if (inst_speed_rec < config_.max_inst_speed) {
           sp.add_point(record[n]);

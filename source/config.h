@@ -45,12 +45,15 @@ struct config {
   int num_tm;            // number of cluster for multimodality classification
   double threshold_p;    // threshold of p for multimodality classification (0.0-1.0)
 
+  int dump_dt;           //dt in which measure and dump fluxes on poly (minutes, max 1440 (day))  
+
   bool enable_threshold;
   bool enable_bin_act;
   bool enable_fluxes_print;
   bool enable_subnet;
   std::string file_subnet;
   bool enable_print;
+  bool enable_MFD;
 
   config();
   void set_config(jsoncons::json _jconf);

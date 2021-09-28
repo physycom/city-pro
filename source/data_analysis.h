@@ -12,6 +12,8 @@ void make_polygons_analysis();
 void make_multimodality();
 void dump_fluxes();
 void make_subnet();
+void make_MFD(jsoncons::json jconf);
+double measure_representativity(const string &label);
 //---------------------------------------------------------------------
 
 // SEED //

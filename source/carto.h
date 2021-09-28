@@ -57,6 +57,7 @@ struct poly_base {
   bool             visible = false;
   bool             path_visible = false;
   int              n_traj_TF, n_traj_FT;
+  std::vector<std::pair<int, int>> timed_fluxes;
 
   void set(int id_, unsigned long long int cid_, vector <point_base> punto_);
   void set(unsigned long long int cid_Fjnct_, unsigned long long int cid_Tjnct_, float meters_, int oneway_, string name_);
@@ -135,7 +136,7 @@ struct polygon_base {
 
 // METHODS
 void set_geometry();
-//----------------------------------------------------------------------------
 void make_node();
+void dump_poly_geojson(const std::string &basename);
 //----------------------------------------------------------------------------
 FILE *my_fopen(char *fname, char *mode);

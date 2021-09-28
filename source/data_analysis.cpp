@@ -7,6 +7,7 @@
 #include "config.h"
 #include "utils/physycom/histo.hpp"
 #include <boost/algorithm/string.hpp>
+#include <physycom/time.hpp>
 #include <Eigen/Dense>
 #include "fcm.cpp"
 #include <random>
@@ -24,7 +25,7 @@ extern vector <polygon_base> polygon;
 extern vector <activity_base> activity;
 extern vector<node_base> node;
 extern vector<centers_fcm_base> centers_fcm;
-//extern map<string, vector<int>> subnets;
+extern map<string, vector<int>> subnets;
 extern config config_;
 vector <traj_base> traj;
 vector <presence_base> presence;
@@ -98,6 +99,14 @@ void sort_activity() {
   //      out_deltat << a.id_act << ";" << a.record[s].itime - a.record[s - 1].itime <<";"<< distance_record(a.record[s-1], a.record[s]) << std::endl;
   //  }
   //}
+
+  if (0 == 1) {
+    ofstream out_activity(config_.cartout_basename + config_.name_pro + "_activity_startstop.csv");
+    out_activity << "id;timestart;timestop" << std::endl;
+    for (auto &a : activity)
+      out_activity << a.id_act << ";" << a.record.front().itime << ";" << a.record.back().itime << std::endl;
+    out_activity.close();
+  }
 }
 //----------------------------------------------------------------------------------------------------
 void bin_activity() {
@@ -211,10 +220,12 @@ void make_traj() {
       dataloss.n_data_no_single_record += int(t.stop_point.size());
       dataloss.n_data_oncarto += int(t.stop_point.size());
       t.time = int(t.stop_point.back().points.back().itime - t.stop_point.front().points.front().itime);
-      t.length = distance_record(t.stop_point.back().points.back(), t.stop_point.front().points.front());
-      //for (int sp = 0; sp < t.stop_point.size() - 1; ++sp){
-      //  t.stop_point[sp].heading = measure_heading(t.stop_point[sp + 1], t.stop_point[sp]);
-      //}
+      //t.length = distance_record(t.stop_point.back().points.back(), t.stop_point.front().points.front());
+      t.length = 0;
+      for (int sp = 0; sp < t.stop_point.size() - 1; ++sp) {
+        // t.stop_point[sp].heading = measure_heading(t.stop_point[sp + 1], t.stop_point[sp]);
+        t.length += distance_record(t.stop_point[sp].points.front(), t.stop_point[sp + 1].points.front());
+      }
       //t.stop_point.back().heading = t.stop_point[t.stop_point.size() - 2].heading;
       if (config_.enable_threshold) {
         if (t.stop_point.size() > config_.threshold_n && t.time <= config_.threshold_t && (t.length / t.time) < config_.threshold_v) {
@@ -244,7 +255,7 @@ void make_traj() {
   ofstream out_pres(config_.cartout_basename + config_.name_pro + "_presence.csv");
   out_pres << "id_act;timestart;timeend;lat;lon" << std::endl;
   for (auto pp : presence)
-    out_pres << pp.id_act << ";" << pp.itime_start <<";"<<pp.itime_end<< ";" << pp.lat << ";" << pp.lon << std::endl;
+    out_pres << pp.id_act << ";" << pp.itime_start << ";" << pp.itime_end << ";" << pp.lat << ";" << pp.lon << std::endl;
 
   // check
   for (auto &t : traj) {
@@ -280,7 +291,6 @@ void make_traj() {
     }
     out_stats.close();
   }
-
 }
 //-------------------------------------------------------------------------------------------------
 // SEED //
@@ -309,10 +319,34 @@ bool best_poly(cluster_base &d1, cluster_base &d2) {
   list <pair<int, double>> poly_crossed;
 
   if (ipoly1 == ipoly2) {
-    if (poly_crossed.size() > 0 && d1.pap.path.size() > 0) {
-      if (poly_crossed.front() == d1.pap.path.back())
-        poly_crossed.pop_front();
+    if (d1.pap.path.size() > 0) {
+      if (poly_crossed.size() > 0) {
+        if (poly_crossed.front() == d1.pap.path.back())
+          poly_crossed.pop_front();
+      }
+      //else {
+      //  bool oneway;
+      //  if (s2 >= s1)
+      //    oneway = true;
+      //  else
+      //    oneway = false;
+      //  if ((d1.pap.path.back().first > 0 && !oneway) | (d1.pap.path.back().first < 0 && oneway)) {
+      //    int poly_sign = -d1.pap.path.back().first;
+      //    double time_val = d1.pap.path.back().second + d2.points.front().t;
+      //    d1.pap.path.push_back(make_pair(poly_sign, time_val));
+      //  }
+      //}
     }
+    else if (d1.pap.path.size() == 0 ) {
+      int poly_way;
+      double time = d1.points.front().t;
+      if (s2 >= s1)
+        poly_way = ipoly1;
+      else
+        poly_way = -ipoly1;
+      d1.pap.path.push_back(std::make_pair(poly_way, time));
+    }
+
 
     d2.pap.path = d1.pap.path;
     d2.pap.path.splice(d2.pap.path.end(), poly_crossed);
@@ -424,7 +458,7 @@ bool best_poly(cluster_base &d1, cluster_base &d2) {
       heap.push(node_v);
     }
   }
-
+      
   // reconstruction of path
   int n;
   double delta_t = d2.points.front().t - d1.points.front().t;
@@ -438,6 +472,7 @@ bool best_poly(cluster_base &d1, cluster_base &d2) {
 
   dist_2F += s2;
   dist_2T += p2l - s2;
+
   pair<int, double> pw;
   if (dist_2F < dist_2T) {
     n = n2F;
@@ -452,19 +487,28 @@ bool best_poly(cluster_base &d1, cluster_base &d2) {
     pw.second = d1.points.front().t + delta_t * (list_node_pro[index[n2T]].distance) / distance;
   }
   poly_crossed.push_front(pw);
-
+  int i_poly_first = list_node_pro[index[n]].link_bv;
   n = list_node_pro[index[n]].node_bv;
   i_poly = list_node_pro[index[n]].link_bv;
   double ss0 = 0;
+  if (i_poly == 0 && i_poly_first != 0) { 
+    pw.first = i_poly_first;
+    if (i_poly_first > 0)
+      pw.second = d1.points.front().t;//manca quel piccolo passo sulla poly nel t
+    else
+      pw.second = d1.points.front().t; //manca quel piccolo passo sulla poly nel t
+    poly_crossed.push_front(pw); 
+  }
   while (i_poly != 0) {
     pw.first = i_poly;
-    if (distance >= 1.e-4) pw.second = d1.points.front().t + delta_t * (list_node_pro[index[n]].distance / distance);
+    if (distance >= 1.e-4) pw.second = d1.points.front().t + delta_t * (list_node_pro[index[n]].distance / distance);//il senso di questo distance? dovrebbe essere la delta L
     else 	        	       pw.second = d1.points.front().t;
     poly_crossed.push_front(pw);
     ss0 = list_node_pro[index[n]].distance;
     n = list_node_pro[index[n]].node_bv;
     i_poly = list_node_pro[index[n]].link_bv;
   }
+  
   poly_crossed.front().second = d1.points.front().t;
 
   double ss1 = 0;
@@ -483,12 +527,31 @@ bool best_poly(cluster_base &d1, cluster_base &d2) {
 }
 //----------------------------------------------------------------------------------------------------
 void make_fluxes() {
+
+  /////// timed fluxes initalization
+  std::vector<std::pair<int, int>> poly_timetable;
+  int num_bin = int((config_.end_time - config_.start_time) / (config_.dump_dt * 60));
+  for (int i = 0; i < num_bin; ++i) {
+    poly_timetable.push_back(make_pair(0, 0));
+  }
+  for (auto &p : poly) p.timed_fluxes = poly_timetable;
+  //fill container
   for (auto t : traj) {
     for (auto j : t.path) {
-      if (j.first > 0) poly[j.first].n_traj_FT++;
-      else             poly[-j.first].n_traj_TF++;
+      //std::cout << "j.second: " << j.second <<"  "<<j.first<< std::endl;
+      int bin_w = int(int(j.second * 3600) / (config_.dump_dt * 60));
+      //std::cout << "bin_w: " << bin_w << std::endl;
+      if (j.first > 0) {
+        poly[j.first].n_traj_FT++;
+        poly[j.first].timed_fluxes[bin_w].first++;
+      }
+      else {
+        poly[-j.first].n_traj_TF++;
+        poly[-j.first].timed_fluxes[bin_w].second++;
+      }
     }
   }
+
   //measure sigma for standardize color in draw fluxes 
   for (auto &p : poly)
     sigma += (p.n_traj_FT + p.n_traj_TF)*(p.n_traj_FT + p.n_traj_TF);
@@ -553,11 +616,18 @@ void make_bp_traj() {
 
     n.stop_point[0].pap.clear();
     for (int k = 0; k < n.stop_point.size() - 1; ++k) {
+      //if (n.id_act == 13181)
+      //    std::cout << n.stop_point[k].pap.id_poly<<"  "<< n.stop_point[k+1].pap.id_poly <<"   "<< n.stop_point[k].pap.s << "   " << n.stop_point[k+1].pap.s << std::endl;
       best_poly(n.stop_point[k], n.stop_point[k + 1]);
       cnt_bestpoly++;
     }
     n.path = n.stop_point.back().pap.path;
     n.stop_point.back().pap.path.clear();
+    //if (n.id_act == 13181){
+    //  for (auto &m : n.path)
+    //    std::cout << m.first << std::endl;
+    //  std::cin.get();
+    //}
   }
 
   // count number of poly crossed and delete activity on the same polys
@@ -1189,31 +1259,121 @@ void make_multimodality() {
           }
         out_classes.close();
       }
+
+
     }
+  }
+  if (0 == 1) {
+    ofstream out_activity(config_.cartout_basename + config_.name_pro + "_activity.csv");
+    out_activity << "id_act;lat;lon;timestamp;class" << std::endl;
+    for (auto &t : traj) {
+      for (auto &p : t.stop_point) {
+        out_activity << t.id_act << ";" << p.centroid.lat << ";" << p.centroid.lon << ";" << p.points.front().itime << ";" << t.means_class << std::endl;
+      }
+    }
+    out_activity.close();
   }
 }
 //----------------------------------------------------------------------------------------------------
 void dump_fluxes() {
   ofstream out(config_.cartout_basename + "/weights/" + config_.name_pro + ".fluxes");
+  ofstream out_timed(config_.cartout_basename + "/" + config_.name_pro + "_timed_fluxes.csv");
   if (config_.enable_multimodality) {
     out << "id;id_local;nodeF;nodeT;lenght;total_fluxes";
     for (auto &c : centers_fcm)
       out << ";" << "class_" + to_string(c.idx);
-    out << std::endl;
+    out <<std::endl;
     for (auto &p : poly) {
       out << p.id << ";" << p.id_local << ";" << p.cid_Fjnct << ";" << p.cid_Tjnct << ";" << p.length << ";" << p.n_traj_FT + p.n_traj_TF;
       for (auto &pc : p.classes_flux)
-        out << ";" << pc.second;
+        if (pc.first!=10)
+          out << ";" << pc.second;
       out << std::endl;
     }
   }
   else {
-    out << "id;id_local;nodeF;nodeT;total_fluxes;length;n_traj_FT;n_traj_TF;cid" << endl;
+    out << "id;id_local;nodeF;nodeT;length;total_fluxes;n_traj_FT;n_traj_TF;cid" << endl;
+    out_timed << "time;id;id_local;nodeF;nodeT;length;total_fluxes;n_traj_FT;n_traj_TF;cid" << endl;
     for (auto &p : poly) {
       out << p.id << ";" << p.id_local << ";" << p.cid_Fjnct << ";" << p.cid_Tjnct << ";" << p.length << ";" << p.n_traj_FT + p.n_traj_TF << ";" << p.n_traj_FT << ";" << p.n_traj_TF << ";" << p.cid_poly << std::endl;
+      for (int n = 0; n < p.timed_fluxes.size(); ++n)
+      {
+        string datetime = physycom::unix_to_date(size_t(n * config_.dump_dt * 60 + config_.start_time));
+        out_timed << datetime << ";" << p.id << ";" << p.id_local << ";" << p.cid_Fjnct << ";" << p.cid_Tjnct << ";" << p.length << ";" << p.timed_fluxes[n].first + p.timed_fluxes[n].second << ";" << p.timed_fluxes[n].first << ";" << p.timed_fluxes[n].second << ";" << p.cid_poly << std::endl;
+      }
     }
   }
   out.close();
+  if (0 == 1) {
+    ofstream out_crossed(config_.cartout_basename + "/" + config_.name_pro + "_crossed_poly.csv");
+    out_crossed << "id_car;cid_poly;onaway" << std::endl;
+    for (auto &t : traj) {
+      for (auto &c : t.path) {
+        if (c.first < 0)
+          out_crossed << t.id_act << ";" << poly[-c.first].cid_poly << ";" << "TF" << std::endl;
+        else
+          out_crossed << t.id_act << ";" << poly[c.first].cid_poly << ";" << "FT" << std::endl;
+      }
+    }
+    out_crossed.close();
+  }
+}
+//----------------------------------------------------------------------------------------------------
+void make_MFD(jsoncons::json jconf) {
+  std::cout << "Make MFD" << std::endl;
+  double lat_max_MFD = jconf.has_member("lat_max_MFD") ? jconf["lat_max_MFD"].as<double>() : 44.08189;
+  double lat_min_MFD = jconf.has_member("lat_min_MFD") ? jconf["lat_min_MFD"].as<double>() : 44.04698;
+  double lon_max_MFD = jconf.has_member("lon_max_MFD") ? jconf["lon_max_MFD"].as<double>() : 12.55489;
+  double lon_min_MFD = jconf.has_member("lon_min_MFD") ? jconf["lon_min_MFD"].as<double>() : 12.61257;
+
+  //initialize MFD_collector
+  std::map<int, std::map<int, std::vector<std::pair<double, int>>>> MFD_collection;
+  int slice_time = 1800;
+  std::cout << config_.start_time << "  " << config_.end_time << std::endl;
+  for (auto &c : centers_fcm)
+    for (int tt = config_.start_time; tt < config_.end_time; tt += slice_time) {
+      int time_idx = int((tt - config_.start_time) / slice_time);
+      std::vector<std::pair<double, int>> vec_temp;
+      MFD_collection[c.idx][time_idx] = vec_temp;
+    }
+
+  ofstream out_mfd(config_.cartout_basename + config_.name_pro + "_mfd.csv");
+  out_mfd << "class;time_idx;L_total;T_total;density;speed_av" << std::endl;
+
+  for (const auto &t : traj) {
+    traj_base tw;
+    tw.means_class = t.means_class;
+    // space filter
+    for (const auto &n : t.stop_point) {
+      if (n.centroid.lat > lat_min_MFD && n.centroid.lat < lat_max_MFD && n.centroid.lon > lon_min_MFD && n.centroid.lon < lon_max_MFD) {
+        record_base rec;
+        rec.lat = n.centroid.lat;
+        rec.lon = n.centroid.lon;
+        rec.itime = n.points.front().itime;
+        tw.record.push_back(rec);
+      }
+    }
+    if (tw.record.size() != 0) {
+      double T = double(tw.record.back().itime - tw.record.front().itime);
+      double L = 0.0;
+      for (int r = 0; r < tw.record.size() - 1; ++r)
+        L += distance_record(tw.record[r + 1], tw.record[r]);
+      int time_idx = int((tw.record.front().itime - config_.start_time) / slice_time);
+      MFD_collection[tw.means_class][time_idx].push_back(make_pair(L, T));
+    }
+  }
+
+  for (auto &idx : MFD_collection)
+    for (auto &t_idx : idx.second) {
+      int density = t_idx.second.size();
+      double L_total = 0.0;
+      double T_total = 0;
+      for (auto &i : t_idx.second) {
+        L_total += i.first;
+        T_total += i.second;
+      }
+      out_mfd << idx.first << ";" << t_idx.first << ";" << L_total << ";" << T_total << ";" << density << ";" << centers_fcm[idx.first].feat_vector[0] << std::endl;
+    }
 }
 //----------------------------------------------------------------------------------------------------
 //------------------------- POLYSTAT -----------------------------------------------------------------
@@ -1272,7 +1432,8 @@ void make_subnet() {
   string file_fluxes = config_.cartout_basename + "/weights/" + config_.name_pro + ".fluxes";
 
   auto poly = import_poly_stat(file_fluxes);
-  vector<double> sub_fractions({ 0.1, 0.15, 0.2 });
+  //vector<double> sub_fractions({ 0.1, 0.15, 0.2 });
+  vector<double> sub_fractions({0.6, 0.7, 0.8});
 
   std::cout << "**********************************" << std::endl;
   cout << "Subnet poly parsed : " << poly.size() << endl;
@@ -1287,25 +1448,42 @@ void make_subnet() {
 
   for (const auto &t : sub_types)
   {
+    int total_crossings = 0;
+    for (const auto &n : poly)
+      total_crossings += n.flux.at(t)*n.length;
+    std::cout << "Total crossings per meters: " << total_crossings << std::endl;
     for (const auto &f : sub_fractions)
     {
       string label = t + "_" + to_string(int(f * 100));
       cout << "Processing : " << t << " @ " << f << endl;
       sort(poly.begin(), poly.end(), [t](const polystat_base &p1, const polystat_base &p2) { return p1.flux.at(t) > p2.flux.at(t); });
+      std::set<int> num_nodes;
+      double cumulative = 0.0;
+      for (const auto &p : poly){
+        cumulative += p.flux.at(t)*p.length;
+        if ((cumulative / total_crossings) < f){
+          num_nodes.insert(p.nF);
+          num_nodes.insert(p.nT);
+        }
+        else 
+          break;
+      }
       for (int i = 0; i < (int)poly.size(); ++i)
       {
         ind[i][0] = cid_lid[poly[i].nF];
         ind[i][1] = cid_lid[poly[i].nT];
       }
-
-      auto nodesel = FeatureSelection(ind, (int)poly.size(), int(f * nodes.size()), true, false);
+      std::cout << "num nodes " << num_nodes.size() << std::endl;
+      std::cout << "num nodes old " << int(f * nodes.size()) << std::endl;
+      
+      auto nodesel = FeatureSelection(ind, (int)poly.size(), int(num_nodes.size()), true, false);
+      //auto nodesel = FeatureSelection(ind, (int)poly.size(), int(f * nodes.size()), true, false);
       for (const auto &p : nodesel.begin()->second) subnets[label].push_back(node_poly[lid_cid[p.first]][lid_cid[p.second]]);
       sort(subnets[label].begin(), subnets[label].end());
       cout << "Selected poly : " << subnets[label].size() << endl;
     }
     std::cout << "----------------------------------" << std::endl;
   }
-
   ofstream out(file_fluxes + ".sub");
   for (const auto &i : subnets)
   {
@@ -1314,5 +1492,19 @@ void make_subnet() {
     out << endl;
   }
   out.close();
+}
+//----------------------------------------------------------------------------------------------------
+double measure_representativity(const string &label)
+{
+  double all = 0, sub = 0;
+  for (const auto &p : poly) {
+    std::vector<std::string> tokens;
+    physycom::split(tokens, label, string("_"), physycom::token_compress_on);
+    int class_idx = stoi(tokens[1]);
+    all += p.classes_flux.at(class_idx)*p.length;
+    if (find(subnets[label].begin(), subnets[label].end(), p.id_local) != subnets[label].end())
+      sub += p.classes_flux.at(class_idx) * p.length;
+  }
+  return sub / all;
 }
 //----------------------------------------------------------------------------------------------------
