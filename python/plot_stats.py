@@ -7,6 +7,7 @@ import seaborn as sns
 from scipy.optimize import curve_fit
 import matplotlib as mpl
 import os
+from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
 
 sns.set_style("ticks")
 
@@ -98,7 +99,7 @@ if __name__ == '__main__':
     #ax1.set_ylim(min(func_exp(list_x_l, *popt_l)), max(func_exp(list_x_l, *popt_l)))
     ax1.set_ylim(50, 100000)
     ax1.set_xlabel('length (km)', fontsize=MAX_SIZE)
-    ax1.axvline(x=df.lenght.mean(), color='k', linestyle='--')
+    ax1.axvline(x=df_l.lenght.mean(), color='k', linestyle='--')
     ax1.tick_params(axis='x', labelsize=MAX_SIZE)
     ax1.tick_params(axis='y', labelsize=MAX_SIZE)
     ax1.set_ylabel('N of activities', fontsize=MAX_SIZE)
@@ -109,10 +110,12 @@ if __name__ == '__main__':
     ax.set_yscale('log')
     ax.set_ylim(50, 100000)
     ax.set_xlabel('length (km)', fontsize=MAX_SIZE)
-    ax.axvline(x=df.lenght.mean(), color='k', linestyle='--')
+    ax.axvline(x=df_l.lenght.mean(), color='k', linestyle='--')
     ax.tick_params(axis='x', labelsize=MAX_SIZE)
     ax.tick_params(axis='y', labelsize=MAX_SIZE)
     ax.set_ylabel('N of activities', fontsize=MAX_SIZE)
+    plt.xticks(np.arange(int(min(df_l.lenght)), int(max(df_l.lenght))+2, 2))
+    ax.xaxis.set_minor_locator(MultipleLocator(1))
     plt.savefig(name_file+'_global_stats_L.png', dpi=150, bbox_inches='tight')
     plt.clf()
     plt.close()
@@ -134,7 +137,7 @@ if __name__ == '__main__':
     ax2.set_yscale('log')
     ax2.set_ylim(50, 100000)
     ax2.set_xlabel('time (min)', fontsize=MAX_SIZE)
-    ax2.axvline(x=df.time.mean(), color='k', linestyle='--')
+    ax2.axvline(x=df_t.time.mean(), color='k', linestyle='--')
     ax2.tick_params(axis='x', labelsize=MAX_SIZE)
     ax2.tick_params(axis='y', labelsize=MAX_SIZE)
     ax2.set_ylabel('N of activities', fontsize=MAX_SIZE)
@@ -143,11 +146,13 @@ if __name__ == '__main__':
     histo_t.plot.scatter(x='bins_mean',y='val', ax=ax, edgecolors='black', s=40)
     #equation_t = r'${} * x^{{{}}}$'.format(f'{popt_t[0]:.2e}',f'-{popt_t[1]:.2f}')
     ax.plot(list_x_t, func_pl(list_x_t, *popt_t),'--', color='black')
-    ax.set_xscale('log')
+    #ax.set_xscale('log')
     ax.set_yscale('log')
     ax.set_ylim(50, 100000)
     ax.set_xlabel('time (min)', fontsize=MAX_SIZE)
-    ax.axvline(x=df.time.mean(), color='k', linestyle='--')
+    plt.xticks(np.arange(int(min(df_t.time)), int(max(df_t.time))+10, 10))
+    ax.xaxis.set_minor_locator(MultipleLocator(5))
+    ax.axvline(x=df_t.time.mean(), color='k', linestyle='--')
     ax.tick_params(axis='x', labelsize=MAX_SIZE)
     ax.tick_params(axis='y', labelsize=MAX_SIZE)
     ax.set_ylabel('N of activities', fontsize=MAX_SIZE)
@@ -217,7 +222,11 @@ if __name__ == '__main__':
     if args.join ==False:
       fig, ax = plt.subplots()
 
-    marker_list = ['o','v','s','p']
+    list_columns=['value','class','a','b']
+    df_fit_class =pd.DataFrame(columns=list_columns)
+
+
+    marker_list = ['o','s','v','p']
     for i in np.arange(0,n_class):
       dfw = df[df['new_class'] == i]
       #collect average value
@@ -231,12 +240,20 @@ if __name__ == '__main__':
       histo_l = pd.DataFrame()
       histo_l['val'] =pd.cut(dfw['lenght'], bins=bins_length).value_counts()
       histo_l['bins_mean'] = [i.mid for i in histo_l.index]
+      histo_l['x_range'] = [(i.right-i.left) for i in histo_l.index]
+      histo_l['temp'] = histo_l['x_range']*histo_l['val']
+      area_uc = histo_l['temp'].sum()
+      histo_l['val'] = histo_l['val'].div(area_uc)
       histo_l.sort_values(by='bins_mean', inplace=True)
+      histo_l_fitt = histo_l[histo_l.bins_mean>0.5]
+      popt_l, pcov = curve_fit(func_exp, histo_l_fitt['bins_mean'].to_list(), histo_l_fitt['val'].to_list())
+      df_temp = pd.DataFrame([['L',i,f'{popt_l[0]:.2f}',f'{popt_l[1]:.2f}']],columns=list_columns)
+      df_fit_class = df_fit_class.append(df_temp)
 
       if args.join:
         histo_l.plot.scatter(x='bins_mean',y='val', ax=ax1, marker=marker_list[i], edgecolors='black', s=40, color=cmap(i),label=f'class {i}')
         ax1.set_yscale('log')
-        ax1.set_ylim(0.1, 100000)
+        ax1.set_ylim(0.001, 1)
         ax1.set_xlim(0,4.0)
         ax1.set_xlabel(r'$L/L_m$', fontsize=MAX_SIZE)
         ax1.set_ylabel('')
@@ -247,7 +264,7 @@ if __name__ == '__main__':
       else:
         histo_l.plot.scatter(x='bins_mean',y='val', ax=ax, marker=marker_list[i],edgecolors='black', s=40, color=cmap(i),label=f'class {i}')
         ax.set_yscale('log')
-        ax.set_ylim(0.1, 100000)
+        ax.set_ylim(0.001, 1)
         ax.set_xlim(0,4.0)
         ax.set_xlabel(r'$L/L_m$', fontsize=MAX_SIZE)
         ax.set_ylabel('')
@@ -272,12 +289,20 @@ if __name__ == '__main__':
       histo_t = pd.DataFrame()
       histo_t['val'] =pd.cut(dfw['time'], bins=bins_time).value_counts()
       histo_t['bins_mean'] = [i.mid for i in histo_t.index]
+      histo_t['x_range'] = [(i.right-i.left) for i in histo_t.index]
+      histo_t['temp'] = histo_t['x_range']*histo_t['val']
+      area_uc = histo_t['temp'].sum()
+      histo_t['val'] = histo_t['val'].div(area_uc)
       histo_t.sort_values(by='bins_mean', inplace=True)
+      histo_t_fitt = histo_t[histo_t.bins_mean>0.5]
+      popt_t, pcov = curve_fit(func_exp, histo_t_fitt['bins_mean'].to_list(), histo_t_fitt['val'].to_list())
+      df_temp = pd.DataFrame([['T',i,f'{popt_t[0]:.2f}',f'{popt_t[1]:.2f}']],columns=list_columns)
+      df_fit_class = df_fit_class.append(df_temp)
 
       if args.join:
         histo_t.plot.scatter(x='bins_mean',y='val', ax=ax2, marker=marker_list[i], edgecolors='black', s=40, color=cmap(i), label=f'class {i}')
         ax2.set_yscale('log')
-        ax2.set_ylim(0.1, 10000)
+        ax2.set_ylim(0.001, 1)
         ax2.set_xlim(0, 4.0)
         ax2.set_xlabel(r'$T/T_m$', fontsize=MAX_SIZE)
         ax2.set_ylabel('')
@@ -288,7 +313,7 @@ if __name__ == '__main__':
       else:
         histo_t.plot.scatter(x='bins_mean',y='val', ax=ax, marker=marker_list[i], edgecolors='black', s=40, color=cmap(i), label=f'class {i}')
         ax.set_yscale('log')
-        ax.set_ylim(0.1, 10000)
+        ax.set_ylim(0.001, 1)
         ax.set_xlim(0, 4.0)
         ax.set_xlabel(r'$T/T_m$', fontsize=MAX_SIZE)
         ax.set_ylabel('')
@@ -333,3 +358,4 @@ if __name__ == '__main__':
       plt.clf()
 
   df_average_value.to_csv(name_file+'_average_value.csv')
+  df_fit_class.to_csv(name_file+'_param_interp.csv',index=False)

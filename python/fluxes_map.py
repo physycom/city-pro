@@ -39,30 +39,40 @@ if __name__ == '__main__':
   quantiles = cnt_total.total_fluxes.quantile(quantiles_val).to_list()
   bins = [int(q) for q in quantiles]
 
-  #cmap = cm.get_cmap('viridis', len(bins)-1)
+  cmap = cm.get_cmap('viridis', len(bins)-1)
   #cmap = cm.get_cmap('magma', len(bins)-1)
   #color_scale = [ to_hex(c) for c in cmap.colors ]
   #color_scale = color_scale[::-1]
 
-  cmap = cm.get_cmap('Reds', len(bins)-1)
+  #cmap = cm.get_cmap('Reds', len(bins)-1)
   rgb_scale = cmap(quantiles_val_col)
   color_scale = [rgb2hex(r) for r in rgb_scale]
   color_scale = color_scale[:-1]
+  map_col_quantil={}
+  for i in np.arange(0, len(color_scale)):
+    label = f'{quantiles_val[i]} < q <= {quantiles_val[i+1]}'
+    map_col_quantil[color_scale[i]]=label
+
   ax.set_yscale('log')
   carto = gpd.read_file(args.cartogeo)
   list_color = pd.cut(cnt_total.total_fluxes, bins=bins, labels=color_scale).fillna(color_scale[0])
   carto.set_index('poly_cid', inplace=True)
   carto = carto.join(list_color)
+  carto['quantile'] = [map_col_quantil[i] for i in carto.total_fluxes]
 
   carto = carto.iloc[1: , :]
   # layers
   center = carto.to_crs(epsg=3003).centroid.to_crs(epsg=4326)
   center = [ center.y.mean(), center.x.mean() ]
 
+  # sort for color (for ordered visualization)
+  carto.sort_values(by='quantile', inplace=True)
+
   m = folium.Map(location=center, control_scale=True)
   layerlabel = '<span style="color: {col};">{txt}</span>'
-  for col, grp in carto.groupby('total_fluxes'):
-    flayer_sel = folium.FeatureGroup(name=layerlabel.format(col=col, txt=col))
+  for qval, grp in carto.groupby('quantile'):
+    col = grp.total_fluxes.to_list()[0]
+    flayer_sel = folium.FeatureGroup(name=layerlabel.format(col=col, txt=qval))
     for i, row in grp.iterrows():
       pol = folium.PolyLine(
         locations=[ [lat,lon] for lon,lat in row.geometry.coords],
