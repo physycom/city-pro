@@ -1,0 +1,18 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "C++ Debug",
+        "type": "cppdbg",
+        "request": "launch",
+        "program": "${workspaceFolder}/bin/city-pro",
+        "args": ["work_geo/bologna_mdt_detailed/2022-05-12/config_bologna.json"],
+        "stopAtEntry": true,
+        "cwd": "${workspaceFolder}",
+        "environment": [],
+        "externalConsole": false,
+        "MIMode": "gdb",
+        "miDebuggerPath": "/usr/bin/gdb"  // Modify this path if necessary
+      }
+    ]
+  }
