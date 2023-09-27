@@ -8,6 +8,74 @@ import numpy as np
 from multiprocessing import Pool
 import warnings
 warnings.filterwarnings('ignore')
+# TODO:
+# Each time you have new date you need to add it here.
+# Have config_repo in generate_config_analysis 
+'''
+{
+    "city_tag": "Bologna",
+    "file_pro": "/home/aamad/codice/city-pro/work_geo/bologna_mdt_detailed/bologna_mdt.pro",
+    "file_pnt": "/home/aamad/codice/city-pro/work_geo/bologna_mdt_detailed/bologna_mdt.pnt",
+    "file_data": ["/home/aamad/codice/city-pro_old/work_geo/bologna_mdt_detailed/data/2022-05-12/bologna_mdt_2022-05-12_2022-05-12.csv"],
+    "_file_data": ["/home/aamad/codice/city-pro_old/work_geo/bologna_mdt_detailed/data/2022-05-12/prova1.csv"],
+    "_file_polygons": "C:/Users/Chiara/Desktop/Code/city-pro/input/extra/viasat/polygons_2points.geojson",
+    "cartout_basename": "/home/aamad/codice/city-pro/output/bologna_mdt_detailed/",
+    "start_time": "2022-05-12 00:00:00",
+    "end_time": "2022-05-12 23:59:59",
+    "_start_time": "2022-11-11 00:00:00",
+    "_end_time": "2022-11-12 23:59:59",
+    "bin_time": "15.0",
+    "_slice_time": [
+        12.0,
+        14.0
+    ],
+    "mode_funct": "mobility",
+    "lat_min": 44.024152,
+    "lat_max": 44.823687,
+    "lon_min": 10.789523,
+    "lon_max": 11.867708,
+    "lat_min_MFD": 44.463121,
+    "lat_max_MFD": 44.518165,
+    "lon_min_MFD": 11.287085,
+    "lon_max_MFD": 11.367472,
+    "map_resolution": 60.0,
+    "grid_resolution": 150.0,
+    "l_gauss": 10.0,
+    "min_data_distance": 50.0,
+    "max_inst_speed": 50.0,
+    "min_node_distance": 20.0,
+    "min_poly_distance": 50.0,
+    "enable_threshold": true,
+    "threshold_v": 50.0,
+    "threshold_t": 86400,
+    "threshold_n": 3,
+    "threshold_polyunique": 2,
+    "enable_multimodality": true,
+    "enable_slow_classification": true,
+    "num_tm": 3,
+    "threshold_p": 0.5,
+    "dump_dt": 60,
+    "_polygons_code": [
+        "coast",
+        "center",
+        0
+    ],
+    "enable_fluxes_print": true,
+    "enable_subnet": true,
+    "show_subnet": true,
+    "file_subnet": "/home/aamad/codice/city-pro/output/bologna_mdt_detailed/weights/bologna_mdt_2022-05-12_2022-05-12.fluxes.sub",
+    "multimodality_subnet": true,
+    "num_tm_subnet": 3,
+    "_enable_bin_act": false,
+    "enable_print": true,
+    "enable_geojson": false,
+    "enable_gui": true,
+    "enable_MFD": false,
+    "enble_FD": false,
+    "jump2subnet_analysis":false
+
+}
+'''
 TIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 LIST_START = [datetime.datetime(2022,1,31,0,15,0),datetime.datetime(2022,2,11,0,30,0),
               datetime.datetime(2022,5,12,0,30,0),datetime.datetime(2022,7,1,0,14,0),
@@ -90,6 +158,9 @@ def evaluate_date_data(file_dir,chunk_size):
                 pass 
     return start_date,end_date    
 def generate_config_analysis(start_day,end_of_day,save_path,small_filename):
+    '''
+    You need to have
+    '''
     global TIME_FORMAT    
     config_repo = '/home/aamad/codice/city-pro/work_geo/bologna_mdt_detailed/30-12'
     if os.path.exists(config_repo):
@@ -157,8 +228,7 @@ def cut_tdm_files(parameters):
     new = new.sort_values(by = 'datetime')   
 #    print('chunk united together starting:\t',new.iloc[0]['datetime'],' ending:\t',new.iloc[-1]['datetime']) 
     delta = end_date - start_date
-    if delta.days == 0:
-        
+    if delta.days == 0:    
         end_of_day = start_date.replace(hour=23, minute=59, second=59)
         start_day = start_date.replace(hour=0, minute=0, second=0)
 #        print('dealing with day:\n',start_day,' of size: ',len(new))

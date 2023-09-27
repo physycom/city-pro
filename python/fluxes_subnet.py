@@ -11,6 +11,8 @@ import datetime
 import warnings
 from collections import defaultdict
 from multiprocessing import Pool
+import folium
+from folium import GeoJson
 warnings.filterwarnings('ignore')
 
 
@@ -22,7 +24,7 @@ def _class_int2str(fcm_file):
     df_fcm = pd.read_csv(fcm_file,';')
     dict_vel = defaultdict()
     for f,fc in df_fcm.groupby('class'):
-        if f!=10:
+        if f!=10 and f!=11:
             vel = np.mean(fc['av_speed'].to_numpy())
             if vel<50:
                 dict_vel[f] = vel
@@ -103,7 +105,7 @@ def plot(gdf,gdfnot,string_,working_dir,classes_colors,i):
         print('empty intersection')
     return fig,ax    
 
-def plot_complete_intersection(gdf,gdfnot,string_,working_dir):
+def plot_complete_intersection(gdf,gdfnot,working_dir,string_):
     network = gdf.to_crs({'init': 'epsg:4326'})
     networknot = gdfnot.to_crs({'init': 'epsg:4326'})    
     fig,ax = plt.subplots(1,1,figsize = (20,15))
@@ -119,6 +121,44 @@ def plot_complete_intersection(gdf,gdfnot,string_,working_dir):
         print('empty intersection')
     return fig,ax    
 
+def plot_with_folium(gdf_subnet,gdf_complement,working_dir,string_):
+    subnet_geojson = gdf_subnet.to_crs(epsg='4326').to_json()
+    complement_geojson = gdf_complement.to_crs(epsg='4326').to_json()
+    # Create a Folium map centered around a specific location (you can change the coordinates)
+    m = folium.Map(location=[(44.463121+44.518165)/2, (11.287085+11.367472)/2], zoom_start=10)
+    # Add GeoJSON layers to the map with different colors
+    subnet_layer = GeoJson(
+        subnet_geojson,
+        name='Subnet',
+        style_function=lambda x: {
+            'color': 'blue',  # Line color for roads
+            'weight': 2,      # Line weight
+            'opacity': 0.7    # Line opacity
+        }
+    )
+
+    complement_layer = GeoJson(
+        complement_geojson,
+        name='Complement',
+        style_function=lambda x: {
+            'color': 'red',   # Line color for roads
+            'weight': 2,      # Line weight
+            'opacity': 0.7    # Line opacity
+        }
+    )
+    subnet_layer = GeoJson(subnet_geojson, name='Subnet', style_function=lambda x: {'fillColor': 'blue'})
+    complement_layer = GeoJson(complement_geojson, name='Complement', style_function=lambda x: {'fillColor': 'red'})
+
+    # Add layer control to toggle the layers
+    folium.LayerControl().add_to(m)
+
+    # Add the layers to the map
+    subnet_layer.add_to(m)
+    complement_layer.add_to(m)
+
+    # Display the map
+    m.save(os.path.join(working_dir,'plot',string_ +'.html')) 
+    
 
 def _get_complete_intersection(class2gdf):
     intersection = set(class2gdf[0][0])
@@ -141,7 +181,9 @@ def initialize_from_config_file(config_):
     start_date = datetime.datetime.strptime(config_['start_date'],time_format)
     end_date = datetime.datetime.strptime(config_['end_date'],time_format)
     day_analysis = config_["day_analysis"]
-    return working_dir,file_geojson,prefix_name,cartout_basename,subnet_class,subnet_complement_class,subnet_complete_intersection,geoj,day_in_sec,dt,iterations,time_format,start_date,end_date,day_analysis
+    subnet_hierarchical = config_['hierarchical_subnets']
+    return working_dir,file_geojson,prefix_name,cartout_basename,subnet_class,subnet_complement_class,subnet_complete_intersection,geoj,day_in_sec,dt,iterations,time_format,start_date,end_date,day_analysis,subnet_hierarchical
+
 
 if __name__ =="__main__":
     combs = combinations("01234",2)
@@ -151,7 +193,7 @@ if __name__ =="__main__":
     with open(args.config,'r') as f:
          jsonfile = f.read()
     config_ = json.loads(jsonfile)
-    working_dir,file_geojson,prefix_name,cartout_basename,subnet_class,subnet_complement_class,subnet_complete_intersection,geoj,day_in_sec,dt,iterations,time_format,start_date,end_date,day_analysis = initialize_from_config_file(config_)
+    working_dir,file_geojson,prefix_name,cartout_basename,subnet_class,subnet_complement_class,subnet_complete_intersection,geoj,day_in_sec,dt,iterations,time_format,start_date,end_date,day_analysis,subnet_hierarchical = initialize_from_config_file(config_)
     print('day under analysis: ',day_analysis)
 # GET NUMBER OF CLASSES: init: class_int2str: {class_int: class_str,...} WITHOUT CLASS 10 and the quickest if the average velocity is bigger than 50 m/s
     fcm_file = os.path.join(working_dir,prefix_name +"_fcm.csv")
@@ -168,8 +210,14 @@ if __name__ =="__main__":
         if i in list(dict_vel.keys()):
             print('subnet: ',i,' color: ',classes_colors[count],' class from fcm file: ',class_int2str[i])
             gdf_subnet,gdf_subnet_complement = geoj2gdf(subnet_class[count])
+            plot_with_folium(gdf_subnet,gdf_subnet_complement,working_dir,class_int2str[i])
             plot(gdf_subnet,gdf_subnet_complement,class_int2str[i],working_dir,classes_colors,count)
+            gdf_subnet_hierarchy ,gdf_subnet_complement_hierarchy = geoj2gdf(subnet_hierarchical[count])
+            plot_with_folium(gdf_subnet_hierarchy ,gdf_subnet_complement_hierarchy,working_dir,'hierachical '+class_int2str[i])
+            plot(gdf_subnet_hierarchy ,gdf_subnet_complement_hierarchy,'hierachical '+class_int2str[i],working_dir,classes_colors,count)
+
             count += 1
+            
 #            gdf_subnet_complementary,gdf_subnet_complementary_complement = geoj2gdf(subnet_complement_class[i])
 #            plot(gdf_subnet_complementary,gdf_subnet_complementary_complement,'complete_complement_'+class_int2str[i],working_dir,classes_colors,count)
 # PLOT COMPLETE INTERSECTION

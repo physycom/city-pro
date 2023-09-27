@@ -807,6 +807,7 @@ std::vector<int> unique_vector(std::vector<int> classes){
         if (std::find(unique.begin(),unique.end(),c)!=unique.end()) continue;
         else unique.push_back(c);
     }
+    std::sort(unique.begin(),unique.end());
     for(auto &u:unique){
         std::cout<<"unique: "<<u<<std::endl;
     }
@@ -1838,6 +1839,9 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
                 cw.feat_vector.push_back((*(fcm2->get_cluster_center()))(fcm2->get_reordered_map_centers_value(n), m));
             centers_fcm_slow.push_back(cw);
         }
+        for (auto &c : centers_fcm_slow){
+            std::cout<< "centers fcm slow: " << c.idx << " velocity: " << c.feat_vector[0] << std::endl;
+        }
         
 //        for (auto &c : centers_fcm_slow)
 //            std::cout << c.idx << " velocity: " << c.feat_vector[0] << std::endl;
@@ -1855,7 +1859,8 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
         }
 */
         int slow_id2 = 0; int medium_id2 = 1;
-        int idx_2fcm = 0; 
+         
+
         centers_fcm[slow_id].feat_vector = centers_fcm_slow[slow_id2].feat_vector;
         for (auto &c : centers_fcm){
             if (c.idx >= 1 && c.idx != 10){
@@ -1876,8 +1881,8 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
 //        centers_fcm[num_tm].idx = num_tm;
         // update centers_fcm: cnt
 
-//        ofstream out_fcm2(config_.cartout_basename + config_.name_pro + "_fcm2.txt");
         // EXTEND VECTOR P_CLUSTER for each trajectory
+        int idx_2fcm = 0;
         for (int n = 0; n < traj.size(); ++n)
         {
             std::vector<double>::iterator it = traj[n].p_cluster.begin() + 1;
@@ -1900,31 +1905,28 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
                 }
         control_size_cluster.close();
 */
+        std::cout << "fcm2 txt" << std::endl;
+        ofstream out_fcm2(config_.cartout_basename + config_.name_pro + "_fcm2.txt");
         idx_2fcm = 0; 
         for (int n = 0; n < traj.size(); ++n)
         {
             // DA CONTROLLARE !!!!!!!!
-            if (traj[n].means_class == slow_id)
+            if (traj[n].means_class == slow_id2)
             {  
-                traj[n].p_cluster[slow_id] = (*(fcm2->get_membership()))(idx_2fcm, slow_id2);
-//                out_fcm2<< " trajectory number: "<< n <<std::endl;
-//                for(auto &p:traj[n].p_cluster){
-//                    out_fcm2 << p << ";";
- //               }
-//                out_fcm2 << std::endl;
+                traj[n].p_cluster[slow_id2] = (*(fcm2->get_membership()))(idx_2fcm, slow_id2);
                 //traj[n].p_cluster.push_back((*(fcm2->get_membership()))(idx_2fcm, medium_id2));
-                if ((*(fcm2->get_membership()))(idx_2fcm, slow_id2) > (*(fcm2->get_membership()))(idx_2fcm, medium_id2))
+                if ((*(fcm2->get_membership()))(idx_2fcm, slow_id2) > (*(fcm2->get_membership()))(idx_2fcm,medium_id2))
                 {
-                    traj[n].means_class = slow_id;
-                    traj[n].means_p = traj[n].p_cluster[slow_id];
+                    traj[n].means_class = fcm2->get_reordered_map_centers_value(slow_id2);
+                    traj[n].means_p = traj[n].p_cluster[fcm2->get_reordered_map_centers_value(slow_id2)];
 //                    out_fcm2 << " chosen class: " << traj[n].means_class << " probability: " << traj[n].means_p << " velocity: " << centers_fcm[traj[n].means_class].feat_vector[0] <<std::endl;
                 }
                 else
                 {
 //                    traj[n].means_class = num_tm;
 //                    traj[n].means_p = traj[n].p_cluster[num_tm];
-                    traj[n].means_class = 1;
-                    traj[n].means_p = traj[n].p_cluster[1];
+                    traj[n].means_class = fcm2->get_reordered_map_centers_value(medium_id2);
+                    traj[n].means_p = traj[n].p_cluster[fcm2->get_reordered_map_centers_value(medium_id2)];
 //                    out_fcm2 << " chosen class: " << traj[n].means_class << " probability: " << traj[n].means_p << " velocity: " << centers_fcm[traj[n].means_class].feat_vector[0] <<std::endl;
 
                 }
@@ -1937,8 +1939,14 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
 //                out_fcm2 << " chosen class: " << traj[n].means_class << " probability: " << traj[n].means_p << " velocity: " << centers_fcm[traj[n].means_class].feat_vector[0] <<std::endl;
             }
 //ADDED ALBI ORDERING CENTERS_FCM
+            out_fcm2<< " trajectory number: "<< n <<std::endl;
+            for(auto &p:traj[n].p_cluster){
+                out_fcm2 << p << ";";
+            }
+            if(traj[n].means_class!=10 && traj[n].means_class!=11)
+            out_fcm2 << " velocity: " << centers_fcm[traj[n].means_class].feat_vector[0] << " class: "<< traj[n].means_class << " average speed: " << traj[n].average_inst_speed<<std::endl;        
         }
-//        out_fcm2.close();
+        out_fcm2.close();
         for (auto &c : centers_fcm)
         c.cnt = 0;
             // update centers_fcm: feat vector
@@ -2177,7 +2185,7 @@ std::vector<traj_base> selecttraj_from_vectorpolysubnet_velsubnet(std::vector<in
 
 void velocity_subnet(std::vector<int> poly_subnet, std::vector<poly_base> &poly, int time_step, int num_bin, std::string save_label)
 {
-    // #TODO
+
     //  per ogni sottonet
     ofstream oo(config_.cartout_basename + config_.name_pro + "_" + save_label + "velocity_subnet.csv");
     oo << "start_bin;end_bin;poly_id;number_people_poly;total_number_people;av_speed;time_percorrence" << std::endl;
@@ -2189,7 +2197,7 @@ void velocity_subnet(std::vector<int> poly_subnet, std::vector<poly_base> &poly,
         {
             time2numberpeople[i] += poly[pol].time2velocities[i].size();
         }
-        std::cout << "number of people in interval " << i << " : " << time2numberpeople[i] << std::endl;
+//        std::cout << "number of people in interval " << i << " : " << time2numberpeople[i] << std::endl;
     }
     for (auto &pol : poly_subnet)
     {
@@ -2280,37 +2288,42 @@ DESCRIPTION:
 */      
 
 
-void hierarchical_deletion_of_intersection(std::map<std::string, std::vector<int>> subnets80){
+std::map<std::string,std::vector<int>> hierarchical_deletion_of_intersection(std::map<std::string, std::vector<int>> subnets80){
     int idx_subnet2cut = 0;
+    std::map<std::string,std::vector<int>> hierarchically_selected_subnets;
     for (std::map<std::string, std::vector<int>>::iterator i = subnets80.begin(); i != subnets80.end(); ++i){
-        std::cout << "hierarchical intersection:\nclass: " << i->first << " size: " << i->second.size() << std::endl;
+//        std::cout << "hierarchical intersection:\nclass: " << i->first << " size: " << i->second.size() << std::endl;
         std::vector<int> starting_subnet = i->second;
         int idx_subnet2compare = 0;
         for (std::map<std::string, std::vector<int>>::iterator j = subnets80.begin(); j != subnets80.end(); ++j)
             {
             std::vector<int> subnet_intersection_class;
-            if (idx_subnet2cut<idx_subnet2compare){
+
+            if (idx_subnet2cut<idx_subnet2compare && idx_subnet2cut<4){
                 std::vector<int> temporary_complement;
                 subnet_intersection(starting_subnet, j->second, subnet_intersection_class); // update net_complete_intersection with the intersection of the successive class
                 subnet_complementary(starting_subnet, subnet_intersection_class, temporary_complement);
                 starting_subnet = temporary_complement;
-                idx_subnet2compare+=1;
                 subnet_intersection_class.clear();
                 temporary_complement.clear();
             }
-        std::cout << "index extracted graph: " << idx_subnet2compare << " size subnet: "<< starting_subnet.size()<<std::endl;
+        idx_subnet2compare+=1;
         }
-    std::cout << "SAVING FILE: " << config_.cartout_basename + "/" + config_.name_pro + std::to_string(idx_subnet2compare) + "_class_subnet.txt" << std::endl;
-    ofstream spaced_file_subnet_complete_intersection(config_.cartout_basename + "/" + config_.name_pro + std::to_string(idx_subnet2compare) + "_class_subnet.txt");
-    for (auto &poly_intersect : starting_subnet)
-    {
-        spaced_file_subnet_complete_intersection << poly_intersect << " ";
-    }
-    spaced_file_subnet_complete_intersection.close();
-    idx_subnet2cut+=1;
-
+    if (idx_subnet2cut<4){
+        std::cout << "SAVING FILE: " << config_.cartout_basename + "/" + config_.name_pro + std::to_string(idx_subnet2cut) + "_class_subnet.txt" << std::endl;
+        std::cout <<"idx: " << idx_subnet2cut << " size subnet to be cut: "<< starting_subnet.size()<<std::endl;
+        std::cout << "index extracted graph: " << idx_subnet2compare << " size subnet: "<< starting_subnet.size()<<std::endl;
+        hierarchically_selected_subnets[std::to_string(idx_subnet2cut)] = starting_subnet;
+        ofstream spaced_file_subnet_complete_intersection(config_.cartout_basename + "/" + config_.name_pro + std::to_string(idx_subnet2cut) + "_class_subnet.txt");
+        for (auto &poly_intersect : starting_subnet)
+        {
+            spaced_file_subnet_complete_intersection << poly_intersect << " ";
+        }
+        spaced_file_subnet_complete_intersection.close();
+        idx_subnet2cut+=1;
+        }
     }    // OUTPUT std::vector<int> net_complete_intersection
-
+    return hierarchically_selected_subnets;
 }
 
 /*
@@ -2323,7 +2336,11 @@ This part of the code needs to be used to analyze the fondamental diagram. That 
 void assign_new_class(std::vector<traj_base> &traj,std::vector<poly_base> &poly,std::map<std::string, std::vector<int>> subnets80){
     std::cout << "assign new class" << std::endl;
     ofstream newclassification(config_.cartout_basename + "/" + config_.name_pro + "_fcm_new.csv");
-    newclassification <<"id_act;class"<<std::endl;
+    newclassification <<"id_act;class";
+    for(auto &s:subnets80){
+        newclassification << ";" << s.first;
+    }
+    newclassification<<std::endl;
     for (auto &t : traj)
     {            
         std::vector<int> count_point_per_class(subnets80.size(),0);
@@ -2354,10 +2371,22 @@ void assign_new_class(std::vector<traj_base> &traj,std::vector<poly_base> &poly,
                     index_class = i;
                 }
             }
-            newclassification << t.id_act << ";" << index_class << std::endl;
+            newclassification << t.id_act << ";" << index_class;
+            for(auto c:count_point_per_class){
+                newclassification << ";" << c;}
+            newclassification << std::endl;
+            //TODO cicla per scrivere la frazione di strade per ogni classe
         }
         else{
-            newclassification << t.id_act << ";" << t.means_class << std::endl;
+            newclassification << t.id_act << ";" << t.means_class;
+            for(int c = 0;c <count_point_per_class.size();c++){
+                if(c==count_point_per_class.size()-1)
+                    newclassification << ";" << t.path.size();
+                else 
+                    newclassification << ";" << 0;
+                }
+            newclassification << std::endl;
+
         }
     }
     newclassification.close();
@@ -2385,13 +2414,13 @@ std::map<std::string, std::vector<int>> simplifies_c_complement(std::map<std::st
             else
                 continue;
         }
-        ofstream spaced_file_subnet_complete_complement(config_.cartout_basename + "/" + config_.name_pro + k->first + "_complete_complement.txt");
-        std::cout << "save file with " << complete_complement[key1].size() << " polies" << std::endl;
-        for (auto &poly_complement : complete_complement[key1])
-        {
-            spaced_file_subnet_complete_complement << poly_complement << " ";
-        }
-        spaced_file_subnet_complete_complement.close();
+//        ofstream spaced_file_subnet_complete_complement(config_.cartout_basename + "/" + config_.name_pro + k->first + "_complete_complement.txt");
+//        std::cout << "save file with " << complete_complement[key1].size() << " polies" << std::endl;
+//        for (auto &poly_complement : complete_complement[key1])
+//        {
+//            spaced_file_subnet_complete_complement << poly_complement << " ";
+//        }
+//        spaced_file_subnet_complete_complement.close();
         // Take the complete complementary and calculate the velocity of polies. (Look at the population and time of these data.)
         std::vector<traj_base> traj_complete_complement;
         std::string label_save = "complete_complement_" + k->first + "_";
@@ -2443,8 +2472,10 @@ void analysis_subnets(std::vector<traj_base> &traj,std::vector<poly_base> &poly,
         else
             continue;
     }
-    hierarchical_deletion_of_intersection(subnets80);
-    assign_new_class(traj,poly,subnets80);
+    std::map<std::string,std::vector<int>> hierarchically_selected_subnets; 
+    hierarchically_selected_subnets = hierarchical_deletion_of_intersection(subnets80);
+    assign_new_class(traj,poly,hierarchically_selected_subnets);
+    hierarchically_selected_subnets.clear();
     // VELOCITY TIME SUBNET FOR EACH CLASS
     if(config_.all_subnets_speed == true){
         for (std::map<std::string, std::vector<int>>::iterator i = subnets.begin(); i != subnets.end(); ++i){
