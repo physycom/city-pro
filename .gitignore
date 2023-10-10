@@ -30,7 +30,12 @@
 *.exe
 *.out
 *.app
+
+# Git
+.gitignore
+
 #Albi
+.vscode*
 build*/
 bin/
 try_albi/
