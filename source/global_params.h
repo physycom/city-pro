@@ -18,3 +18,5 @@ using namespace std;
 #define SMALL_FONT_SIZE               14
 
 #define ZOOM_LEVEL                    18
+
+const int MAX_RECORD = 20000;

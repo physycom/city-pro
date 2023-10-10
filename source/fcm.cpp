@@ -8,33 +8,34 @@
 #include "fcm.h"
 #include "record.h"
 
-extern vector<traj_base> traj;
-extern vector<centers_fcm_base> centers_fcm;
 
 FCM::FCM(double m, double epsilon) {
   m_epsilon = epsilon;
-  m_m = m;
-  m_membership = nullptr;
-  m_data = nullptr;
-  m_cluster_center = nullptr;
-  m_num_clusters = 0;
-  m_num_dimensions = 0;
+  m_m = m; // 2 -> exponential of power -> choice of euclidean distance
+  m_membership = nullptr;// matrix [0,..., number of traj][0,...,number of classes] weight of the belonging of each traj to each class
+  m_data = nullptr; //[0,...,number of data][0,...,number of classes]
+  m_cluster_center = nullptr; //[0,...,number of clusters][0,..,number of features]
+  m_num_clusters = 0; // number of clusters
+  m_num_dimensions = 0; // number of features
 }
 
 FCM::~FCM() {
   if (m_data != nullptr) {
     delete m_data;
     m_data = nullptr;
+    std::cout <<"m_data data deleted"<<std::endl;
   }
 
   if (m_membership != nullptr) {
     delete m_membership;
     m_membership = nullptr;
+    std::cout <<"m_membership data deleted"<<std::endl;
   }
 
   if (m_cluster_center != nullptr) {
     delete m_cluster_center;
     m_cluster_center = nullptr;
+    std::cout <<"m_cluster_center data deleted"<<std::endl;
   }
 }
 
@@ -75,7 +76,7 @@ double FCM::update_membership() {
 void FCM::compute_centers() {
   long i, j, k;
   double numerator, denominator;
-  MatrixXf t;
+  MatrixXf t; // distance matrix m_membership[i][j]
   t.resize(m_data->rows(), m_num_clusters);
   if (m_data == nullptr || m_data->rows() == 0) {
     throw std::logic_error("ERROR: number of rows is zero");
@@ -94,7 +95,7 @@ void FCM::compute_centers() {
         numerator += t(i, j) * (*m_data)(i, k);
         denominator += t(i, j);
       }
-      (*m_cluster_center)(j, k) = float(numerator / denominator);
+      (*m_cluster_center)(j, k) = float(numerator / denominator);// m_cluster_center is a matrix [number of clusters][number of features]
     }
   }
 }
@@ -158,7 +159,7 @@ void FCM::set_data(MatrixXf *data) {
     delete m_data;
   }
   if (data->rows() == 0) {
-    throw std::logic_error("ERROR: seting empty data");
+    throw std::logic_error("ERROR: setting empty data");
   }
   m_data = data;
   m_num_dimensions = m_data->cols();
@@ -228,6 +229,33 @@ MatrixXf * FCM::get_cluster_center() {
   return m_cluster_center;
 }
 
+void FCM::reorder_cluster_centers(){
+  //  EXAMPLE of rdm2ordered_cluster_centers ->{0:2,1:1,2:0}
+    std::vector<int> selected_indices;
+    for(int i=0;i<m_num_clusters;i++){
+      int min_velocity = 1000000;
+      int index = 0;
+      for(int j=0;j<m_num_clusters;j++){
+        if((*m_cluster_center)(j,0) < min_velocity && std::find(selected_indices.begin(), selected_indices.end(), j) == selected_indices.end()){
+          min_velocity = (*m_cluster_center)(j,0);
+          index = j;
+//          std::cout << "center: " << min_velocity << " index: " << index << std::endl;
+          }
+        }
+        selected_indices.push_back(index);
+              
+    }
+    for(int i=0;i<m_num_clusters;i++){
+      rdm2ordered_cluster_centers[i] = selected_indices[i];
+    } 
+//  for(int i=0;i<m_num_clusters;i++){
+//    std::cout << "rdm2ordered_cluster_centers["<<i<<"] = "<<selected_indices[i]<<std::endl;
+//  }
+  }
+
+int FCM::get_reordered_map_centers_value(int i){
+  return rdm2ordered_cluster_centers[i];
+}
 // DUNN INDEX //
 double d_eu_distance(vector<double> v1, vector<double> v2) {
   double d_eu = 0.0;
@@ -238,7 +266,7 @@ double d_eu_distance(vector<double> v1, vector<double> v2) {
   else return 0.0;
 }
 //-------------------------------------------------------------------
-double intra_distance(int i) {
+double intra_distance(int i,std::vector<traj_base> &traj) {
   double max_dist = 0.0;
   for (int n = 0; n < traj.size(); ++n)
     if (traj[n].means_class == i)
@@ -255,7 +283,7 @@ double intra_distance(int i) {
   return max_dist;
 }
 //-------------------------------------------------------------------
-double inter_distance(int n, int m) {
+double inter_distance(int n, int m,std::vector<traj_base> &traj) {
   double min_dist = 1e6;
   for (auto &t1: traj)
     if (t1.means_class == n)
@@ -272,12 +300,12 @@ double inter_distance(int n, int m) {
   return min_dist;
 }
 //-------------------------------------------------------------------
-double measure_dunn_index() {
+double measure_dunn_index(std::vector<centers_fcm_base> &centers_fcm,std::vector<traj_base> &traj) {
   double num=  1e6;
   double den = 0.0;
 
   for (auto &c : centers_fcm) {
-    double intra_dist_ci = intra_distance(c.idx);
+    double intra_dist_ci = intra_distance(c.idx,traj);
     if (intra_dist_ci > den)
       den = intra_dist_ci;
   }
@@ -285,7 +313,7 @@ double measure_dunn_index() {
 
   for (int n=0; n<centers_fcm.size()-1; ++n)
     for (int m = n + 1; m < centers_fcm.size(); ++m) {
-      double inter_n_m = inter_distance(n, m);
+      double inter_n_m = inter_distance(n, m,traj);
       if (inter_n_m < num)
         num = inter_n_m;
     }
@@ -296,8 +324,28 @@ double measure_dunn_index() {
 //-------------------------------------------------------------------
 
 
+//ALBI
+/*
+FCM::_print_infos(){
+  int i = 0;
+  unsigned int num_rows_membership = this-> m_membership.numRows();
+  unsigned int num_cols_membership = this-> m_membership.numColumns();
+  unsigned int num_rows_data = this -> m_data.numRows();
+  unsigned int num_cols_data = this -> m_data.numColumns();
+  unsigned int num_rows_cc = this-> this -> m_cluster_center.numRows();
+  unsigned int num_cols_cc = this-> this -> m_cluster_center.numColumns();
 
+  for (auto m:this-> m_membership){
+    for(auto m1:m){
+      
+    }
+    i++;
+     
+  }
 
+}
+*/
+//ALBI
 
 
 

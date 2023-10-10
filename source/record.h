@@ -2,7 +2,8 @@
 
 #include "stdafx.h"
 #include "carto.h"
-
+# include "config.h"
+//extern config config_;
 
 // RECORD //
 struct record_base {
@@ -16,16 +17,21 @@ struct record_base {
 
 // ACTIVITY //
 struct activity_base {
+//in the code I have vector<activity_base> activity;
+//for &r:
+//activity.push_back()
+
   bool ok = true;
   long long int id_act;
-  int indx, dt;
+//dt is of interest as it is one of the parameters that influences the choiche of different travellers
+  int indx, dt;  
   double length;
-  double average_speed;
+  double average_speed;  
   vector <record_base> record;
 };
 
 // PRESENCE //
-struct presence_base {
+struct presence_base {  
   double lat, lon;
   long long int id_act;
   size_t itime_start, itime_end;
@@ -81,8 +87,8 @@ struct traj_base {
   list <pair<int, double>> path;      // <id_poly, time entering(decimal hours)>
   void add_cluster(cluster_base &C , int n);
   double average_speed;
-  double average_inst_speed;
-  double average_accel;
+  double average_inst_speed; // average speed of the inst_speeds of the clusters
+  double average_accel; // average acceleration of the inst_accel of the clusters
   double v_max;
   double v_min;
   double a_max;
@@ -93,6 +99,8 @@ struct traj_base {
   vector<double> p_cluster;
   int means_class;
   double means_p;
+  std::map<int,int> class_countpoly;
+  
 };
 //----------------------------------------------------------------------------------------
 double distance_record(record_base r1, record_base r2);

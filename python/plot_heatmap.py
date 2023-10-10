@@ -32,4 +32,4 @@ if __name__ == '__main__':
   HeatMap(heat_data, radius=20, blur=20, max_zoom=7).add_to(map_hooray)
 
   # Display the map
-  map_hooray.save('presence.html')
+  map_hooray.save('presence_{}.html'.format(args.place))

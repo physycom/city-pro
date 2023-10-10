@@ -2,10 +2,12 @@
 #include "stdafx.h"
 #include "global_params.h"
 #include <jsoncons/json.hpp>
+#include "config.h"
 //#include "dato.h"
 
 using namespace std;
-
+struct poly_base;
+struct arc_nase;
 // POINT //
 struct point_base {
   double lon, lat;
@@ -30,7 +32,7 @@ struct arc_base {
   int id_poly;
   double dx, dy, length, s0;
   point_base a, b;
-  void set(int id_poly, double s0, point_base a, point_base b);
+  void set(int id_poly, double s0, point_base a, point_base b,std::vector<poly_base> &poly);
   double measure_dist(double x, double y);
   bool measure_affinity(double lon, double lat, arcaffpro_base &aap);
 };
@@ -50,15 +52,27 @@ struct poly_base {
   int node_F, node_T;
   double length;
   double weightFT, weightTF;
-  map<int, double> classes_flux;
   string name;
   int cntFT, cntTF;
   bool ok = true;
   bool             visible = false;
   bool             path_visible = false;
   int              n_traj_TF, n_traj_FT;
+  std::map<int, int> classes_flux;
   std::vector<std::pair<int, int>> timed_fluxes;
+  std::vector<std::pair<std::vector<double>, std::vector<double>>> all_velocity;
+  std::vector<std::pair<double, double>> density,velocity,time_percorrence;
+  std::vector<std::pair<std::vector<double>, std::vector<double>>> all_time_percorrence;
+  std::vector<std::pair<int,int>> subnets_couple;
+  //ALBI
+  std::vector<double> velocities;
+  double av_velocity = -1;
+  std::map<int,std::vector<double>> time2velocities;
+  std::map<int,double> time2av_vel;
+  std::map<int,double> time2timepercorrence;
 
+
+  // ALBI
   void set(int id_, unsigned long long int cid_, vector <point_base> punto_);
   void set(unsigned long long int cid_Fjnct_, unsigned long long int cid_Tjnct_, float meters_, int oneway_, string name_);
   void set(unsigned long long int cid_Fjnct_, unsigned long long int cid_Tjnct_);
@@ -107,16 +121,19 @@ bool comp_near_node (const node_near_base& a, const node_near_base& b);
 // MAPPING
 struct mapping_base {
   vector <int> node_id, arc_id, traj_end, traj_start;
+  //ALBI
+  vector <int> poly_id;
+  //ALBI
 };
 
 int A_put_arc(int n);
-int A_put_node(int n);
-void make_mapping(void);
-void make_arc(void);
+int A_put_node(int n,std::vector<node_base> &node,config &config);
+void make_mapping(std::vector<poly_base> &poly,std::vector<node_base> &node);
+void make_arc(std::vector<poly_base> &poly);
 int  find_near_poly(double x, double y, double &dist, int &id_poly);
-bool find_near_node(double x, double y, double &dist, int &id_nodo);
+bool find_near_node(double x, double y, double &dist, int &id_nodo,std::vector<node_base> &node);
 bool find_polyaff(double lon, double lat, polyaffpro_base &pap);
-
+void map_poly2grid(vector<int> poly_sub,std::vector<poly_base> &poly);
 
 // POLYGON //
 //----------------------------------------------------------------------------
@@ -135,8 +152,8 @@ struct polygon_base {
 
 
 // METHODS
-void set_geometry();
-void make_node();
-void dump_poly_geojson(const std::string &basename);
+void set_geometry(config &config_);
+void make_node(std::vector<poly_base> &poly,std::map<unsigned long long,int> &node_cid2id,std::vector<node_base> &node);
+void dump_poly_geojson(const std::string &basename,std::vector<poly_base> &poly);
 //----------------------------------------------------------------------------
 FILE *my_fopen(char *fname, char *mode);

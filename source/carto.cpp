@@ -2,24 +2,28 @@
 #include "global_params.h"
 #include "carto.h"
 #include "config.h"
+#include "record.h"
 //#include "dato.h"
 
 using namespace std;
 
 extern int  screen_w, screen_h;
 
-double lat0, lon0, dlat, dlon, zoom_start;
-
+extern double lat0, lon0, dlat, dlon, zoom_start;
 extern config config_;
-extern vector <poly_base> poly;
-vector <node_base> node;
-vector <arc_base> arc;
+extern vector <node_base> node;
+extern vector <arc_base> arc;
 //extern vector <People> people;
 
-map<unsigned long long int, int> node_cid2id;
+extern map<unsigned long long int, int> node_cid2id;
 
-mapping_base **A; int jmax, imax; // A[jmax][imax]
-double ds_lat, ds_lon, c_ris1, c_ris2;
+extern mapping_base **A; 
+extern int jmax;
+extern int imax; // A[jmax][imax]
+extern double ds_lat;
+extern double ds_lon;
+extern double c_ris1;
+extern double c_ris2;
 
 // POINT //
 point_base::point_base() : lat(0.0), lon(0.0) {}
@@ -29,7 +33,7 @@ point_base::point_base(const double &lat, const double &lon) : lat(lat), lon(lon
 point_base::point_base(const int &ilat, const int &ilon) : lat(1.0E-6*double(ilat)), lon(1.0E-6*double(ilon)) {}
 
 // ARC  //
-void arc_base::set(int id_poly, double s0, point_base a, point_base b) {
+void arc_base::set(int id_poly, double s0, point_base a, point_base b,std::vector<poly_base> &poly) {
   this->id_poly = id_poly;
   this->s0 = s0;
   this->a = a;
@@ -132,7 +136,8 @@ poly_base::poly_base(void) {
 }
 //----------------------------------------------------------------------------------------
 void poly_base::clear(void) {
-  points.clear(); delta_points.clear();
+  points.clear();
+  delta_points.clear();
   visible = false;
   name = "__";
 }
@@ -141,6 +146,9 @@ void poly_base::set(int id, unsigned long long int cid, vector <point_base> poin
   this->id = id;
   this->cid_poly = cid;
   this->points = points;
+  this -> n_traj_FT = 0;
+  this -> n_traj_TF = 0;
+
 }
 //----------------------------------------------------------------------------------------
 void poly_base::set(unsigned long long int cid_Fjnct, unsigned long long int cid_Tjnct, float meters, int oneway_,string name_) 
@@ -150,11 +158,16 @@ void poly_base::set(unsigned long long int cid_Fjnct, unsigned long long int cid
   this->length = meters;
   this->oneway = oneway_;
   this->name = name_;
+  this -> n_traj_FT = 0;
+  this -> n_traj_TF = 0;
+
 }
 //----------------------------------------------------------------------------------------
 void poly_base::set(unsigned long long int cid_Fjnct, unsigned long long int cid_Tjnct) {
   this->cid_Fjnct = cid_Fjnct;
   this->cid_Tjnct = cid_Tjnct;
+  this -> n_traj_FT = 0;
+  this -> n_traj_TF = 0;
 }
 //----------------------------------------------------------------------------------------
 void poly_base::measure_length(void) {
@@ -217,14 +230,14 @@ double node_base::measure_dist(double lon, double lat) {
 bool comp_near_node(const node_near_base& a, const node_near_base& b) { return (a.distance < b.distance); }
 
 // MAPPING //
-void make_arc() {
+void make_arc(std::vector<poly_base> &poly) {
   arc_base aw; 
   arc.clear(); 
   double s0;
   for (int i = 1; i<int(poly.size()); i++) {
     s0 = 0.0;
     for (int k = 0; k<int(poly[i].points.size()) - 1; k++) {
-      aw.set(i, s0, poly[i].points[k], poly[i].points[k + 1]);
+      aw.set(i, s0, poly[i].points[k], poly[i].points[k + 1],poly);
       arc.push_back(aw);
       s0 += aw.length;
     }
@@ -239,8 +252,10 @@ int A_put_arc(int n) {
   int ja = int((arc[n].a.lat - config_.lat_min) / ds_lat);
   int ib = int((arc[n].b.lon - config_.lon_min) / ds_lon);
   int jb = int((arc[n].b.lat - config_.lat_min) / ds_lat);
+//mi metto nella soluzione di default che a è più a sx e più in basso in modo tale da controllare il range di quadratini  
   if (ib < ia) { tw = ia; ia = ib; ib = tw; }        
   if (jb < ja) { tw = ja; ja = jb; jb = tw; }
+//lo sto facendo per un singolo arco->ho che il valore di i0 e j0 differisce per ognuno. Considero qua i casi estremi. Se sono nella casella estrema allora mettimi nella casella estrema sia per ogni lato
   int i0 = (ia - 1 > 0 ? ia - 1 : 0);  int i1 = (ib + 2 < imax ? ib + 2 : imax);
   int j0 = (ja - 1 > 0 ? ja - 1 : 0);  int j1 = (jb + 2 < jmax ? jb + 2 : jmax);
 
@@ -249,6 +264,7 @@ int A_put_arc(int n) {
     for (int i = i0; i < i1; i++) {
       double lon_c = config_.lon_min + (i + 0.5)*ds_lon;
       if (arc[n].measure_dist(lon_c, lat_c) < c_ris1) {
+//        cout << j << "\t"<< i << endl;
         A[j][i].arc_id.push_back(n); n_arc_put++;
       }
     }
@@ -256,7 +272,7 @@ int A_put_arc(int n) {
   return n_arc_put;
 }
 //------------------------------------------------------------------------------------------------------
-int A_put_node(int n)
+int A_put_node(int n,std::vector<node_base> &node,config &config_)
 {
   double x, y; 
   int n_node_put = 0;
@@ -285,12 +301,12 @@ int A_put_node(int n)
 }
 //------------------------------------------------------------------------------------------------------
 
-void make_mapping(void)
+void make_mapping(std::vector<poly_base> &poly,std::vector<node_base> &node)
 {
   static bool first = true;
   if (first) first = false;
   else { for (int j = 0; j < jmax; j++) delete[]A[j]; delete[]A; }
-  make_arc();
+  make_arc(poly);
 
   int n_arc_put = 0; 
   int n_node_put = 0;
@@ -307,8 +323,10 @@ void make_mapping(void)
   A = new mapping_base*[jmax]; 
   for (int j = 0; j < jmax; j++) A[j] = new mapping_base[imax];  // A[jmax][imax]
   for (int n = 0; n< int(arc.size()); n++) n_arc_put += A_put_arc(n);
-  for (int n = 1; n < node.size(); n++) n_node_put += A_put_node(n);
+  for (int n = 1; n < node.size(); n++) n_node_put += A_put_node(n,node,config_);
 }
+
+
 //------------------------------------------------------------------------------------------------------
 int find_near_poly(double x, double y, double &dist, int &id_poly) {
   dist = 1.0e10; id_poly = 0;
@@ -324,7 +342,7 @@ int find_near_poly(double x, double y, double &dist, int &id_poly) {
   return n_near;
 }
 //------------------------------------------------------------------------------------------------------
-bool find_near_node(double lon, double lat, double &dist, int &id_node) {
+bool find_near_node(double lon, double lat, double &dist, int &id_node,std::vector<node_base> &node) {
   dist = 1.0e8; id_node = 0;
   list <node_near_base> node_near;
   int i = int((lon - config_.lon_min) / ds_lon); int j = int((lat - config_.lat_min) / ds_lat);
@@ -338,6 +356,22 @@ bool find_near_node(double lon, double lat, double &dist, int &id_node) {
   else 
     return true;
 }
+//ALBI
+void map_poly2grid(vector<int> poly_sub,std::vector<poly_base> &poly){
+  for(auto &ps:poly_sub){
+    for (auto pnt:poly[ps].points){
+        int i = int((pnt.lon - config_.lon_min) / ds_lon);int j = int((pnt.lat - config_.lat_min) / ds_lat);
+        if(A[i][j].poly_id.size()==0) A[i][j].poly_id.push_back(ps);
+        else {// if the poly (ps) is contained in the grid already pass, otherwhise push
+          for(const auto &p:A[i][j].poly_id){if(p == ps) continue;
+                                             else A[i][j].poly_id.push_back(ps);}
+        }
+    }
+  }
+}
+
+//ALBI
+
 //----------------------------------------------------------------------------------------------------
 bool find_polyaff(double lon, double lat, polyaffpro_base &pap) {
   // caso 0 = free; caso 1 = on_vapo; caso 2 out_vapo;
@@ -412,7 +446,7 @@ int polygon_base::is_in_wn(double lat_p, double lon_p) {
 }
 
 // METHODS //
-void set_geometry()
+void set_geometry(config &config_)
 {
   dlat = 0.5*(config_.lat_max - config_.lat_min) / ZOOM_START; 	lat0 = 0.5*(config_.lat_min + config_.lat_max);
   dlon = 0.5*(config_.lon_max - config_.lon_min) / ZOOM_START;   	lon0 = 0.5*(config_.lon_min + config_.lon_max);
@@ -422,14 +456,17 @@ void set_geometry()
 
 }
 //----------------------------------------------------------------------------------------------------
-void make_node()
+void make_node(std::vector<poly_base> &poly,std::map<unsigned long long,int> &node_cid2id,std::vector<node_base> &node)
 {
   for (int i = 1; i < int(poly.size()); i++) {
+//per ogni elemento nelle poly segnato con il numero associato dal file pnt (seconda posizione)
     poly[i].id_local = i;
+//inizializzo il DIZIONARIO contenente il secondo identificativo che ha tante chiavi quanti poly e che ha coppie di front e tails
     node_cid2id[poly[i].cid_Fjnct] = 0;
     node_cid2id[poly[i].cid_Tjnct] = 0;
   }
   int cnt = 1; 
+//conto i punti che ci sono tra tail e front e incremento il value del tail e front
   for (auto &i : node_cid2id) 
     i.second = cnt++;
   
@@ -458,7 +495,7 @@ void make_node()
   cid2id.clear();
 }
 //----------------------------------------------------------------------------------------------------
-void dump_poly_geojson(const std::string &basename)
+void dump_poly_geojson(const std::string &basename,std::vector<poly_base> &poly)
 {
   jsoncons::ojson geojson;
   jsoncons::ojson features = jsoncons::ojson::array();

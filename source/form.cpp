@@ -151,6 +151,11 @@ void make_window(void)
   button_exit->callback(exit_cb);
   // ------------  Subnet  ------------------------------------------------------------
   //CreaSubnet();
+  //button_minus_sub = new Fl_Button(2 * space + screen_w, 2 * space + screen_h, b_h, b_h, "-");
+  //button_minus_sub->callback(minus_cb);
+  //button_plus_sub = new Fl_Button(3 * space + screen_w + b_h, 2 * space + screen_h, b_h, b_h, "+");
+  //button_plus_sub->callback(plus_cb);
+  
   // ------------  Data    -----------------------------------------------------------
   r_offset_h = space;
   button_data = new Fl_Check_Button(4 * space + screen_w + b_w, r_offset_h, b_w, b_h, "Data");

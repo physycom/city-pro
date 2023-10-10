@@ -205,7 +205,7 @@ int main(int argc, char** argv)
 #if (POLY_STAT_TYPE == 0)
   auto poly = import_poly_stat<polystat>(input);
   vector<string> sub_types({ "tot" });
-  vector<double> sub_fractions({ 0.1, 0.15, 0.2 /*, 0.4*/ });
+  vector<double>sub_fractions({ 0.1, 0.15, 0.2 /*, 0.4*/ });
 #endif
 
 #if (POLY_STAT_TYPE == 1)

@@ -54,7 +54,15 @@ struct config {
   std::string file_subnet;
   bool enable_print;
   bool enable_MFD;
-
+  bool enable_FD;
+// ALBI subnets
+  bool multimodality_subnet;
+  int num_tm_subnet;
+  bool all_subnets_speed;
+  bool complete_intersection_speed;
+  bool complete_complement_speed;
+  bool jump2subnet_analysis;
+//ALBI
   config();
   void set_config(jsoncons::json _jconf);
 

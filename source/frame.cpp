@@ -18,7 +18,8 @@ extern void draw_scene();
 extern double lat0, lon0, dlat, dlon;
 extern double alfa_zoom;
 extern Fl_Value_Slider *zoom;
-
+//
+extern vector<node_base> node;
 list <int> path;
 double delta_lon = 0.0, delta_lat = 0.0;
 int poly_work = 0, node_work = 0;
@@ -29,6 +30,7 @@ int node_1, node_2;
 void Frame::draw() {
 
   if (!valid()) {
+    std::cout<< "draw valid" <<std::endl;
     glClearColor(1.0, 1.0, 0.95, 1);                        // Turn the background color black
     //glClearColor(0.0, 0.0, 0.0, 1);                        // Turn the background color black
     glViewport(0, 0, w(), h());                               // Make our viewport the whole window
@@ -45,6 +47,8 @@ void Frame::draw() {
     valid(1);
   }
   draw_scene();
+  std::cout<< "draw scene" <<std::endl;
+
 }
 //-------------------------------------------------------------------------------------------------
 int Frame::handle(int evento)
@@ -77,7 +81,7 @@ int Frame::handle(int evento)
     else if (Fl::event_button() == 1) {
       double poly_dist, node_dist;
       if (show_poly || show_path) find_near_poly(x_mouse, y_mouse, poly_dist, poly_work);
-      if (show_node || show_path) find_near_node(x_mouse, y_mouse, node_dist, node_work);
+      if (show_node || show_path) find_near_node(x_mouse, y_mouse, node_dist, node_work,node);
       std::cout << " distance = " << poly_dist << " poly near = " << poly_work << std::endl;
       std::cout << " distance = " << node_dist << " node near = " << node_work << std::endl;
       if (show_path) {

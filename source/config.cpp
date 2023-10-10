@@ -67,6 +67,14 @@ void config::set_config(jsoncons::json jconf)
   this->file_subnet = jconf.has_member("file_subnet") ? jconf["file_subnet"].as<std::string>() : "fluxes.sub";
   this->enable_print = jconf.has_member("enable_print") ? jconf["enable_print"].as<bool>() : false;
   this->enable_MFD= jconf.has_member("enable_MFD") ? jconf["enable_MFD"].as<bool>() : false;
+  this->enable_FD= jconf.has_member("enable_FD") ? jconf["enable_FD"].as<bool>() : false;
+  this->multimodality_subnet= jconf.has_member("multimodality_subnet") ? jconf["multimodality_subnet"].as<bool>() : false;
+  this->num_tm_subnet  = jconf.has_member("num_tm_subnet") ? jconf["num_tm_subnet"].as<int>() : 3;
+  this->all_subnets_speed  = jconf.has_member("all_subnets_speed") ? jconf["all_subnets_speed"].as<bool>() : true;
+  this->complete_intersection_speed  = jconf.has_member("complete_intersection_speed") ? jconf["complete_intersection_speed"].as<bool>() : true;
+  this->complete_complement_speed  = jconf.has_member("complete_complement_speed") ? jconf["complete_complement_speed"].as<bool>() : true;
+  this->jump2subnet_analysis  = jconf.has_member("jump2subnet_analysis") ? jconf["jump2subnet_analysis"].as<bool>() : false;
+
 
   vector<string> tokens;
   vector<string> tokens1;

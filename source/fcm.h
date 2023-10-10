@@ -20,7 +20,11 @@ class FCM{
     void set_membership(MatrixXf *);
     void init_membership();
     void set_num_clusters(long);
-
+    //ALBI
+    void _print_infos();
+    void reorder_cluster_centers();
+    int get_reordered_map_centers_value(int i);
+    // ALBI
     MatrixXf * get_data();
     MatrixXf * get_membership();
     MatrixXf * get_cluster_center();
@@ -30,7 +34,7 @@ class FCM{
     double m_epsilon; // threshold to stop
     long m_num_clusters;
     long m_num_dimensions;
-
+    std::map<int,int> rdm2ordered_cluster_centers;
     MatrixXf * m_membership;
     MatrixXf * m_data;
     MatrixXf * m_cluster_center;
@@ -41,7 +45,7 @@ class FCM{
 
 // DUNN INDEX //
 double d_eu_distance(vector<double> v1, vector<double>v2);
-double intra_distance(int i);
-double inter_distance(int i, int j);
-double measure_dunn_index();
+double intra_distance(int i,std::vector<traj_base> &traj);
+double inter_distance(int i, int j,std::vector<traj_base> &traj);
+double measure_dunn_index(std::vector<centers_fcm_base> &centers_fcm,std::vector<traj_base> &traj);
 

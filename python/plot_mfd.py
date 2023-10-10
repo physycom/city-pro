@@ -34,6 +34,7 @@ for fname in os.listdir(args.dir):
 df_global=pd.DataFrame()
 for fn in list_fname:
   input_file = os.path.join(args.dir, fn)
+  print(input_file)
   df=pd.read_csv(input_file, sep=';')
   df["V_med"] = df["L_total"]/df["T_total"]
   df = df.fillna(0)

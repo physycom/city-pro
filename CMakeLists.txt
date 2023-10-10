@@ -8,9 +8,35 @@ if (EXISTS "$ENV{WORKSPACE}/sysconfig/cmake/physycom_config.cmake")
 else()
    message(STATUS "Unable to find physycom settings file")
 endif()
-
+# VALGRIND SETUP
+#include (CTest)
+#enable_testing()
+#
 ### Set output directories on a per-configuration base
 # Single configuration
+# SETTING CLANG AS COMPILER
+# SET (CLANG_DIR "$ENV{WORKSPACE}/city-pro/source/llvm-project")
+# SET (CMAKE_C_COMPILER             "${CLANG_DIR}/build/bin/clang")
+# SET (CMAKE_C_FLAGS                "-Wall -std=c99")
+# SET (CMAKE_C_FLAGS_DEBUG          "-g")
+# SET (CMAKE_C_FLAGS_MINSIZEREL     "-Os -DNDEBUG")
+# SET (CMAKE_C_FLAGS_RELEASE        "-O4 -DNDEBUG")
+# SET (CMAKE_C_FLAGS_RELWITHDEBINFO "-O2 -g")
+
+# SET (CMAKE_CXX_COMPILER             "${CLANG_DIR}/build/bin/clang++")
+# SET (CMAKE_CXX_FLAGS                "-Wall")
+# SET (CMAKE_CXX_FLAGS_DEBUG          "-g")
+# SET (CMAKE_CXX_FLAGS_MINSIZEREL     "-Os -DNDEBUG")
+# SET (CMAKE_CXX_FLAGS_RELEASE        "-O4 -DNDEBUG")
+# SET (CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g")
+
+# SET (CMAKE_AR      "${CLANG_DIR}/build/bin/llvm-ar")
+# SET (CMAKE_LINKER  "${CLANG_DIR}/build/bin/llvm-ld")
+# SET (CMAKE_NM      "${CLANG_DIR}/build/bin/llvm-nm")
+# SET (CMAKE_OBJDUMP "${CLANG_DIR}/build/bin/llvm-objdump")
+# SET (CMAKE_RANLIB  "${CLANG_DIR}/build/bin/llvm-ranlib")
+#
+
 set( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin )
 # Multi configuration
 foreach( OUTPUTCONFIG ${CMAKE_CONFIGURATION_TYPES} )
@@ -61,6 +87,8 @@ add_library(city-pro_lib            ${CMAKE_SOURCE_DIR}/source/carto.cpp
                                     ${CMAKE_SOURCE_DIR}/source/frame.cpp
                                     ${CMAKE_SOURCE_DIR}/source/gltrans.cpp
                                     ${CMAKE_SOURCE_DIR}/source/record.cpp
+#                                    ${CMAKE_SOURCE_DIR}/source/analyzer_object.cpp
+
 									)
 target_link_libraries(city-pro_lib
   ${OPENGL_glu_LIBRARY}
@@ -79,8 +107,14 @@ target_link_libraries(city-pro      city-pro_lib)
 
 add_executable(city-pro_subnet           ${CMAKE_SOURCE_DIR}/source/main_city-pro_subnet.cpp)
 target_link_libraries(city-pro_subnet    Threads::Threads)
-
-# Add linking dependencies
+# VALGRIND TEST
+#add_test(NAME my_app_valgrind_test COMMAND ${CMAKE_CTEST_COMMAND}
+#         --force-new-ctest-process --test-action memcheck
+#         --label-exclude no_valgrind
+#         --build-config $<CONFIGURATION>
+#         --start-with-test city-pro)
+#set_tests_properties(my_app_valgrind_test PROPERTIES LABELS valgrind)# Add linking dependencies
+#
 if(UNIX AND NOT APPLE)
   target_link_libraries(city-pro          LIBRT::LIBRT )
   target_link_libraries(city-pro_subnet   LIBRT::LIBRT )

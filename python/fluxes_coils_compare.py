@@ -312,7 +312,7 @@ if __name__ == '__main__':
         color='red',
         fill_color='red'
       )
-      flayer_poly_sc_red.add_child(pt)
+      flayer_poly_sc.add_child(pt)
     m.add_child(flayer_poly_sc)
 
   if args.mode=='sim-coils' or args.mode == 'all':
