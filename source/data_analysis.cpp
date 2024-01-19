@@ -349,7 +349,7 @@ presence: filled*/
             {
                 std::cout << "Distance Error, improve the algos!" << std::endl;
                 std::cout << "id: " << t.id_act << " dist " << dist << " nrec " << t.record.size() << " nstops:" << t.stop_point.size() << std::endl;
-                std::cin.get();
+                // std::cin.get();
             }
         }
     }
@@ -821,6 +821,10 @@ void write_mil_file_poly2class(std::vector<poly_base> &poly,std::vector<traj_bas
 //   Note: the file is used to make the .FLUXES file
 
     ofstream out_poly2fcm(config_.cartout_basename+config_.name_pro + "_poly_with_fcm.csv");
+
+    std::cout << "Debug" << std::endl;
+    std::cout << config_.cartout_basename+config_.name_pro + "_poly_with_fcm.csv" << std::endl;
+
     out_poly2fcm << "av_speed;class;poly_id;nodeF;nodeT" << std::endl;
     std::cout <<"writing POLY_WITH_FCM.csv"<<std::endl;
     if(out_poly2fcm.is_open()){ 
@@ -1285,7 +1289,7 @@ void make_polygons_analysis(config &config_,std::vector<centers_fcm_base> &cente
                     else
                     {
                         std::cout << "tag_stop: " << tag_stop << std::endl;
-                        std::cin.get();
+                        // std::cin.get();
                     }
                 }
             }
@@ -1735,11 +1739,21 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
         for (int m = 0; m < num_tm; ++m)
         {
             traj[n].p_cluster.push_back((*(fcm->get_membership()))(n, fcm->get_reordered_map_centers_value(m))); //metti in ordine p_cluster  (pcluster[0] = 0: slowest, ...)
+            
+            // std::cout <<"Sono in make_multimodality " << std::endl;
+            // std::cout <<"PRIMA" << std::endl;
+            
+            // std::cout <<"m :" << m << std::endl;
+            // std::cout <<"fcm_get_centers :" << fcm->get_reordered_map_centers_value(m) << std::endl; 
+            // std::cout <<"(0) max_p :" <<  (*(fcm->get_membership()))(n, fcm->get_reordered_map_centers_value(m)) << std::endl; // Si accede tramite get_reordered_map per l'indice corretto
+            // std::cout << "Velocità associata " << traj[n].average_inst_speed << std::endl;                                      
+            // std::cout << "Velocità fcm con indice non cambiato " << centers_fcm[m].feat_vector[0] << std::endl;                 // Si accede center_fcm tramite indice m
+            // std::cout << "Velocità fcm con idice mappato " << centers_fcm[fcm->get_reordered_map_centers_value(m)].feat_vector[0] << std::endl;
+
             if ((*(fcm->get_membership()))(n, fcm->get_reordered_map_centers_value(m)) > max_p)
             {// NOTA: la massima probabilità viene assegnata con ordine randomico, l'indice che do ora è quello mappato con l'ordine di centers_fcm
                 max_idx = m; // instead of class index of the order of fcm -> I take to the new order of the map
                 max_p = (*(fcm->get_membership()))(n, fcm->get_reordered_map_centers_value(m)); // I want just the index changed not the probability
-            
             }
         }
         if (max_p < config_.threshold_p)
@@ -1750,6 +1764,12 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
             cnt_recong++;
         }
         traj[n].means_p = max_p;
+        // std::cout << "Classe associata "<< traj[n].means_class << std::endl;
+        // std::cout << "Center fcm associata "<< centers_fcm[traj[n].means_class].feat_vector[0] << std::endl;
+        // std::cout << "Probabilità associata per traj: "<< traj[n].means_p << std::endl;
+        // std::cout << "Velocità associata " << traj[n].average_inst_speed << std::endl;
+        // std::cin.get();
+
 //        for (auto p:traj[n].p_cluster)
 //            std::cout << "p_cluster: " << p << std::endl;
 //        if (traj[n].means_class!=10)
@@ -1862,6 +1882,10 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
          
 
         centers_fcm[slow_id].feat_vector = centers_fcm_slow[slow_id2].feat_vector;
+        
+        for (auto &c: centers_fcm_slow){
+            std::cout << "index " << c.idx << "velocity " << c.feat_vector[0] << std::endl;
+        }
         for (auto &c : centers_fcm){
             if (c.idx >= 1 && c.idx != 10){
                 c.idx += 1;
@@ -1873,7 +1897,7 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
         centers_fcm.insert(centers_fcm.begin()+1,centers_fcm_slow[1]);
         for (auto &c : centers_fcm){
             std::cout<< "centers fcm: " << c.idx << " velocity: " << c.feat_vector[0] << std::endl;
-            }
+        }
 
 //        centers_fcm.push_back(centers_fcm_slow[medium_id2]);
         // update centers_fcm: idx
@@ -1885,14 +1909,34 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
         int idx_2fcm = 0;
         for (int n = 0; n < traj.size(); ++n)
         {
+            int i = 0;
+            for (auto &p:traj[n].p_cluster){
+                std::cout<<"Prob index: "<< p << " counter " << i << " " << std::endl;
+                i++;
+            }
+            std::vector<double>::iterator it_0 = traj[n].p_cluster.begin();
             std::vector<double>::iterator it = traj[n].p_cluster.begin() + 1;
+
             if (traj[n].means_class == slow_id){
                 traj[n].p_cluster.insert(it,(*(fcm2->get_membership()))(idx_2fcm, medium_id2));
+
+                traj[n].p_cluster[slow_id2] = (*fcm2->get_membership())(idx_2fcm, slow_id2)/(*it_0);
+                traj[n].p_cluster[medium_id2] = (*fcm2->get_membership())(idx_2fcm, medium_id2)/(*it_0);
+
+
+                std::cout << "Velocity trajectory: " << traj[n].average_speed << std::endl;
+                std::cout << "Velocity classe slow: " << centers_fcm_slow[slow_id2].feat_vector[0] << std::endl;
+                std::cout << "Velocity classe slow medium: " << centers_fcm_slow[medium_id2].feat_vector[0] << std::endl;
+                std::cout << "Probability slow: " << traj[n].p_cluster[slow_id2] << std::endl;
+                std::cout << "Probability medium: " << traj[n].p_cluster[medium_id2] << std::endl;
                 idx_2fcm++; 
             }
             else{
                 traj[n].p_cluster.insert(it,0.0);
             }
+        for (auto &p : traj[n].p_cluster){
+            std::cout <<"Prob Associated: "<< p << std::endl;
+        }
 
         }
 /*        ofstream control_size_cluster(config_.cartout_basename + config_.name_pro + "_control.txt");
@@ -1908,18 +1952,27 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
         std::cout << "fcm2 txt" << std::endl;
         ofstream out_fcm2(config_.cartout_basename + config_.name_pro + "_fcm2.txt");
         idx_2fcm = 0; 
+        std::cout << "center fcm slow : VELOCITY " << centers_fcm[slow_id2].feat_vector[0] << " Index " << slow_id2 << std::endl;
+        std::cout << "center fcm slow : MEAN VELOCITY " << centers_fcm[medium_id2].feat_vector[0] << " Index " << medium_id2 << std::endl;
+        std::cout <<"fcm_get_centers :" << fcm->get_reordered_map_centers_value(slow_id2) << std::endl; 
+        std::cout <<"fcm_get_centers :" << fcm->get_reordered_map_centers_value(medium_id2) << std::endl; 
+        
         for (int n = 0; n < traj.size(); ++n)
         {
             // DA CONTROLLARE !!!!!!!!
             if (traj[n].means_class == slow_id2)
             {  
                 traj[n].p_cluster[slow_id2] = (*(fcm2->get_membership()))(idx_2fcm, slow_id2);
+                std::cout << "Prob cluster " << slow_id2 <<  ", " << traj[n].p_cluster[slow_id2] << std::endl;
+
+
+
                 //traj[n].p_cluster.push_back((*(fcm2->get_membership()))(idx_2fcm, medium_id2));
                 if ((*(fcm2->get_membership()))(idx_2fcm, slow_id2) > (*(fcm2->get_membership()))(idx_2fcm,medium_id2))
                 {
                     traj[n].means_class = fcm2->get_reordered_map_centers_value(slow_id2);
                     traj[n].means_p = traj[n].p_cluster[fcm2->get_reordered_map_centers_value(slow_id2)];
-//                    out_fcm2 << " chosen class: " << traj[n].means_class << " probability: " << traj[n].means_p << " velocity: " << centers_fcm[traj[n].means_class].feat_vector[0] <<std::endl;
+                   out_fcm2 << " chosen class: " << traj[n].means_class << " probability: " << traj[n].means_p << " velocity: " << centers_fcm[traj[n].means_class].feat_vector[0] <<std::endl;
                 }
                 else
                 {
@@ -1927,7 +1980,7 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
 //                    traj[n].means_p = traj[n].p_cluster[num_tm];
                     traj[n].means_class = fcm2->get_reordered_map_centers_value(medium_id2);
                     traj[n].means_p = traj[n].p_cluster[fcm2->get_reordered_map_centers_value(medium_id2)];
-//                    out_fcm2 << " chosen class: " << traj[n].means_class << " probability: " << traj[n].means_p << " velocity: " << centers_fcm[traj[n].means_class].feat_vector[0] <<std::endl;
+                   out_fcm2 << " chosen class: " << traj[n].means_class << " probability: " << traj[n].means_p << " velocity: " << centers_fcm[traj[n].means_class].feat_vector[0] <<std::endl;
 
                 }
                 idx_2fcm++;
@@ -1936,7 +1989,7 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
             else{   
                 traj[n].means_class += 1;
                 traj[n].means_p = traj[n].p_cluster[traj[n].means_class];
-//                out_fcm2 << " chosen class: " << traj[n].means_class << " probability: " << traj[n].means_p << " velocity: " << centers_fcm[traj[n].means_class].feat_vector[0] <<std::endl;
+               out_fcm2 << " chosen class: " << traj[n].means_class << " probability: " << traj[n].means_p << " velocity: " << centers_fcm[traj[n].means_class].feat_vector[0] <<std::endl;
             }
 //ADDED ALBI ORDERING CENTERS_FCM
             out_fcm2<< " trajectory number: "<< n <<std::endl;
@@ -1956,7 +2009,7 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
     for (auto &c : centers_fcm){
         std::cout << "slow mobilty upgraded class: " << c.idx << " velocity: " << c.feat_vector[0] << " number of trajectories: "<< c.cnt << std::endl;
     }
-
+ 
     // measure validation parameter ( intercluster dist/intracluster dist)
     // double dunn_index = measure_dunn_index();
     // std::cout << "Dunn index                      :      " << dunn_index << std::endl;
@@ -2341,6 +2394,12 @@ void assign_new_class(std::vector<traj_base> &traj,std::vector<poly_base> &poly,
         newclassification << ";" << s.first;
     }
     newclassification<<std::endl;
+
+            for (std::map<std::string, std::vector<int>>::iterator i = subnets80.begin(); i != subnets80.end(); ++i){
+                    std::cout << "Sono in funzione e controllo ordine subnets " << std::stoi(i->first) << "\n Mi spetto siano in ordine" << std::endl;
+            }
+    
+
     for (auto &t : traj)
     {            
         std::vector<int> count_point_per_class(subnets80.size(),0);
@@ -2876,10 +2935,15 @@ map<string, vector<int>> make_subnet(config &config_)
             std::cout << "num nodes " << num_nodes.size() << std::endl;
             std::cout << "num nodes old " << int(f * nodes.size()) << std::endl;
 
+            std::cout << "poly size: " << (int)poly.size() << " num nodes: " <<  int(num_nodes.size()) << std::endl;
+
             auto nodesel = FeatureSelection(ind, (int)poly.size(), int(num_nodes.size()), true, false);
+            std::cout << "size: " << nodesel.begin()->second.size() << std::endl;
             // auto nodesel = FeatureSelection(ind, (int)poly.size(), int(f * nodes.size()), true, false);
-            for (const auto &p : nodesel.begin()->second)
+            for (const auto &p : nodesel.begin()->second){
                 subnets[label].push_back(node_poly[lid_cid[p.first]][lid_cid[p.second]]);
+                std::cout << "pushed " << node_poly[lid_cid[p.first]][lid_cid[p.second]] << std::endl;
+            }
             sort(subnets[label].begin(), subnets[label].end());
             cout << "Selected poly : " << subnets[label].size() << endl;
         }

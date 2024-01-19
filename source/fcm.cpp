@@ -239,11 +239,18 @@ void FCM::reorder_cluster_centers(){
         if((*m_cluster_center)(j,0) < min_velocity && std::find(selected_indices.begin(), selected_indices.end(), j) == selected_indices.end()){
           min_velocity = (*m_cluster_center)(j,0);
           index = j;
-//          std::cout << "center: " << min_velocity << " index: " << index << std::endl;
+          std::cout << "center: " << min_velocity << " index: " << index << std::endl;
           }
         }
         selected_indices.push_back(index);
               
+    }
+    std::cout << "Indici ordinati\n" << std::endl;
+    int c=0;
+    for (auto &ind : selected_indices){
+      std::cout << "Associated index " << c << std::endl;
+      std::cout << ind << " " << std::endl;
+      c++;
     }
     for(int i=0;i<m_num_clusters;i++){
       rdm2ordered_cluster_centers[i] = selected_indices[i];
