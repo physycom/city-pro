@@ -1,48 +1,69 @@
-cmake_minimum_required (VERSION 3.1)
-#do not lower cmake due to Threads requirements!
-project(venice)
+cmake_minimum_required (VERSION 3.16)
 
-if (EXISTS "$ENV{WORKSPACE}/sysconfig/cmake/physycom_config.cmake")
-   message(STATUS "Enabling physycom settings")
-   include("$ENV{WORKSPACE}/sysconfig/cmake/physycom_config.cmake")
-else()
-   message(STATUS "Unable to find physycom settings file")
+if(DEFINED ENV{VCPKG_DEFAULT_TRIPLET})
+  message(STATUS "Setting default vcpkg target triplet to $ENV{VCPKG_DEFAULT_TRIPLET}")
+  set(VCPKG_TARGET_TRIPLET $ENV{VCPKG_DEFAULT_TRIPLET})
 endif()
+
+if(DEFINED ENV{VCPKG_ROOT} AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
+  set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
+  set(X_VCPKG_APPLOCAL_DEPS_INSTALL ON)
+  message(STATUS "VCPKG found: $ENV{VCPKG_ROOT}")
+  message(STATUS "Using VCPKG integration")
+  set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
+  if(VCPKG_MANIFEST_FEATURES)
+    message(STATUS "VCPKG_MANIFEST_FEATURES: ${VCPKG_MANIFEST_FEATURES}")
+  endif()
+elseif(DEFINED CMAKE_TOOLCHAIN_FILE)
+  message(STATUS "Using toolchain: ${CMAKE_TOOLCHAIN_FILE}")
+  if(CMAKE_TOOLCHAIN_FILE MATCHES "vcpkg.cmake")
+    message(STATUS "Toolchain uses VCPKG integration")
+    if(VCPKG_MANIFEST_FEATURES)
+      message(STATUS "VCPKG_MANIFEST_FEATURES: ${VCPKG_MANIFEST_FEATURES}")
+    endif()
+  endif()
+else()
+  message(WARNING "vcpkg not found, toolchain not defined, build might fail")
+endif()
+
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/vcpkg.json)
+  file(READ ${CMAKE_CURRENT_SOURCE_DIR}/vcpkg.json VCPKG_JSON_STRING)
+  string(JSON VERSION_STRING GET ${VCPKG_JSON_STRING} version)
+else()
+  set(VERSION_STRING "0.0.0")
+endif()
+
+project(venice VERSION ${VERSION_STRING})
+
+enable_language(C)
+enable_language(CXX)
+
+set(default_build_type "Release")
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  message(STATUS "Setting build type to '${default_build_type}' as none was specified.")
+  set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE
+      STRING "Choose the type of build." FORCE)
+  # Set the possible values of build type for cmake-gui
+  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
+    "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+endif()
+
+if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+  set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_LIST_DIR}" CACHE PATH "Install prefix" FORCE)
+endif()
+
+set(INSTALL_BIN_DIR      "bin"                   CACHE PATH "Path where exe and dll will be installed")
+set(INSTALL_LIB_DIR      "lib"                   CACHE PATH "Path where lib will be installed")
+set(INSTALL_INCLUDE_DIR  "include"               CACHE PATH "Path where headers will be installed ")
+set(INSTALL_CMAKE_DIR    "share/${PROJECT_NAME}" CACHE PATH "Path where cmake configs will be installed")
+
 # VALGRIND SETUP
 #include (CTest)
 #enable_testing()
-#
-### Set output directories on a per-configuration base
-# Single configuration
-# SETTING CLANG AS COMPILER
-# SET (CLANG_DIR "$ENV{WORKSPACE}/city-pro/source/llvm-project")
-# SET (CMAKE_C_COMPILER             "${CLANG_DIR}/build/bin/clang")
-# SET (CMAKE_C_FLAGS                "-Wall -std=c99")
-# SET (CMAKE_C_FLAGS_DEBUG          "-g")
-# SET (CMAKE_C_FLAGS_MINSIZEREL     "-Os -DNDEBUG")
-# SET (CMAKE_C_FLAGS_RELEASE        "-O4 -DNDEBUG")
-# SET (CMAKE_C_FLAGS_RELWITHDEBINFO "-O2 -g")
 
-# SET (CMAKE_CXX_COMPILER             "${CLANG_DIR}/build/bin/clang++")
-# SET (CMAKE_CXX_FLAGS                "-Wall")
-# SET (CMAKE_CXX_FLAGS_DEBUG          "-g")
-# SET (CMAKE_CXX_FLAGS_MINSIZEREL     "-Os -DNDEBUG")
-# SET (CMAKE_CXX_FLAGS_RELEASE        "-O4 -DNDEBUG")
-# SET (CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g")
-
-# SET (CMAKE_AR      "${CLANG_DIR}/build/bin/llvm-ar")
-# SET (CMAKE_LINKER  "${CLANG_DIR}/build/bin/llvm-ld")
-# SET (CMAKE_NM      "${CLANG_DIR}/build/bin/llvm-nm")
-# SET (CMAKE_OBJDUMP "${CLANG_DIR}/build/bin/llvm-objdump")
-# SET (CMAKE_RANLIB  "${CLANG_DIR}/build/bin/llvm-ranlib")
-#
-
-set( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin )
-# Multi configuration
-foreach( OUTPUTCONFIG ${CMAKE_CONFIGURATION_TYPES} )
-    string( TOUPPER ${OUTPUTCONFIG} OUTPUTCONFIG )
-    set( CMAKE_RUNTIME_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${CMAKE_SOURCE_DIR}/bin )
-endforeach( OUTPUTCONFIG CMAKE_CONFIGURATION_TYPES )
+if(WIN32)
+  add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
+endif()
 
 if(UNIX AND NOT APPLE)
   set(OpenGL_GL_PREFERENCE LEGACY) # for compatibility, see https://cmake.org/cmake/help/v3.10/module/FindOpenGL.html
@@ -50,26 +71,14 @@ if(UNIX AND NOT APPLE)
 endif()
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
-find_package(FLTK REQUIRED)
+find_package(FLTK CONFIG REQUIRED)
 find_package(Boost COMPONENTS filesystem REQUIRED)
-find_package(OpenGL REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(OpenGL REQUIRED)
+find_package(physycom-utils REQUIRED)
 
-set(UTILS_DIR "${CMAKE_SOURCE_DIR}/source/utils")
-set(SOURCE_DIR "${CMAKE_SOURCE_DIR}/source")
-set(RAPIDXML_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/source/rapidxml)
-set(JSONCONS_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/source/jsoncons/include)
-
-include_directories(${EIGEN3_INCLUDE_DIR}
-                    ${UTILS_DIR}
-                    ${SOURCE_DIR}
-                    ${OPENGL_INCLUDE_DIRS}
-                    ${FLTK_INCLUDE_DIR}
-                    ${RAPIDXML_INCLUDE_DIR}
-                    ${JSONCONS_INCLUDE_DIR}
-                    ${Boost_INCLUDE_DIR}
-                    ${CMAKE_SOURCE_DIR}/source/ale
-                    )
+include_directories(${CMAKE_SOURCE_DIR}/source
+                    ${CMAKE_SOURCE_DIR}/source/ale)
 
 # creating folder structure
 file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/input/cartography)
@@ -78,35 +87,36 @@ file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/output)
 file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/output/weights)
 
 # List of projects
-add_library(city-pro_lib            ${CMAKE_SOURCE_DIR}/source/carto.cpp
-                                    ${CMAKE_SOURCE_DIR}/source/config.cpp
-                                    ${CMAKE_SOURCE_DIR}/source/data_analysis.cpp
-                                    ${CMAKE_SOURCE_DIR}/source/data_reading.cpp
-                                    ${CMAKE_SOURCE_DIR}/source/draw.cpp
-                                    ${CMAKE_SOURCE_DIR}/source/form.cpp
-                                    ${CMAKE_SOURCE_DIR}/source/frame.cpp
-                                    ${CMAKE_SOURCE_DIR}/source/gltrans.cpp
-                                    ${CMAKE_SOURCE_DIR}/source/record.cpp
-#                                    ${CMAKE_SOURCE_DIR}/source/analyzer_object.cpp
+add_library(city-pro_lib ${CMAKE_SOURCE_DIR}/source/carto.cpp
+                         ${CMAKE_SOURCE_DIR}/source/config.cpp
+                         ${CMAKE_SOURCE_DIR}/source/data_analysis.cpp
+                         ${CMAKE_SOURCE_DIR}/source/data_reading.cpp
+                         ${CMAKE_SOURCE_DIR}/source/draw.cpp
+                         ${CMAKE_SOURCE_DIR}/source/form.cpp
+                         ${CMAKE_SOURCE_DIR}/source/frame.cpp
+                         ${CMAKE_SOURCE_DIR}/source/gltrans.cpp
+                         ${CMAKE_SOURCE_DIR}/source/record.cpp
+                         #${CMAKE_SOURCE_DIR}/source/analyzer_object.cpp
+)
 
-									)
 target_link_libraries(city-pro_lib
-  ${OPENGL_glu_LIBRARY}
-  ${OPENGL_gl_LIBRARY}
-  ${OPENGL_LIBRARIES}
-  ${FLTK_LIBRARIES}
+  OpenGL::GL
+  OpenGL::GLU
+  fltk fltk_gl fltk_forms fltk_images
   Threads::Threads
-  ${Boost_LIBRARIES}
+  Boost::headers
+  Boost::filesystem
+  Eigen3::Eigen
+  Physycom::utils
 )
 
 add_executable(city-pro             ${CMAKE_SOURCE_DIR}/source/main_city-pro.cpp)
-
 target_link_libraries(city-pro      city-pro_lib)
-
-
 
 add_executable(city-pro_subnet           ${CMAKE_SOURCE_DIR}/source/main_city-pro_subnet.cpp)
 target_link_libraries(city-pro_subnet    Threads::Threads)
+target_link_libraries(city-pro_subnet    Physycom::utils)
+
 # VALGRIND TEST
 #add_test(NAME my_app_valgrind_test COMMAND ${CMAKE_CTEST_COMMAND}
 #         --force-new-ctest-process --test-action memcheck
@@ -114,7 +124,7 @@ target_link_libraries(city-pro_subnet    Threads::Threads)
 #         --build-config $<CONFIGURATION>
 #         --start-with-test city-pro)
 #set_tests_properties(my_app_valgrind_test PROPERTIES LABELS valgrind)# Add linking dependencies
-#
+
 if(UNIX AND NOT APPLE)
   target_link_libraries(city-pro          LIBRT::LIBRT )
   target_link_libraries(city-pro_subnet   LIBRT::LIBRT )
@@ -125,4 +135,16 @@ if(UNIX)
   target_link_libraries(city-pro_subnet   ${CMAKE_DL_LIBS} )
 endif()
 
+install(TARGETS city-pro city-pro_subnet
+  RUNTIME DESTINATION "${INSTALL_BIN_DIR}"
+  ARCHIVE DESTINATION "${INSTALL_LIB_DIR}"
+  LIBRARY DESTINATION "${INSTALL_LIB_DIR}"
+)
 
+set(CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS_SKIP TRUE)
+include(InstallRequiredSystemLibraries)
+
+install(
+    PROGRAMS ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS}
+    DESTINATION ${INSTALL_BIN_DIR}
+)

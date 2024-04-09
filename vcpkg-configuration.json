@@ -1,0 +1,15 @@
+{
+  "default-registry": {
+    "kind": "git",
+    "repository": "https://github.com/microsoft/vcpkg",
+    "baseline": "0bc3f04da6cb8ae1dbd5e2051032c596bb03cffa"
+  },
+  "registries": [
+    {
+      "kind": "git",
+      "repository": "https://github.com/physycom/vcpkg-registry",
+      "baseline": "7079f35bb82ba2bf840dd741db2c405056b3c43b",
+      "packages": [ "physycom-utils" ]
+    }
+  ]
+}

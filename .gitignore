@@ -47,3 +47,4 @@ output/
 input/
 *.csv
 *.fluxes
+*.log

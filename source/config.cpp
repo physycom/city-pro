@@ -60,7 +60,7 @@ void config::set_config(jsoncons::json jconf)
   this->threshold_p = jconf.has_member("threshold_p") ? jconf["threshold_p"].as<double>() : 0.85;
 
   this->dump_dt = jconf.has_member("dump_dt") ? jconf["dump_dt"].as<int>() : 1440;
-  
+
   this->enable_bin_act = jconf.has_member("enable_bin_act") ? jconf["enable_bin_act"].as<bool>() : false;
   this->enable_fluxes_print = jconf.has_member("enable_fluxes_print") ? jconf["enable_fluxes_print"].as<bool>() : false;
   this->enable_subnet = jconf.has_member("enable_subnet") ? jconf["enable_subnet"].as<bool>() : false;
@@ -81,7 +81,7 @@ void config::set_config(jsoncons::json jconf)
   physycom::split(tokens, this->file_data[0], string("/"), physycom::token_compress_off);
   physycom::split(tokens1, tokens[tokens.size() - 1], string("."), physycom::token_compress_off);
   this->name_pro = tokens1[0];
-  
+
   info();
 }
 void config::info()

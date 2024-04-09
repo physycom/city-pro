@@ -1,0 +1,19 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "city-pro",
+  "version": "1.0.0",
+  "homepage": "https://github.com/physycom/city-pro",
+  "description": "City-pro",
+  "dependencies":
+  [
+    "boost-algorithm",
+    "boost-filesystem",
+    "boost-graph",
+    "eigen3",
+    "fltk",
+    "jsoncons",
+    "opengl",
+    "rapidxml",
+    "physycom-utils"
+  ]
+}
