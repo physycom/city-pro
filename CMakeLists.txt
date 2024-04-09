@@ -67,8 +67,8 @@ endif()
 
 if(UNIX AND NOT APPLE)
   set(OpenGL_GL_PREFERENCE LEGACY) # for compatibility, see https://cmake.org/cmake/help/v3.10/module/FindOpenGL.html
-  find_package(LibRt REQUIRED)
 endif()
+find_library(LIBRT rt)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 find_package(FLTK CONFIG REQUIRED)
@@ -116,6 +116,10 @@ target_link_libraries(city-pro      city-pro_lib)
 add_executable(city-pro_subnet           ${CMAKE_SOURCE_DIR}/source/main_city-pro_subnet.cpp)
 target_link_libraries(city-pro_subnet    city-pro_lib)
 
+set_property(TARGET city-pro_lib PROPERTY CXX_STANDARD 17)
+set_property(TARGET city-pro PROPERTY CXX_STANDARD 17)
+set_property(TARGET city-pro_subnet PROPERTY CXX_STANDARD 17)
+
 # VALGRIND TEST
 #add_test(NAME my_app_valgrind_test COMMAND ${CMAKE_CTEST_COMMAND}
 #         --force-new-ctest-process --test-action memcheck
@@ -124,9 +128,9 @@ target_link_libraries(city-pro_subnet    city-pro_lib)
 #         --start-with-test city-pro)
 #set_tests_properties(my_app_valgrind_test PROPERTIES LABELS valgrind)# Add linking dependencies
 
-if(UNIX AND NOT APPLE)
-  target_link_libraries(city-pro          LIBRT::LIBRT )
-  target_link_libraries(city-pro_subnet   LIBRT::LIBRT )
+if(LIBRT)
+  target_link_libraries(city-pro ${LIBRT})
+  target_link_libraries(city-pro_subnet ${LIBRT})
 endif()
 
 if(UNIX)
