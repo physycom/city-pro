@@ -114,8 +114,7 @@ add_executable(city-pro             ${CMAKE_SOURCE_DIR}/source/main_city-pro.cpp
 target_link_libraries(city-pro      city-pro_lib)
 
 add_executable(city-pro_subnet           ${CMAKE_SOURCE_DIR}/source/main_city-pro_subnet.cpp)
-target_link_libraries(city-pro_subnet    Threads::Threads)
-target_link_libraries(city-pro_subnet    Physycom::utils)
+target_link_libraries(city-pro_subnet    city-pro_lib)
 
 # VALGRIND TEST
 #add_test(NAME my_app_valgrind_test COMMAND ${CMAKE_CTEST_COMMAND}
