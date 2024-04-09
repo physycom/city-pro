@@ -65,6 +65,10 @@ if(WIN32)
   add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 endif()
 
+if(APPLE)
+  add_compile_definitions(GL_SILENCE_DEPRECATION)
+endif()
+
 if(UNIX AND NOT APPLE)
   set(OpenGL_GL_PREFERENCE LEGACY) # for compatibility, see https://cmake.org/cmake/help/v3.10/module/FindOpenGL.html
 endif()
@@ -116,9 +120,9 @@ target_link_libraries(city-pro      city-pro_lib)
 add_executable(city-pro_subnet           ${CMAKE_SOURCE_DIR}/source/main_city-pro_subnet.cpp)
 target_link_libraries(city-pro_subnet    city-pro_lib)
 
-set_property(TARGET city-pro_lib PROPERTY CXX_STANDARD 17)
-set_property(TARGET city-pro PROPERTY CXX_STANDARD 17)
-set_property(TARGET city-pro_subnet PROPERTY CXX_STANDARD 17)
+set_property(TARGET city-pro_lib PROPERTY CXX_STANDARD 14)
+set_property(TARGET city-pro PROPERTY CXX_STANDARD 14)
+set_property(TARGET city-pro_subnet PROPERTY CXX_STANDARD 14)
 
 # VALGRIND TEST
 #add_test(NAME my_app_valgrind_test COMMAND ${CMAKE_CTEST_COMMAND}
