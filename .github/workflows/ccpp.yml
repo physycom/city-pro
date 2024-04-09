@@ -55,13 +55,7 @@ jobs:
 
     - name: 'Build'
       shell: pwsh
-      run: ${{ github.workspace }}/cmake/build.ps1 -UseVCPKG -DoNotUpdateVCPKG -DisableInteractive -DoNotUpdateTOOL
-
-    - name: Publish artifacts
-      uses: actions/upload-artifact@v3
-      with:
-        name: ${{ github.event.repository.name }}-ubuntu
-        path: build_release/${{ github.event.repository.name }}-*.deb
+      run: ${{ github.workspace }}/ccm/build.ps1 -UseVCPKG -DoNotUpdateVCPKG -DisableInteractive -DoNotUpdateTOOL
 
 
   osx-vcpkg:
@@ -101,13 +95,7 @@ jobs:
 
     - name: 'Build'
       shell: pwsh
-      run: ${{ github.workspace }}/cmake/build.ps1 -UseVCPKG -DoNotUpdateVCPKG -DisableInteractive -DoNotUpdateTOOL
-
-    - name: Publish artifacts
-      uses: actions/upload-artifact@v3
-      with:
-        name: ${{ github.event.repository.name }}-macos
-        path: build_release/${{ github.event.repository.name }}-*.dmg
+      run: ${{ github.workspace }}/ccm/build.ps1 -UseVCPKG -DoNotUpdateVCPKG -DisableInteractive -DoNotUpdateTOOL
 
 
   win-vcpkg:
@@ -144,10 +132,4 @@ jobs:
 
     - name: Build
       shell: pwsh
-      run: ${{ github.workspace }}/cmake/build.ps1 -UseVCPKG -DoNotUpdateVCPKG -DisableInteractive -DoNotUpdateTOOL
-
-    - name: Publish artifacts
-      uses: actions/upload-artifact@v3
-      with:
-        name: ${{ github.event.repository.name }}-windows
-        path: build_release/${{ github.event.repository.name }}-*.msi
+      run: ${{ github.workspace }}/ccm/build.ps1 -UseVCPKG -DoNotUpdateVCPKG -DisableInteractive -DoNotUpdateTOOL
