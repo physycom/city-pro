@@ -17,7 +17,7 @@ extern vector <arc_base> arc;
 
 extern map<unsigned long long int, int> node_cid2id;
 
-extern mapping_base **A; 
+extern std::vector<std::vector<mapping_base>> A;
 extern int jmax;
 extern int imax; // A[jmax][imax]
 extern double ds_lat;
@@ -38,7 +38,7 @@ void arc_base::set(int id_poly, double s0, point_base a, point_base b,std::vecto
   this->s0 = s0;
   this->a = a;
   this->b = b;
-  dx = config_.dslon*(b.lon - a.lon);  
+  dx = config_.dslon*(b.lon - a.lon);
   dy = config_.dslat*(b.lat - a.lat);
   length = sqrt(dx*dx + dy * dy);
   if (length > 0.01) { dx /= length; dy /= length; }
@@ -53,14 +53,14 @@ void arc_base::set(int id_poly, double s0, point_base a, point_base b,std::vecto
 //----------------------------------------------------------------------------------------
 double arc_base::measure_dist(double lon, double lat) {  //meters
 
-  double dxa = config_.dslon*(lon - a.lon); 
+  double dxa = config_.dslon*(lon - a.lon);
   double dya = config_.dslat*(lat - a.lat);
-  double ds = dxa * dx + dya * dy; 
+  double ds = dxa * dx + dya * dy;
 
   double dist;
   if (ds < 0) dist = sqrt(dxa*dxa + dya * dya);
   else if (ds > length) {
-    double dxb = config_.dslon*(lon - b.lon); 
+    double dxb = config_.dslon*(lon - b.lon);
     double dyb = config_.dslat*(lat - b.lat);
     dist = sqrt(dxb*dxb + dyb * dyb);
   }
@@ -74,9 +74,9 @@ bool arc_base::measure_affinity(double lon, double lat, arcaffpro_base &aap) {
   // d = distance between the lat lon and arc.
   // a = affinity
   aap.set(s0, config_.map_resolution, 0.0);  // (s,d,a)
-  double lon_c = (a.lon + b.lon) / 2; 
+  double lon_c = (a.lon + b.lon) / 2;
   double lat_c = (a.lat + b.lat) / 2;
-  double xc = config_.dslon*(lon - lon_c);  
+  double xc = config_.dslon*(lon - lon_c);
   double yc = config_.dslat*(lat - lat_c);
 
   double x, y;  // coordinates
@@ -85,22 +85,22 @@ bool arc_base::measure_affinity(double lon, double lat, arcaffpro_base &aap) {
   x = (xc*dx + yc * dy);  // sign can be neglected
   double l = 0.5*this->length; // half arc
 
-  if (x < -l) { 
-    aap.s = s0 + EPSILON;       
-    aap.d = sqrt(y*y + (x + l)*(x + l)); 
+  if (x < -l) {
+    aap.s = s0 + EPSILON;
+    aap.d = sqrt(y*y + (x + l)*(x + l));
   }
   else if (x > l) {
-    aap.s = s0 + l + l - EPSILON; 
+    aap.s = s0 + l + l - EPSILON;
     aap.d = sqrt(y*y + (x - l)*(x - l));
   }
-  else { 
-    aap.s = s0 + l + x;    
+  else {
+    aap.s = s0 + l + x;
     aap.d = y;
   }
   if (aap.d > config_.map_resolution) return false;
 
   x /= config_.l_gauss;
-  y /= config_.l_gauss; 
+  y /= config_.l_gauss;
   l /= config_.l_gauss;
   aap.a = exp(-y * y)*(erf(l - x) + erf(l + x)) / 2; // affinity of point on infinite lenght arc is 1
   return true;
@@ -115,7 +115,7 @@ arcaffpro_base::arcaffpro_base() {
 void arcaffpro_base::add(arcaffpro_base aap) {
   this->a += aap.a;
   if (this->d > aap.d) {
-    this->d = aap.d; 
+    this->d = aap.d;
     this->s = aap.s;
   }
 }
@@ -151,7 +151,7 @@ void poly_base::set(int id, unsigned long long int cid, vector <point_base> poin
 
 }
 //----------------------------------------------------------------------------------------
-void poly_base::set(unsigned long long int cid_Fjnct, unsigned long long int cid_Tjnct, float meters, int oneway_,string name_) 
+void poly_base::set(unsigned long long int cid_Fjnct, unsigned long long int cid_Tjnct, float meters, int oneway_,string name_)
 {
   this->cid_Fjnct = cid_Fjnct;
   this->cid_Tjnct = cid_Tjnct;
@@ -218,7 +218,7 @@ void node_base::remove_link(void) {
 }
 //--------------------------------------------------------------------
 int node_base::get_n_link(void) { return int(id_nlink.size()); }
-//----------------------------------------------------------------------------  
+//----------------------------------------------------------------------------
 double node_base::measure_dist(double lon, double lat) {
   double dx = config_.dslon*(this->lon - lon);
   double dy = config_.dslat*(this->lat - lat);
@@ -226,13 +226,13 @@ double node_base::measure_dist(double lon, double lat) {
   if (ds2 > 0) return sqrt(ds2);
   else          return 0.0;
 }
-//----------------------------------------------------------------------------  
+//----------------------------------------------------------------------------
 bool comp_near_node(const node_near_base& a, const node_near_base& b) { return (a.distance < b.distance); }
 
 // MAPPING //
 void make_arc(std::vector<poly_base> &poly) {
-  arc_base aw; 
-  arc.clear(); 
+  arc_base aw;
+  arc.clear();
   double s0;
   for (int i = 1; i<int(poly.size()); i++) {
     s0 = 0.0;
@@ -252,8 +252,8 @@ int A_put_arc(int n) {
   int ja = int((arc[n].a.lat - config_.lat_min) / ds_lat);
   int ib = int((arc[n].b.lon - config_.lon_min) / ds_lon);
   int jb = int((arc[n].b.lat - config_.lat_min) / ds_lat);
-//mi metto nella soluzione di default che a è più a sx e più in basso in modo tale da controllare il range di quadratini  
-  if (ib < ia) { tw = ia; ia = ib; ib = tw; }        
+//mi metto nella soluzione di default che a è più a sx e più in basso in modo tale da controllare il range di quadratini
+  if (ib < ia) { tw = ia; ia = ib; ib = tw; }
   if (jb < ja) { tw = ja; ja = jb; jb = tw; }
 //lo sto facendo per un singolo arco->ho che il valore di i0 e j0 differisce per ognuno. Considero qua i casi estremi. Se sono nella casella estrema allora mettimi nella casella estrema sia per ogni lato
   int i0 = (ia - 1 > 0 ? ia - 1 : 0);  int i1 = (ib + 2 < imax ? ib + 2 : imax);
@@ -274,16 +274,16 @@ int A_put_arc(int n) {
 //------------------------------------------------------------------------------------------------------
 int A_put_node(int n,std::vector<node_base> &node,config &config_)
 {
-  double x, y; 
+  double x, y;
   int n_node_put = 0;
   x = node[n].lon;
   y = node[n].lat;
 
   int ia = int((x - config_.lon_min) / ds_lon);
   int ja = int((y - config_.lat_min) / ds_lat);
-  int i0 = (ia - 1 > 0 ? ia - 1 : 0);  
+  int i0 = (ia - 1 > 0 ? ia - 1 : 0);
   int i1 = (ia + 2 < imax ? ia + 2 : imax);
-  int j0 = (ja - 1 > 0 ? ja - 1 : 0);  
+  int j0 = (ja - 1 > 0 ? ja - 1 : 0);
   int j1 = (ja + 2 < jmax ? ja + 2 : jmax);
 
   for (int j = j0; j < j1; j++) {
@@ -305,12 +305,12 @@ void make_mapping(std::vector<poly_base> &poly,std::vector<node_base> &node)
 {
   static bool first = true;
   if (first) first = false;
-  else { for (int j = 0; j < jmax; j++) delete[]A[j]; delete[]A; }
+  else { for (int j = 0; j < jmax; j++) A.clear(); }
   make_arc(poly);
 
-  int n_arc_put = 0; 
+  int n_arc_put = 0;
   int n_node_put = 0;
-  c_ris1 = 1.72*config_.map_resolution; 
+  c_ris1 = 1.72*config_.map_resolution;
   c_ris2 = c_ris1 * c_ris1;
   ds_lat = config_.map_resolution / config_.dslat;
   ds_lon = config_.map_resolution / config_.dslon;
@@ -320,8 +320,8 @@ void make_mapping(std::vector<poly_base> &poly,std::vector<node_base> &node)
   cout << "  LX[km]= " << (config_.lat_max - config_.lat_min)*config_.dslat / 1000;
   cout << "  LY[km]= " << (config_.lon_max - config_.lon_min)*config_.dslon / 1000 << endl;
 
-  A = new mapping_base*[jmax]; 
-  for (int j = 0; j < jmax; j++) A[j] = new mapping_base[imax];  // A[jmax][imax]
+  A.resize(jmax);
+  for (int j = 0; j < jmax; j++) A[j].resize(imax);  // A[jmax][imax]
   for (int n = 0; n< int(arc.size()); n++) n_arc_put += A_put_arc(n);
   for (int n = 1; n < node.size(); n++) n_node_put += A_put_node(n,node,config_);
 }
@@ -351,9 +351,9 @@ bool find_near_node(double lon, double lat, double &dist, int &id_node,std::vect
     double node_dist = node[n].measure_dist(lon, lat);
     if (dist > node_dist) { id_node = n; dist = node_dist; }
   }
-  if (id_node == 0) 
-    return false; 
-  else 
+  if (id_node == 0)
+    return false;
+  else
     return true;
 }
 //ALBI
@@ -375,16 +375,16 @@ void map_poly2grid(vector<int> poly_sub,std::vector<poly_base> &poly){
 //----------------------------------------------------------------------------------------------------
 bool find_polyaff(double lon, double lat, polyaffpro_base &pap) {
   // caso 0 = free; caso 1 = on_vapo; caso 2 out_vapo;
-  pap.a = 0; 
-  pap.d = 1.0e8; 
-  pap.id_poly = 80000000; 
+  pap.a = 0;
+  pap.d = 1.0e8;
+  pap.id_poly = 80000000;
   pap.s = 0;
   list <polyaffpro_base> pap_list;
   int i = int((lon - config_.lon_min) / ds_lon); int j = int((lat - config_.lat_min) / ds_lat);
   int n_near = int(A[j][i].arc_id.size());
   if (n_near < 1) return false;
 
-  map<int, arcaffpro_base> poly_aap; 
+  map<int, arcaffpro_base> poly_aap;
   arcaffpro_base aapw;
   for (auto &n : A[j][i].arc_id) {
     if (arc[n].measure_affinity(lon, lat, aapw)) poly_aap[arc[n].id_poly].add(aapw);
@@ -393,9 +393,9 @@ bool find_polyaff(double lon, double lat, polyaffpro_base &pap) {
 
   polyaffpro_base paw;
   for (auto &n : poly_aap) {
-    paw.id_poly = n.first; 
-    paw.a = n.second.a; 
-    paw.d = n.second.d; 
+    paw.id_poly = n.first;
+    paw.a = n.second.a;
+    paw.d = n.second.d;
     paw.s = n.second.s;
     pap_list.push_back(paw);
   }
@@ -465,11 +465,11 @@ void make_node(std::vector<poly_base> &poly,std::map<unsigned long long,int> &no
     node_cid2id[poly[i].cid_Fjnct] = 0;
     node_cid2id[poly[i].cid_Tjnct] = 0;
   }
-  int cnt = 1; 
+  int cnt = 1;
 //conto i punti che ci sono tra tail e front e incremento il value del tail e front
-  for (auto &i : node_cid2id) 
+  for (auto &i : node_cid2id)
     i.second = cnt++;
-  
+
   node.resize(int(node_cid2id.size()) + 1);
   for (int i = 1; i < int(poly.size()); i++) {
     int id_nodeF = node_cid2id[poly[i].cid_Fjnct];
@@ -544,4 +544,3 @@ FILE *my_fopen(char *fname, char *mode)
   return fp;
 }
 //----------------------------------------------------------------------------------------------------------------
-

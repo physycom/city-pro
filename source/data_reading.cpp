@@ -104,7 +104,7 @@ void load_data(std::vector<activity_base> &activity,config &config_)
 {
     int cnt_in = 0;
     int cnt_out = 0;
-    int max_size_records = 0; 
+    int max_size_records = 0;
 
     for (auto &i : config_.file_data)
     {
@@ -199,13 +199,13 @@ void load_data(std::vector<activity_base> &activity,config &config_)
             aw.id_act = n.first;
             aw.record.reserve(MAX_RECORD);
             if(n.second.size()>MAX_RECORD)
-                {cout <<"excluding a trajectory with more than 12000"<<endl;} 
-            else 
+                {cout <<"excluding a trajectory with more than 12000"<<endl;}
+            else
             {
             aw.record = n.second;
             activity.push_back(aw);
             if (aw.record.size() > max_size_records)
-                max_size_records = aw.record.size();} 
+                max_size_records = aw.record.size();}
         }
     }
     cout << "Activity: " << int(activity.size()) << endl;

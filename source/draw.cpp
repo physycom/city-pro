@@ -157,7 +157,7 @@ void draw_fluxes()
 
   }
   else {
-    //temporary added 
+    //temporary added
     //sigma = 3;
     ///////////
     glPushMatrix();
@@ -179,8 +179,8 @@ void draw_fluxes()
     }
     glPopMatrix();
   }
-  
-  glColor3d(1.0, 1.0, 1.0); 
+
+  glColor3d(1.0, 1.0, 1.0);
   glLineWidth(1);
 }
 // ********************************************************************************************************
@@ -333,7 +333,7 @@ void draw_outofcarto() {
 }
 // ********************************************************************************************************
 void draw_traj_work() {
-  int i = traj_work; 
+  int i = traj_work;
   if (i < 0 || i > traj.size() - 1) return;
   for (auto sp : traj[i].stop_point) {
     for (auto &spp : sp.points) {
@@ -422,10 +422,10 @@ void draw_polygons() {
 // ********************************************************************************************************
 void draw_subnet()
 {
-  string subnet_select = subnet_label[subnet_work];// subnet_work is initialized to 0 and then increased by 1 with plus_cb called in time_plus,vector <string> subnet_label = class_0_60,.._0_70,...,class_N_80 
+  string subnet_select = subnet_label[subnet_work];// subnet_work is initialized to 0 and then increased by 1 with plus_cb called in time_plus,vector <string> subnet_label = class_0_60,.._0_70,...,class_N_80
   std::cout << "subnet_work " << subnet_work <<"\nsubnet select" << subnet_select <<std::endl;
   color_palette(2); // that is the order -> subnet_work = 0 is class_0_60, subnet_work = 1 class_0_70 and so on.
-  glLineWidth(3.0); // map <string,vector<int>> subnets: class_0_60, vector <int> poly id. 
+  glLineWidth(3.0); // map <string,vector<int>> subnets: class_0_60, vector <int> poly id.
   glPushMatrix();
   std::cout << "matrix pushed" << std::endl;
   for (const auto &n : subnets[subnet_select]) {

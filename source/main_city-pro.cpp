@@ -65,7 +65,7 @@ void usage(const char *progname)
   cerr << "Usage: " << pn.substr(pn.find_last_of("/\\") + 1) << " path/to/json/config" << endl;
   cerr << R"(JSON CONFIG SAMPLE
 {
-  
+
   "city_tag"        : "NameCity",
   ///// cartography setup
   "file_pro"        : "roads.pro",  // poly properties input file
@@ -134,7 +134,7 @@ int main(int argc, char **argv) {
 //ho ottenuto dlat,dlon e ho settato la proporzionalità tra screen_w e dlon e screen_h e lat.
 //vado su data_reading.cpp
     load_poly(analysis_container.config_,analysis_container.poly,analysis_container.poly_cid2lid);
-//ho l'insieme di tutte le poly con i rispettivi poly[n].cid_poly,id_poly,points,cid_Fjnct, cid_Tjnct, meters, oneway, name poi qua trovo definite: 
+//ho l'insieme di tutte le poly con i rispettivi poly[n].cid_poly,id_poly,points,cid_Fjnct, cid_Tjnct, meters, oneway, name poi qua trovo definite:
 //vector <poly_base> poly;
 //vector <activity_base> activity;
 //vector <polygon_base> polygon;
@@ -151,7 +151,7 @@ int main(int argc, char **argv) {
 //posso salvarmi in sort_activity le informazioni che mi servono per descrivere le traiettorie, le velocità. (l'inizializzazione di indx per activity and record è un'opzione per la funzione sotto.)
     if(config_.enable_bin_act)
       bin_activity(analysis_container.activity);
-    
+
     make_traj(analysis_container.activity,analysis_container.dataloss,analysis_container.traj,analysis_container.data_notoncarto,analysis_container.presence);//for t in traj_temp 1) activity->traj_temp 2) t.record -> t.stop_point 3)t.stop_point = sp_on_carto (vector clster_base)
     if (config_.enable_multimodality)
       {

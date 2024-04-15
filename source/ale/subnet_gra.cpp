@@ -13,7 +13,7 @@
 #include <FL/Fl_Choice.H>
 #include "../dati_local.h"
 #include "../analisi_dati.h"
-#include "../utils/physycom/string.hpp"
+#include <physycom/string.hpp>
 #include "subnet_gra.h"
 #include "../form.h"
 #include "../draw.h"

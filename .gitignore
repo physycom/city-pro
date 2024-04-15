@@ -40,10 +40,10 @@ build*/
 bin/
 try_albi/
 cmake/
-work*/
 source - Copy/
 source_original/
 output/
 input/
 *.csv
 *.fluxes
+*.log
