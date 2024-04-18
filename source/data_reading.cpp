@@ -79,7 +79,7 @@ void load_poly(config config_,std::vector<poly_base> &poly,std::map<unsigned lon
 
     int n = 0;
     // front tail VS start end
-    while (fscanf(fp0, " %llu %llu %llu %f %d %d %d %d %lf %d %s",
+    while (fscanf(fp0, " %lld %lld %lld %f %f %d %d %d %lf %d %s",
                   &id_poly, &cid_Fjnct, &cid_Tjnct, &meters, &frc, &n2c, &fow, &oneway, &kmh, &lanes, name) != EOF)
     {
         n++;
@@ -88,6 +88,7 @@ void load_poly(config config_,std::vector<poly_base> &poly,std::map<unsigned lon
 //        std::cout << "size_of id poly: " << sizeof(id_poly) << " size_of cid_Fjnct: " << sizeof(cid_Fjnct) << " size_of cid_Tjnct: " << sizeof(cid_Tjnct) << std::endl;
         std::cout << "meters: " << meters << " frc: " << frc << " n2c: " << n2c << " fow: " << fow << " oneway: " << oneway << " kmh: " << kmh << " lanes: " << lanes << " name: " << name<<std::endl;
         std::cout << "size_of meters: " << sizeof(meters) << " size_of frc: " << sizeof(frc) << " size_of n2c: " << sizeof(n2c) << " size_of fow: " << sizeof(fow) << " size_of oneway: " << sizeof(oneway) << " size_of kmh: " << sizeof(kmh) << " size_of lanes: " << sizeof(lanes) << " size_of name: " << sizeof(name) << std::endl;
+        if (n==5) exit(5);
         if (poly[n].cid_poly == id_poly)
         {
             // inizializzo gli altri parametri di poly_base tramite il riconoscimento del numero della poly id di .pnt.
