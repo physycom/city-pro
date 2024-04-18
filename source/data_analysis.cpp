@@ -5,7 +5,7 @@
 #include "record.h"
 #include "data_analysis.h"
 #include "config.h"
-#include "utils/physycom/histo.hpp"
+#include <physycom/histo.hpp>
 #include <boost/algorithm/string.hpp>
 #include <physycom/time.hpp>
 #include <Eigen/Dense>
