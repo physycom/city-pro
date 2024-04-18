@@ -1,3 +1,6 @@
 [submodule "ccm"]
 	path = ccm
 	url = https://github.com/cenit/ccm
+[submodule "utils"]
+	path = utils
+	url = git@github.com:physycom/utils.git
