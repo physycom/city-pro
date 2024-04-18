@@ -5,7 +5,7 @@
 #include "record.h"
 #include "data_analysis.h"
 #include "config.h"
-#include "physycom/histo.hpp"
+#include "utils/physycom/histo.hpp"
 #include <boost/algorithm/string.hpp>
 #include <physycom/time.hpp>
 #include <Eigen/Dense>
@@ -16,11 +16,11 @@
 #include <set>
 #include <featsel.hpp>
 #include "global_params.h"
+#include <unistd.h>
 #include <type_traits>
 #include <chrono>
 #include <thread>
 #include<map>
-
 using namespace Eigen;
 using namespace std;
 extern config config_;
@@ -185,10 +185,14 @@ data_notcarto:filled
 presence: filled*/
     vector<traj_base> traj_temp;
     traj_base tw;
+    std::cout << "position tw: " << &tw << std::endl;   
+    std::cout << "position traj_temp: " << &traj_temp << std::endl;
+    std::cout << "position activity: " << &activity << std::endl;
+    std::cout << "position config_: " << &config_ << std::endl;
     for (auto &a : activity)
     {
         if(a.record.size()<MAX_RECORD)
-        {
+        {        
             tw.record.clear();
             tw.id_act = a.id_act;
             tw.record.reserve(MAX_RECORD);
@@ -240,18 +244,6 @@ presence: filled*/
     //   for (auto &sp : t.stop_point)
     //     out_spot << t.id_act << ";" << sp.points.front().itime << ";" << sp.points.front().lat << ";" << sp.points.front().lon << std::endl;
 
-    // temporarily added for duration analysis
-    if (1 == 0)
-    {
-        ofstream out_dur(config_.cartout_basename + config_.name_pro + "_duration_post.csv");
-        out_dur << "id_act;duration;n_rec_raw;n_rec_filt" << std::endl;
-        for (auto &t : traj_temp)
-        {
-            out_dur << t.id_act << ";" << t.stop_point.back().points.front().itime - t.stop_point.front().points.front().itime << ";" << t.row_n_rec << ";" << t.stop_point.size() << std::endl;
-        }
-    }
-
-    // temporarly added for duration analysis
     // ofstream out_nogeoref(config_.cartout_basename + config_.name_pro + "_nogeoref.csv");
     // out_nogeoref << "id_act;lat;lon;time" << std::endl;
 
@@ -421,7 +413,7 @@ presence: filled*/
     ofstream out_stats(config_.cartout_basename + config_.name_pro + "_stats.csv");
     out_stats << "id_act;lenght;time;av_speed;ndat;front_lat;front_lon;tail_lat;tail_lon;start_time;end_time" << std::endl;
     for (auto &t : traj)
-        {if(t.average_inst_speed<t.v_max && t.average_inst_speed>t.v_min)
+        {if(t.average_inst_speed<t.v_max && t.average_inst_speed>t.v_min)            
             out_stats << t.id_act << ";" << t.length << ";" << t.time << ";" << t.average_inst_speed << ";" << t.stop_point.size() << ";" << t.stop_point.front().centroid.lat << ";" << t.stop_point.front().centroid.lon << ";" << t.stop_point.back().centroid.lat << ";" << t.stop_point.back().centroid.lon << ";" << t.stop_point.front().points.front().itime << ";" << t.stop_point.back().points.back().itime << std::endl;
         else std::cout<<"average speed out of bound: "<< t.id_act << " vmin " << t.v_min << " vmax " <<t.v_max << " av_inst_speed "<< t.average_inst_speed<<std::endl;
         }
@@ -441,7 +433,6 @@ void seed_pro_base::set(int id_node, int node_bv, int link_bv, double distance)
 //-------------------------------------------------------------------------------------------------
 bool best_poly(cluster_base &d1, cluster_base &d2,std::vector<poly_base> &poly,std::vector<node_base> &node)
 {
-
     polyaffpro_base t1 = d1.pap; //  int id_poly;double a, d, s;list <pair<int, double>> path; // pair< id_poly, time_in >
                                  //  double path_weight;  void clear(); are the attributes and functions of this type.
     polyaffpro_base t2 = d2.pap;
@@ -689,105 +680,6 @@ bool best_poly(cluster_base &d1, cluster_base &d2,std::vector<poly_base> &poly,s
     return true;
 }
 
-// ALBI
-/*
-void make_FD(){
-  int count_cycle = 0;
-  /////// fondamental diagram initalization
-  int num_bin = int((config_.end_time - config_.start_time) / (config_.dump_dt * 60));
-  std::vector<std::pair<double,double>> poly_timetable(num_bin);
-  std::vector<std::pair<std::vector<double>, std::vector<double>>> poly_timetable_all(num_bin);
-  for (int i = 0; i < num_bin; i++) {
-    poly_timetable_all[i] = make_pair(vector<double>(), vector<double>());
-    poly_timetable[i] = make_pair(0,0);
-}
-  for (auto &p : poly) p.velocity = poly_timetable,p.density = poly_timetable,p.time_percorrence = poly_timetable, p.all_velocity = poly_timetable_all,p.all_time_percorrence = poly_timetable_all;
-  for (auto &t : traj) {
-    double time_percorrence = 0;
-    for (int i = 0; t.stop_point.size();i++){
-      if (t.stop_point.inst_speed == 0)continue;
-      else{
-        int bin_ = int(int(t.path[i].second * 3600) / (config_.dump_dt * 60));
-        if (t.path[i].first>0) poly[t.path[i].first].all_velocity[bin_].first.push_back(t.stop_point.inst_speed); // inst speed for a point in the trajectory FT
-        else poly[t.path[i].first].all_velocity[bin_].second.push_back(t.stop_point.inst_speed); // inst speed for a point in the trajectory TF
-        if (time_percorrence == 0) continue;
-        else if (t.path[i].first == t.path[i-1].first) time_percorrence += t.path[i].second - t.path[i-1].second;
-        else {
-          if (t.path[i-1].first>0){poly[t.path[i-1].first].all_time_percorrence[bin_].first.push_back(time_percorrence); // pushback time duration trajectory FT
-              time_percorrence = 0;
-            }
-          else{poly[-t.path[i-1].first].all_time_percorrence[bin_].second.push_back(time_percorrence); // pushback time duration trajectory TF (second is tailfront)
-              time_percorrence = 0;
-            }
-          }
-
-
-      }
-
-    }
-
-  }
-  for (auto &p:poly){
-    for (int i = 0; i < num_bin; i++){
-      int count_time = 0;
-      int count_vel = 0;
-      double tot_time_FT = 0;
-      double tot_time_TF = 0;
-      int tot_vel_FT = 0;
-      int tot_vel_TF = 0;
-// INITIALIZE TIME PERCORRENCE PER POLY PER INTERVAL TIME (i = 0,...,(config_.end - config_.start)/config_.dump_dt)
-      for(auto &t : p.all_time_percorrence[i].first){
-        count_time += 1;
-        tot_time_FT += t;
-      }
-      if (count_time == 0) p.time_percorrence[i].first =0;
-      else {
-        p.time_percorrence[i].first = tot_time_FT/count_time;
-        count_time = 0;
-        p.all_time_percorrence[i].first.clear();
-        }
-      for(auto &t : p.all_time_percorrence[i].second){
-        count_time += 1;
-        tot_time_TF += t;
-      }
-      if (count_time == 0) p.time_percorrence[i].second = 0;
-      else
-        {
-        p.time_percorrence[i].second = tot_time_TF/count_time;
-        count_time = 0;
-        p.all_time_percorrence[i].second.clear();
-        }
-
-// INITIALIZE VELOCITY PER POLY PER INTERVAL TIME (i = 0,...,(config_.end - config_.start)/config_.dump_dt)
-      for(auto &v : p.all_velocity[i].first){
-        count_vel += 1;
-        tot_vel_FT += v;
-      }
-      if (count_vel == 0) p.velocity[i].first = 0;
-      else
-        {
-        p.velocity[i].first = tot_vel_FT/count_vel;
-        count_vel = 0;
-        p.all_velocity[i].first.clear();
-        }
-
-      for(auto &v : p.all_velocity[i].second){
-        count_vel += 1;
-        tot_vel_TF += v;
-      }
-      if (count_vel == 0) p.velocity[i].second = 0;
-      else  {
-      p.velocity[i].second = tot_vel_FT/count_vel;
-      count_vel = 0;
-      p.all_velocity[i].second.clear();
-        }
-      }
-    }
-  }
-}
-*/
-
-// ALBI
 void sleep()
 {
     std::cout << "sleep" << std::endl;
@@ -827,8 +719,8 @@ void write_mil_file_poly2class(std::vector<poly_base> &poly,std::vector<traj_bas
 
     out_poly2fcm << "av_speed;class;poly_id;nodeF;nodeT" << std::endl;
     std::cout <<"writing POLY_WITH_FCM.csv"<<std::endl;
-    if(out_poly2fcm.is_open()){
-        for (auto &t : traj){
+    if(out_poly2fcm.is_open()){ 
+        for (auto &t : traj){   
             int stop_point_it = 0;
             for (auto &j:t.path){
                 if (j.first<0){
@@ -846,6 +738,7 @@ void write_mil_file_poly2class(std::vector<poly_base> &poly,std::vector<traj_bas
     }
     else throw std::runtime_error("Could not open poly_with_fcm file");
 }
+
 void dump_fluxes_file(std::vector<poly_base> &poly,config &config_,std::vector<std::vector<int>> &polyclass){
 //  Description: create the file .fluxes -> 1) read mil_file: with poly,class,nodeF-T,velocity for each point of all trajectories
 //  Input: poly and centers_fcm
@@ -869,7 +762,7 @@ void dump_fluxes_file(std::vector<poly_base> &poly,config &config_,std::vector<s
         std::string token;
         while (std::getline(read_fcm,line))
         {   std::vector<std::string> tokens;
-            physycom::split(tokens, line, string(";"), physycom::token_compress_on);
+            physycom::split(tokens, line, string(";"), physycom::token_compress_on);                      
             velocities.push_back(std::stod(tokens[0]));
             classes.push_back(std::stoi(tokens[1]));
             poly_ids.push_back(std::stoi(tokens[2]));
@@ -905,20 +798,21 @@ void dump_fluxes_file(std::vector<poly_base> &poly,config &config_,std::vector<s
         }
     // count flux per poly
     //count_flux_per_poly(poly_ids,classes,fcm_centers_id,poly2class_count);
-    ofstream out(config_.cartout_basename + "/weights/" + config_.name_pro + ".fluxes");
+    std::cout << config_.cartout_basename + "/weights/" + config_.name_pro + ".fluxes" << std::endl;
+    std::ofstream out(config_.cartout_basename + "/weights/" + config_.name_pro + ".fluxes");
     if (!out.is_open())
         throw std::runtime_error("Could not open fluxes file");
-    else{
+    else{    
         std::cout <<polyclass[polyclass.size()-1][0] << " "<<poly_ids[poly_ids.size()]<< std::endl;
         out << "id;id_local;nodeF;nodeT;lenght;total_fluxes";
         for (auto &c : fcm_centers_id){
             std::cout <<"index fcm: "<<c << std::endl;
-            if (c!=10 && c!=11)
+            if (c!=10 && c!=11) 
             {out << ";"<< "class_" + to_string(c);}
-        }
-        out << std::endl;
+        }        
+        out << std::endl;        
         for (int i=0;i<poly.size();++i)
-            {
+            {   
             int total_fluxes=0;
             for(int fc = 0; fc<polyclass[i].size();fc++){
                 total_fluxes+=polyclass[i][fc];
@@ -931,7 +825,7 @@ void dump_fluxes_file(std::vector<poly_base> &poly,config &config_,std::vector<s
             for (int fc = 0; fc<fcm_centers_id.size();fc++)
                 if (fcm_centers_id[fc] != 10 && fcm_centers_id[fc] != 11){
                     out << ";" << polyclass[i][fcm_centers_id[fc]];
-
+                    
                 }
             out << std::endl;
 //            std::cout << "is open: " << i << " poly "<<poly_ids[i]<<" " <<polyclass[i][0]<<std::endl;
@@ -950,7 +844,7 @@ void dump_fluxes_file(std::vector<poly_base> &poly,config &config_,std::vector<s
 }
 
 void init_default_timed_fluxes(std::vector<poly_base> &poly,config &config){
-    std::vector<std::pair<int, int>> poly_timetable; // un vettore il cui numero di elementi è la suddivisione in intervalli di un'ora dell'intervallo totale di tempo considerato.
+    std::vector<std::pair<int, int>> poly_timetable; // un vettore il cui numero di elementi è la suddivisione in intervalli di un'ora dell'intervallo totale di tempo considerato.    
     int num_bin = int((config_.end_time - config_.start_time) / (config_.dump_dt * 60));
     for (int i = 0; i < num_bin; ++i)
     {
@@ -995,7 +889,7 @@ void initialize_timed_fluxes(std::vector<poly_base> &poly,std::vector<traj_base>
 
 }
 
-void count_flux_per_poly(std::vector<int> poly_ids,std::vector<int> classes,std::vector<int> fcm_centers_id,std::map<int,std::vector<int>> &poly2class_count){
+void count_flux_per_poly(std::vector<int> poly_ids,std::vector<int> classes,std::vector<int> fcm_centers_id,std::map<int,std::vector<int>> &poly2class_count){   
     for(int i=0;i<poly_ids.size()-1;i++){
         poly2class_count[poly_ids[i]]=std::vector<int>(fcm_centers_id.size(),0);
     }
@@ -1033,7 +927,8 @@ void dump_timed_fluxes(std::vector<poly_base> &poly,config &config_){
     }
     else throw std::runtime_error("Could not open timed fluxes file");
 
-}
+} 
+
 //----------------------------------------------------------------------------------------------------
 void make_fluxes(std::vector<traj_base> &traj,double &sigma,std::vector<poly_base> &poly,std::vector<centers_fcm_base> &centers_fcm,std::vector<std::map<int,int>> &classes_flux)
 {
@@ -1133,8 +1028,16 @@ void make_bp_traj(std::vector<traj_base> &traj,config &config_,double &sigma,dat
             best_poly(n.stop_point[k], n.stop_point[k + 1],poly,node);
             cnt_bestpoly++;
         }
+//      DEBUG
+//        std::cout<<"survived all points traj: "<<n.id_act<<std::endl;
+//        if (n.id_act == 3260072392){
+//            std::cout << "Class: " << n.means_class << std::endl;
+//            for(auto &pol:n.stop_point.back().pap.path){std::cout << "id poly: " << pol.first << " time: " << pol.second << std::endl;}
+//        }
+//      END DEBUG
         n.path = n.stop_point.back().pap.path;
         n.stop_point.back().pap.path.clear();
+
         // if (n.id_act == 13181){
         //   for (auto &m : n.path)
         //     std::cout << m.first << std::endl;
@@ -1590,35 +1493,41 @@ void make_polygons_analysis(config &config_,std::vector<centers_fcm_base> &cente
 //----------------------------------------------------------------------------------------------------
 /*
 make_multimodality description:
-- prepare features_data 1D vector for Transport Means Recognition (av_inst_speed_traj_0, v_max_traj_0, v_min_traj_0, sinuosity_traj_0,...)
+Input:
+    traj: vector of traj_base (contains informations useful in input:
+                                    - average_inst_speed,v_min,v_max,sinuosity 
+                                informations about output:
+                                    - means_class (int of the class the trajectory belongs to), means_p (vector float of probability size of num_classes = config.num_tm) )
+    config: Configuration file
+    centers_fcm: vector of size num_classes = config.num_tm
+Description:
 
+Goal:
+    Assign each traj the values of means_class (According to the Fuzzy kmean) and means_p
+    
+NOTE:
+IMPORTANT -> The classes are in order of velcoity in cw (vector of centers_fcm) from the slowest to quickest .
+It is important as going on with the algorithm, you clusterize the network by the distinction of the trajectories and order will
+remain. 
 */
 void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector<centers_fcm_base> &centers_fcm)
 {
-    // prepare features for Transport Means Recognition
-    vector<float> features_data;
+    // Prepare features for Transport Means Recognition
 // HO AGGIUNTO QUI         if (t.average_inst_speed < config_.max_inst_speed) ogni volta che devo aggiungere alle features un grado di libertà
+    vector<float> features_data;
     for (auto &t : traj)
         t.sinuosity = distance_record(t.stop_point.front().points.front(), t.stop_point.back().points.front()) / t.length;
-
-//    int num_N = 0;
-    for (auto &t : traj)
-//        if (t.average_inst_speed < config_.max_inst_speed){
+    for (auto &t : traj)//        if (t.average_inst_speed < config_.max_inst_speed){
             features_data.push_back(float(t.average_inst_speed));
-//            num_N += 1;
-//          }
-    for (auto &t : traj)
-//        if (t.average_inst_speed < config_.max_inst_speed)
+    for (auto &t : traj)//        if (t.average_inst_speed < config_.max_inst_speed)
             features_data.push_back(float(t.v_max));
-    for (auto &t : traj)
-//        if (t.average_inst_speed < config_.max_inst_speed)
+    for (auto &t : traj)//        if (t.average_inst_speed < config_.max_inst_speed)
             features_data.push_back(float(t.v_min));
-    for (auto &t : traj)
-//        if (t.average_inst_speed < config_.max_inst_speed)
+    for (auto &t : traj)//        if (t.average_inst_speed < config_.max_inst_speed)
             features_data.push_back(float(t.sinuosity));
     ofstream out_features(config_.cartout_basename + config_.name_pro + "out_features.csv");
     out_features <<"id_act;average_speed;v_max;v_min;sinuosity" << std::endl;
-    for (auto &t : traj)
+    for (auto &t : traj)    
         {if(t.average_inst_speed >t.v_min && t.average_inst_speed < t.v_max)
             out_features << t.id_act << ";"<<t.average_inst_speed<<";"<<t.v_max<<";"<<t.v_min<< ";"<<t.sinuosity <<std::endl;
         else std::cout<<"average speed out of bound: "<< t.id_act << " vmin " << t.v_min << " vmax " <<t.v_max << " av_inst_speed "<< t.average_inst_speed<<std::endl;
@@ -1626,67 +1535,48 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
     out_features.close();
     // for (auto &t : traj) features_data.push_back(float(t.length));
     // for (auto &t : traj) features_data.push_back(float(t.time));
+// END PREPARATION FEATURES
 
     std::cout << "**********************************" << std::endl;
     std::cout << "Multimodality num classes:      " << config_.num_tm << std::endl;
-    std::cout << "size traj:\t" << traj.size() << std::endl;
-//    std::cout << "num_N\t" << num_N << std::endl;
-    std::cout << "features shape:\t" << features_data.size() << std::endl;
 
-    int num_tm = config_.num_tm;
-    // VERSIONE CON TRAIETTORIE CON VELOCITà maggiore del massimale
-    int num_N = int(traj.size());
-    //
-    int num_feat = 4; // v_average, v_max, v_min, sinuosity
-    // int num_feat = 3; //v_average, v_max, v_min
-    double epsilon_fcm = 0.005;
-    FCM *fcm;
-    fcm = new FCM(2, epsilon_fcm);
-    Map<MatrixXf> data_tr(features_data.data(), num_N, num_feat);
-    MatrixXf data = data_tr;
-    fcm->set_data(&data);
-    fcm->set_num_clusters(num_tm);
-
-    // initialize U[0] randomly
-    random_device rnd_device;
-    mt19937 mersenne_engine{rnd_device()}; // Generates random integers
-    mersenne_engine.seed(5);
-    uniform_real_distribution<float> dist{0.0, 1.0};
-    auto gen = [&dist, &mersenne_engine]()
-    {
-        return dist(mersenne_engine);
-    };
-    vector<float> vec_rnd(num_N * num_tm);
-    generate(begin(vec_rnd), end(vec_rnd), gen);
-    Map<MatrixXf> membership_temp(vec_rnd.data(), num_N, num_tm);
-    MatrixXf membership = membership_temp;
-    fcm->set_membership(&membership);
-
-    double diff = 1.0;
-    fcm->compute_centers();
-    fcm->update_membership();
+// START FUZZY ALGORITHM
+    int num_tm = config_.num_tm;                                    // number classes
+    int num_N = int(traj.size());                                   // number trajectories
+    int num_feat = 4;                                               // v_average, v_max, v_min, sinuosity
+    double epsilon_fcm = 0.005;                                     // threshold used to create initial points in FCM
+    FCM *fcm;                                                       // fcm object   \\\\\NOTE: Problem?//////
+    fcm = new FCM(2, epsilon_fcm);                                  // Can it be done? Declare and then initialized with new?
+    Map<MatrixXf> data_tr(features_data.data(), num_N, num_feat);   // matrix initialized with (features_data, shape (N traj, N features))
+    MatrixXf data = data_tr;                                        // 
+    fcm->set_data(&data);                                           // Copy the memory to fcm.m_data (N traj, N features)
+    fcm->set_num_clusters(num_tm);                                  // Set cluster vector in fcm. m_cluster_center: (N clusters, N features);
+    random_device rnd_device;                                       // Declare random device
+    mt19937 mersenne_engine{rnd_device()};                          // Generates random integers
+    mersenne_engine.seed(5);                                        // Set seed
+    uniform_real_distribution<float> dist{0.0, 1.0};                // Uniform distribution from 0 to 1
+    auto gen = [&dist, &mersenne_engine]()                          
+    {                                                               //
+        return dist(mersenne_engine);                               //
+    };                                                              //
+    vector<float> vec_rnd(num_N * num_tm);                          // 1D vector, is going to contain probabilities to belong to class i
+    generate(begin(vec_rnd), end(vec_rnd), gen);                    // Generates the starting random configuration of probability for each traj
+    Map<MatrixXf> membership_temp(vec_rnd.data(), num_N, num_tm);   // 2D Matrix, contains for each traj the prob of belonging to class i
+    MatrixXf membership = membership_temp;                          // 2D matrix, copy (Is it going to create a problem?)
+    fcm->set_membership(&membership);                               // m_membership (2D matrix (traj,n of classes))
+    double diff = 1.0;                                              //
+    fcm->compute_centers();                                         // compute centers
+    fcm->update_membership();                                       // Update membership
     while (diff > epsilon_fcm)
     {
-        fcm->compute_centers();
-        diff = fcm->update_membership();
+        fcm->compute_centers();                                     // Recomopute centers 
+        diff = fcm->update_membership();                            // And re-update until the distance of all points converge to 0
     }
-    // ALBI -> add the order to fcm classes
-    fcm->reorder_cluster_centers();
-    // ALBI
-/*
-    for (int n = 0; n < num_tm; ++n)
-    {
-        centers_fcm_base cw;
-        cw.idx = n;
-        for (int m = 0; m < num_feat; ++m){
-            cw.feat_vector.push_back((*(fcm->get_cluster_center()))(n, m));
-            std::cout << "n: " << n << " m: " << m << " cluster center position (n,m): " << (*(fcm->get_cluster_center()))(n, m) << std::endl;
-            std::cout << "map n: " << fcm->get_reordered_map_centers_value(n) << " cluster center position (map(n),m): " << (*(fcm->get_cluster_center()))(fcm->get_reordered_map_centers_value(n), m) << std::endl;
-        }
-        centers_fcm.push_back(cw);
+    fcm->reorder_cluster_centers();// NOTE: This following line is necessary to have slowest class indexed by 0, ..., quickest by config.num_tm
+    // END FUZZY ALGORITHM
 
-    } // IT CAN BE THE FACT cw comes from an object that is pushed back by move constructure, then it is deleted.
-*/
+    // START TRANSCRIPTION FUZZY ALGORITHM TO TRAJECTORIES
+    // 1) Transcript information centers in center_fcm_base vector. <(<v>_0,vmin_0,vmax_0,sin_0),...,(<v>_(num_feat),vmin_(num_feat),vmax_(num_feat),sin_(num_feat))>
     for (int n = 0; n < num_tm; ++n)
     {
         centers_fcm_base cw;
@@ -1695,43 +1585,10 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
             {cw.feat_vector.push_back((*(fcm->get_cluster_center()))(fcm->get_reordered_map_centers_value(n), m));
             }
         centers_fcm.push_back(cw);
-
-
-
     }
-     // IT CAN BE THE FACT cw comes from an object that is pushed back by move constructure, then it is deleted.
-
+     // Transcript information about class
     std::cout << "Multimodality p threshold:      " << config_.threshold_p << std::endl;
-    // save results
-    int cnt_recong = 0;
-/*
-    for (int n = 0; n < traj.size(); ++n)
-    {
-        int max_idx;
-        double max_p = 0.0;
-        for (int m = 0; m < num_tm; ++m)
-        {
-            traj[n].p_cluster.push_back((*(fcm->get_membership()))(n, m));
-            if ((*(fcm->get_membership()))(n, m) > max_p)
-            {
-                max_idx = m;
-                max_p = (*(fcm->get_membership()))(n, m);
-            }
-        }
-        if (max_p < config_.threshold_p)
-            traj[n].means_class = 10; // fake class index for hybrid traj
-        else
-        {
-            traj[n].means_class = max_idx;
-            cnt_recong++;
-        }
-        traj[n].means_p = max_p;
-    }
-*/
-// NOTA: get_membership has [number_traj,n_class] -> n_class are in the order of fcm_centers_class: randomici, dipendenti dal dataset.
-//  get_reordered_map_centers_value(m) gives the order back passed to traj.means_class
-// centers_fcm are ordered
-
+    int cnt_recong = 0;    
     for (int n = 0; n < traj.size(); ++n)
     {
         int max_idx;
@@ -1739,19 +1596,7 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
         for (int m = 0; m < num_tm; ++m)
         {
             traj[n].p_cluster.push_back((*(fcm->get_membership()))(n, fcm->get_reordered_map_centers_value(m))); //metti in ordine p_cluster  (pcluster[0] = 0: slowest, ...)
-
-            // std::cout <<"Sono in make_multimodality " << std::endl;
-            // std::cout <<"PRIMA" << std::endl;
-
-            // std::cout <<"m :" << m << std::endl;
-            // std::cout <<"fcm_get_centers :" << fcm->get_reordered_map_centers_value(m) << std::endl;
-            // std::cout <<"(0) max_p :" <<  (*(fcm->get_membership()))(n, fcm->get_reordered_map_centers_value(m)) << std::endl; // Si accede tramite get_reordered_map per l'indice corretto
-            // std::cout << "Velocità associata " << traj[n].average_inst_speed << std::endl;
-            // std::cout << "Velocità fcm con indice non cambiato " << centers_fcm[m].feat_vector[0] << std::endl;                 // Si accede center_fcm tramite indice m
-            // std::cout << "Velocità fcm con idice mappato " << centers_fcm[fcm->get_reordered_map_centers_value(m)].feat_vector[0] << std::endl;
-
-            if ((*(fcm->get_membership()))(n, fcm->get_reordered_map_centers_value(m)) > max_p)
-            {// NOTA: la massima probabilità viene assegnata con ordine randomico, l'indice che do ora è quello mappato con l'ordine di centers_fcm
+            if ((*(fcm->get_membership()))(n, fcm->get_reordered_map_centers_value(m)) > max_p){// NOTA: la massima probabilità viene assegnata con ordine randomico, l'indice che do ora è quello mappato con l'ordine di centers_fcm
                 max_idx = m; // instead of class index of the order of fcm -> I take to the new order of the map
                 max_p = (*(fcm->get_membership()))(n, fcm->get_reordered_map_centers_value(m)); // I want just the index changed not the probability
             }
@@ -1764,24 +1609,15 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
             cnt_recong++;
         }
         traj[n].means_p = max_p;
-        // std::cout << "Classe associata "<< traj[n].means_class << std::endl;
-        // std::cout << "Center fcm associata "<< centers_fcm[traj[n].means_class].feat_vector[0] << std::endl;
-        // std::cout << "Probabilità associata per traj: "<< traj[n].means_p << std::endl;
-        // std::cout << "Velocità associata " << traj[n].average_inst_speed << std::endl;
-        // std::cin.get();
-
-//        for (auto p:traj[n].p_cluster)
-//            std::cout << "p_cluster: " << p << std::endl;
-//        if (traj[n].means_class!=10)
-//              std::cout << "trajectory considered: " << n << " index class: " << traj[n].means_class << " probability: " << traj[n].means_p <<" velocity: " << centers_fcm.at(traj[n].means_class).feat_vector[0] <<std::endl;
     }
     for (auto &t : traj)
         centers_fcm[t.means_class].cnt++;
     std::cout << "Multimodality traj recognized: " << cnt_recong << " (" << (double(cnt_recong) / int(traj.size())) * 100 << "%)" << std::endl;
+    // END TRANSCRIPTION FUZZY ALGORITHM TO TRAJECTORIES
 
     if (config_.enable_slow_classification)
     {
-        /////////// SECOND CLASSIFICATION FOR SLOWER CLASS (they will SPLIT in 2 classes)////////////////
+        // Get Velocity Slowest Class
         int slow_id, medium_id;
         double min_v = 10000.0;
         for (auto &c : centers_fcm)
@@ -1789,14 +1625,14 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
             {
                 slow_id = c.idx;
                 min_v = c.feat_vector[0];
-                std::cout << "slow_id: " << slow_id << " min_v: " << min_v << " velocity: " << centers_fcm[c.idx].feat_vector[0] << std::endl;
             }
         for (auto &c : centers_fcm)
             if (c.feat_vector[0] > min_v && c.feat_vector[0] < 20.0){
                 medium_id = c.idx;
                 std::cout << "medium_id: " << medium_id << " min_v: " << min_v << " velocity: " << centers_fcm[c.idx].feat_vector[0] << std::endl;
                 }
-
+        
+        // Prepare features for Transport Means Recognition for slower classification (different days of data may need different treatments)
         vector<float> features_data2;
         for (auto &t : traj)
             if (t.means_class == slow_id)
@@ -1810,15 +1646,13 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
         for (auto &t : traj)
             if (t.means_class == slow_id)
                 features_data2.push_back(float(t.sinuosity));
-        // for (auto &t : traj) if (t.means_class == slow_id) features_data2.push_back(float(t.length));
-        // for (auto &t : traj) if (t.means_class == slow_id) features_data2.push_back(float(t.time));
         std::cout << "**********************************" << std::endl;
 
+        // START FUZZY ALGORITHM
         int num_tm2 = 2;
         int num_N2 = int(centers_fcm[slow_id].cnt);
         std::cout << "Slower Multimodality num classes:      " << num_tm2 << std::endl;
         std::cout << "Slower Multimodality num samples:      " << num_N2 << std::endl;
-        // int num_feat2 = 1; //v_average, v_max, v_min, sinuosity
         int num_feat2 = 4; // v_average, v_max, v_min, sinuosity
         double epsilon_fcm2 = 0.005;
         FCM *fcm2;
@@ -1827,8 +1661,6 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
         MatrixXf data2 = data_tr2;
         fcm2->set_data(&data2);
         fcm2->set_num_clusters(num_tm2);
-
-        // initialize U[0] randomly
         random_device rnd_device2;
         mt19937 mersenne_engine2{rnd_device2()}; // Generates random integers
         uniform_real_distribution<float> dist2{0.0, 1.0};
@@ -1849,8 +1681,10 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
             fcm2->compute_centers();
             diff2 = fcm2->update_membership();
         }
-        vector<centers_fcm_base> centers_fcm_slow;
         fcm2->reorder_cluster_centers();
+        // END FUZZY ALGORITHM
+        
+        vector<centers_fcm_base> centers_fcm_slow;
         for (int n = 0; n < num_tm2; ++n)
         {
             centers_fcm_base cw;
@@ -1862,7 +1696,7 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
         for (auto &c : centers_fcm_slow){
             std::cout<< "centers fcm slow: " << c.idx << " velocity: " << c.feat_vector[0] << std::endl;
         }
-
+        
 //        for (auto &c : centers_fcm_slow)
 //            std::cout << c.idx << " velocity: " << c.feat_vector[0] << std::endl;
         // update results IN THE CASE I WANT: slow_id2 is always the smallest velocity class
@@ -1879,10 +1713,10 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
         }
 */
         int slow_id2 = 0; int medium_id2 = 1;
-
+         
 
         centers_fcm[slow_id].feat_vector = centers_fcm_slow[slow_id2].feat_vector;
-
+        
         for (auto &c: centers_fcm_slow){
             std::cout << "index " << c.idx << "velocity " << c.feat_vector[0] << std::endl;
         }
@@ -1909,36 +1743,58 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
         int idx_2fcm = 0;
         for (int n = 0; n < traj.size(); ++n)
         {
-            int i = 0;
-            for (auto &p:traj[n].p_cluster){
-                std::cout<<"Prob index: "<< p << " counter " << i << " " << std::endl;
-                i++;
-            }
+//          DEBUG
+//            int i = 0;
+//            for (auto &p:traj[n].p_cluster){
+//                std::cout<<"Prob index: "<< p << " counter " << i << " " << std::endl;
+//                i++;
+//            }
+//          END DEBUG
             std::vector<double>::iterator it_0 = traj[n].p_cluster.begin();
             std::vector<double>::iterator it = traj[n].p_cluster.begin() + 1;
-
             if (traj[n].means_class == slow_id){
                 traj[n].p_cluster.insert(it,(*(fcm2->get_membership()))(idx_2fcm, medium_id2));
+                traj[n].p_cluster[slow_id2] = (*fcm2->get_membership())(idx_2fcm, slow_id2);
+                traj[n].p_cluster[medium_id2] = (*fcm2->get_membership())(idx_2fcm, medium_id2);
+                // DEBUG on the PROBABILITY OF BELONGING TO A CLUSTER: CHECK -> OK
+//                std::cout << "Trajectory number: " << n << std::endl;
+//                std::cout << "Velocity: " << traj[n].average_speed << std::endl;
+//                std::cout << "Info class slow: " << slow_id << std::endl;
+//                std::cout << "Velocity: " << centers_fcm_slow[slow_id2].feat_vector[0] << std::endl;
+//                std::cout << "Probability: " << traj[n].p_cluster[slow_id2] << std::endl;
+//                std::cout << "Info class medium: " << medium_id2 << std::endl;
+//                std::cout << "Velocity: " << centers_fcm_slow[medium_id2].feat_vector[0] << std::endl;
+//                std::cout << "Probability: " << traj[n].p_cluster[medium_id2] << std::endl;
+//                std::cout << "Probability 2 classes: " << traj[n].p_cluster[medium_id2] + traj[n].p_cluster[slow_id] << std::endl;
+//              END DEBUG
+                // NORMALIZE THE PROBABILiTY OF p_cluster
+                float total_prob_with_all_classes = 0.;
+                for(auto &p:traj[n].p_cluster){
+                    total_prob_with_all_classes += p;
+                }
+                for(auto &p:traj[n].p_cluster){
+                    p = p/total_prob_with_all_classes;
+                }
+                total_prob_with_all_classes = 0.;
+                for(auto &p:traj[n].p_cluster){
+                    total_prob_with_all_classes += p;
+                }
+//              DEBUG probability normalized: CHECK
+//                std::cout << "Probability all classes: " << total_prob_with_all_classes << std::endl;
 
-                traj[n].p_cluster[slow_id2] = (*fcm2->get_membership())(idx_2fcm, slow_id2)/(*it_0);
-                traj[n].p_cluster[medium_id2] = (*fcm2->get_membership())(idx_2fcm, medium_id2)/(*it_0);
-
-
-                std::cout << "Velocity trajectory: " << traj[n].average_speed << std::endl;
-                std::cout << "Velocity classe slow: " << centers_fcm_slow[slow_id2].feat_vector[0] << std::endl;
-                std::cout << "Velocity classe slow medium: " << centers_fcm_slow[medium_id2].feat_vector[0] << std::endl;
-                std::cout << "Probability slow: " << traj[n].p_cluster[slow_id2] << std::endl;
-                std::cout << "Probability medium: " << traj[n].p_cluster[medium_id2] << std::endl;
-                idx_2fcm++;
+                idx_2fcm++; 
             }
             else{
                 traj[n].p_cluster.insert(it,0.0);
             }
-        for (auto &p : traj[n].p_cluster){
-            std::cout <<"Prob Associated: "<< p << std::endl;
-        }
+
+//        for (auto &p : traj[n].p_cluster){
+//            std::cout <<"Prob Associated: "<< p << std::endl;
+//        }
 
         }
+
+// DEBUG
 /*        ofstream control_size_cluster(config_.cartout_basename + config_.name_pro + "_control.txt");
         for (int n = 0; n < traj.size(); ++n)
             if(traj[n].p_cluster.size() == 5){
@@ -1951,22 +1807,37 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
 */
         std::cout << "fcm2 txt" << std::endl;
         ofstream out_fcm2(config_.cartout_basename + config_.name_pro + "_fcm2.txt");
-        idx_2fcm = 0;
-        std::cout << "center fcm slow : VELOCITY " << centers_fcm[slow_id2].feat_vector[0] << " Index " << slow_id2 << std::endl;
-        std::cout << "center fcm slow : MEAN VELOCITY " << centers_fcm[medium_id2].feat_vector[0] << " Index " << medium_id2 << std::endl;
-        std::cout <<"fcm_get_centers :" << fcm->get_reordered_map_centers_value(slow_id2) << std::endl;
-        std::cout <<"fcm_get_centers :" << fcm->get_reordered_map_centers_value(medium_id2) << std::endl;
-
+        idx_2fcm = 0;         
         for (int n = 0; n < traj.size(); ++n)
         {
-            // DA CONTROLLARE !!!!!!!!
+            float max_probability = 0.;
+            int index_cluster = 0;
+            int index_chosen = 0;
+            // DA CONTROLLARE !!!!!!!! CHECK
+//            std::cout << "Trajectory number: " << n << std::endl;
+            if(traj[n].means_class!=10 || traj[n].means_class!=11){        
+                for(auto p: traj[n].p_cluster){
+                    if(p>max_probability){
+                        max_probability = p;
+                        index_chosen = index_cluster;
+                    }
+                    index_cluster +=1;
+    //                std::cout << "Class: " << index_cluster << " probability: " << p << std::endl;
+                }
+                traj[n].means_class = index_chosen;
+                traj[n].means_p = max_probability;
+            }
+//              DEBUG
+//            std::cout << "Velocity: " << traj[n].average_speed << std::endl;
+//            std::cout << "Class: " << traj[n].means_class << std::endl;
+//            std::cout << "control output before pressing a key to go on: " << std::endl;
+//            int number;
+//            std::cin >> number;
+
+/*
             if (traj[n].means_class == slow_id2)
-            {
+            {  
                 traj[n].p_cluster[slow_id2] = (*(fcm2->get_membership()))(idx_2fcm, slow_id2);
-                std::cout << "Prob cluster " << slow_id2 <<  ", " << traj[n].p_cluster[slow_id2] << std::endl;
-
-
-
                 //traj[n].p_cluster.push_back((*(fcm2->get_membership()))(idx_2fcm, medium_id2));
                 if ((*(fcm2->get_membership()))(idx_2fcm, slow_id2) > (*(fcm2->get_membership()))(idx_2fcm,medium_id2))
                 {
@@ -1986,18 +1857,19 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
                 idx_2fcm++;
             }
 //ADDED ALBI ORDERING CENTERS_FCM
-            else{
+            else{   
                 traj[n].means_class += 1;
                 traj[n].means_p = traj[n].p_cluster[traj[n].means_class];
                out_fcm2 << " chosen class: " << traj[n].means_class << " probability: " << traj[n].means_p << " velocity: " << centers_fcm[traj[n].means_class].feat_vector[0] <<std::endl;
             }
 //ADDED ALBI ORDERING CENTERS_FCM
+*/
             out_fcm2<< " trajectory number: "<< n <<std::endl;
             for(auto &p:traj[n].p_cluster){
                 out_fcm2 << p << ";";
             }
             if(traj[n].means_class!=10 && traj[n].means_class!=11)
-            out_fcm2 << " velocity: " << centers_fcm[traj[n].means_class].feat_vector[0] << " class: "<< traj[n].means_class << " average speed: " << traj[n].average_inst_speed<<std::endl;
+            out_fcm2 << " velocity: " << centers_fcm[traj[n].means_class].feat_vector[0] << " class: "<< traj[n].means_class << " average speed: " << traj[n].average_inst_speed<<std::endl;        
         }
         out_fcm2.close();
         for (auto &c : centers_fcm)
@@ -2009,7 +1881,7 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
     for (auto &c : centers_fcm){
         std::cout << "slow mobilty upgraded class: " << c.idx << " velocity: " << c.feat_vector[0] << " number of trajectories: "<< c.cnt << std::endl;
     }
-
+ 
     // measure validation parameter ( intercluster dist/intracluster dist)
     // double dunn_index = measure_dunn_index();
     // std::cout << "Dunn index                      :      " << dunn_index << std::endl;
@@ -2028,44 +1900,6 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
         std::cout << config_.cartout_basename + config_.name_pro << std::endl;
         ofstream out_fcm(config_.cartout_basename + config_.name_pro + "_fcm.csv");
         out_fcm << "id_act;lenght;time;av_speed;v_max;v_min;cnt;av_accel;a_max;class;p" << std::endl;
-/*    int count_vmin_bigger_vaverage = 0;
-    int count_vmax_smaller_vaverage = 0;
-    int traj_bigger_0 = 0;
-    ofstream anomalous_trajs(config_.cartout_basename + config_.name_pro + "_anomalous_trajectories.csv");
-    anomalous_trajs << "id_act;length;time;av_speed;av_inst_speed;v_max;v_min" << std::endl;
-    ofstream anomalous_trajs_points(config_.cartout_basename + config_.name_pro + "_anomalous_trajectories_points.csv");
-    anomalous_trajs_points << "id_act;lat;lon;time;speed" << std::endl;
-    ofstream anomalous_trajs_sp(config_.cartout_basename + config_.name_pro + "_anomalous_trajectories_inst_speed.csv");
-    anomalous_trajs_sp << "id_act;lat;lon;inst_speed" << std::endl;
-
-    for (auto &t:traj){
-        if (t.v_max < t.average_inst_speed){
-            count_vmax_smaller_vaverage++;
-            anomalous_trajs << t.id_act <<";" <<t.length << ";" << t.time <<";" << t.average_speed <<";"<< t.average_inst_speed<< ";" << t.v_max << ";" << t.v_min << std::endl;
-            for(auto &sp:t.stop_point){
-                anomalous_trajs_sp << t.id_act << ";" << sp.centroid.lat << ";" << sp.centroid.lon << ";" << sp.inst_speed << std::endl;
-                for(auto &p:sp.points){
-                    anomalous_trajs_points<<t.id_act<<";"<<p.lat<<";"<<p.lon<<";"<<p.itime<<";"<<p.speed<<std::endl;
-                }
-            }
-        }
-        if (t.v_min > t.average_inst_speed){
-            count_vmin_bigger_vaverage++;
-            anomalous_trajs << t.id_act <<";" <<t.length << ";" << t.time <<";" << t.average_speed <<";"<< t.average_inst_speed<< ";" << t.v_max << ";" << t.v_min << std::endl;
-            for(auto &sp:t.stop_point){
-                anomalous_trajs_sp << t.id_act << ";" << sp.centroid.lat << ";" << sp.centroid.lon << ";" << sp.inst_speed << std::endl;
-                for(auto &p:sp.points){
-                    anomalous_trajs_points<<t.id_act<<";"<<p.lat<<";"<<p.lon<<";"<<p.itime<<";"<<p.speed<<std::endl;
-                }
-            }
-        }
-    }
-    anomalous_trajs_points.close();
-    anomalous_trajs.close();
-    anomalous_trajs_sp.close();
-    std::cout << "make traj case:\nv vmax smaller than v average " << count_vmax_smaller_vaverage << " v min bigger than v average" << count_vmin_bigger_vaverage << "\ntotal: " << traj.size() <<std::endl;
-    std::cout << "traj bigger than 0 " << traj_bigger_0 << std::endl;
-*/
         for (auto &t : traj)
         {
             out_fcm << t.id_act << ";" << t.length << ";" << t.time << ";" << t.average_inst_speed << ";" << t.v_max << ";" << t.v_min << ";" << t.stop_point.size() << ";" << t.average_accel << ";" << t.a_max << ";" << t.means_class << ";" << t.means_p <<std::endl;
@@ -2109,6 +1943,13 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
 
 // ALBI
 
+/**
+ * Calculates the intersection of two vectors v1 and v2 and stores the result in vector v3.
+ *
+ * @param v1 the first vector
+ * @param v2 the second vector
+ * @param v3 the vector to store the intersection result
+ */
 void subnet_intersection(std::vector<int> v1, std::vector<int> v2, std::vector<int> &v3)
 {
     std::set_intersection(v1.begin(), v1.end(),
@@ -2116,6 +1957,17 @@ void subnet_intersection(std::vector<int> v1, std::vector<int> v2, std::vector<i
                           back_inserter(v3));
 }
 
+/**
+ * Generates the complementary set of elements in v1 relative to the intersection set.
+ *
+ * @param v1 vector of integers to generate the complementary set from
+ * @param intersection vector of integers representing the intersection set
+ * @param v3 reference to a vector of integers to store the complementary set
+ *
+ * @return void
+ *
+ * @throws None
+ */
 void subnet_complementary(std::vector<int> v1, std::vector<int> intersection, std::vector<int> &v3)
 {
     std::sort(v1.begin(), v1.end());
@@ -2144,6 +1996,7 @@ void subnet_complementary(std::vector<int> v1, std::vector<int> intersection, st
     }
 }
 /* Description selecttraj_from_vectorpolysubnet_velsubnet:
+* Generates a vector of trajectories that are contained by the subnet whose label is save_label 
 */
 
 std::vector<traj_base> selecttraj_from_vectorpolysubnet_velsubnet(std::vector<int> poly_subnet, std::vector<traj_base> &traj, std::vector<poly_base> &poly, std::string label_save)
@@ -2152,7 +2005,7 @@ std::vector<traj_base> selecttraj_from_vectorpolysubnet_velsubnet(std::vector<in
     int time_step = config_.bin_time * 60; // bin_time
     int num_bin = int((config_.end_time - config_.start_time) / time_step);
     std::vector<traj_base> traj_subnet;
-    // INITIALIZE time2av_vel,time2velocities,time2timepercorrence {bin_0: 0.0, bin_1: 0.0, ...} , {bin_0: vector<double> 0., bin_1: vector<double> 0., ...} ,{bin_0: 0.0, bin_1: 0.0, ...}
+    // INITIALIZE time2av_vel,time2velocities,time2timepercorrence {bin_0: 0.0, bin_1: 0.0, ...} , {bin_0: vector<double> 0., bin_1: vector<double> 0., ...} ,{bin_0: 0.0, bin_1: 0.0, ...} 
     for (auto pol : poly_subnet)
     {
         for (int i = 0; i < num_bin; i++)
@@ -2173,7 +2026,7 @@ std::vector<traj_base> selecttraj_from_vectorpolysubnet_velsubnet(std::vector<in
             for (auto pol : poly_subnet)
             {
                 if (sp.first == pol && std::find(found_polies.begin(), found_polies.end(), sp.first) == found_polies.end())
-                {
+                { 
                     // add the trajectory that live in the subnet and their speed.
                     found_polies.push_back(sp.first);
                     traj_subnet.push_back(t);
@@ -2280,19 +2133,19 @@ void velocity_subnet(std::vector<int> poly_subnet, std::vector<poly_base> &poly,
     oo.close();
 }
 /* Description simplifies_c_intersect:
-Input:
+Input: 
     - subnets80: map of subnets (those initialized by make_subnets) (load_subnets if already computed)
     - traj: vector of all trajectories (those initialized by make_traj)
     - poly: vector of polies (those initialized by make_poly)
 Output:
     - complete_intersect: vector of polies belonging to all classes i (i = [1,...,fcm_centers.size()-1])
-    - complete_intersection_velocity_subnet.csv: velocity of polies belonging just to the class i (i = [1,...,fcm_centers.size()-1]) FORMAT {id_local;time;av_speed;time_percorrence}
+    - complete_intersection_velocity_subnet.csv: velocity of polies belonging just to the class i (i = [1,...,fcm_centers.size()-1]) FORMAT {id_local;time;av_speed;time_percorrence} 
 */
 
 std::vector<int> simplifies_c_intersect(std::map<std::string, std::vector<int>> subnets80,std::vector<traj_base> &traj,std::vector<poly_base> &poly)
 {
     std::vector<int> subnet_class0 = subnets80.begin()->second; //starting with class 0
-    std::vector<int> net_complete_intersection = subnet_class0;
+    std::vector<int> net_complete_intersection = subnet_class0; 
     std::cout << "initial size of class " << subnets80.begin()->first << " : " << subnets80.begin()->second.size() << std::endl;
     for (std::map<std::string, std::vector<int>>::iterator i = subnets80.begin(); i != subnets80.end(); ++i)
     {
@@ -2316,14 +2169,14 @@ std::vector<int> simplifies_c_intersect(std::map<std::string, std::vector<int>> 
     return net_complete_intersection;
 }
 /* Description simplifies_c_complement:
-Input:
+Input: 
     - subnets80: map of subnets (those initialized by make_subnets) (load_subnets if already computed)
     - traj: vector of all trajectories (those initialized by make_traj)
     - poly: vector of polies (those initialized by make_poly)
 Output:
     ITERATION FOR ALL CLASSES:
     - complete_complement: vector of polies belonging just to the class i (i = [1,...,fcm_centers.size()-1])
-    - complete_complement_i_velocity_subnet.csv: velocity of polies belonging just to the class i (i = [1,...,fcm_centers.size()-1]) FORMAT {id_local;time;av_speed;time_percorrence}
+    - complete_complement_i_velocity_subnet.csv: velocity of polies belonging just to the class i (i = [1,...,fcm_centers.size()-1]) FORMAT {id_local;time;av_speed;time_percorrence} 
 */
 
 /*
@@ -2334,11 +2187,11 @@ Description hierarchical_deletion_of_intersection: builds and save file.txt cont
     and so on until the slowest subnet
 DESCRIPTION:
     step1: for (std::map<std::string, std::vector<int>>::iterator i = subnets80.begin(); i != subnets80.end(); ++i)
-        I iterate from ordered subnets (vector of int) -> subnets80[0] = (poly00,...,polyn0) <slowest class>
+        I iterate from ordered subnets (vector of int) -> subnets80[0] = (poly00,...,polyn0) <slowest class> 
     step2: for (std::map<std::string, std::vector<int>>::iterator j = subnets80.begin(); j != subnets80.end(); ++j)
         I extract the intersection recursively obtaining the slowe
         st subnet
-*/
+*/      
 
 
 std::map<std::string,std::vector<int>> hierarchical_deletion_of_intersection(std::map<std::string, std::vector<int>> subnets80){
@@ -2381,7 +2234,7 @@ std::map<std::string,std::vector<int>> hierarchical_deletion_of_intersection(std
 
 /*
 assign_new_class: assign new class to trajectories that live in the subnet.
-Associates to the trajcetories that are of the slower classes the class that most represents them.
+Associates to the trajcetories that are of the slower classes the class that most represents them. 
 Hopefully, we find that the slower classes contain trajectories that actually are in the quickest part of the network
 This part of the code needs to be used to analyze the fondamental diagram. That now contains all the different classs.
 */
@@ -2398,21 +2251,21 @@ void assign_new_class(std::vector<traj_base> &traj,std::vector<poly_base> &poly,
             for (std::map<std::string, std::vector<int>>::iterator i = subnets80.begin(); i != subnets80.end(); ++i){
                     std::cout << "Sono in funzione e controllo ordine subnets " << std::stoi(i->first) << "\n Mi spetto siano in ordine" << std::endl;
             }
-
+    
 
     for (auto &t : traj)
-    {
+    {            
         std::vector<int> count_point_per_class(subnets80.size(),0);
         if(t.means_class!=subnets80.size()-1){
             for (std::map<std::string, std::vector<int>>::iterator i = subnets80.begin(); i != subnets80.end(); ++i){
-                int subnet_index = std::stoi(i->first);
+                int subnet_index = std::stoi(i->first);        
                 std::vector<int> subnet_polies = i->second;
                 for (auto &sp : t.path)
                 { // for(auto &sp:t.stop_point){
                     for (auto pol : subnet_polies)
                     {
                         if (sp.first == pol)
-                        {
+                        { 
                             // add the trajectory that live in the subnet and their speed.
                             count_point_per_class[subnet_index] +=1;
                             break;
@@ -2441,7 +2294,7 @@ void assign_new_class(std::vector<traj_base> &traj,std::vector<poly_base> &poly,
             for(int c = 0;c <count_point_per_class.size();c++){
                 if(c==count_point_per_class.size()-1)
                     newclassification << ";" << t.path.size();
-                else
+                else 
                     newclassification << ";" << 0;
                 }
             newclassification << std::endl;
@@ -2489,7 +2342,7 @@ std::map<std::string, std::vector<int>> simplifies_c_complement(std::map<std::st
     return complete_complement;
 }
 /* Description analysis_subnet:
-Input:
+Input: 
     - traj: vector of all trajectories (those initialized by make_traj)
     - poly: vector of polies (those initialized by make_poly)
     - subnets: map of subnets (those initialized by make_subnets) (load_subnets if already computed)
@@ -2503,13 +2356,13 @@ Order calls:
 Output:
     1 (a) -> traj_of_interest (b)-> class_i_velocity_subnet.csv -- with i = [1,...,fcm_centers.size()-1] FORMAT {id_local;time;av_speed;time_percorrence}
     ITERATED FOR EACH CLASS: fcm_centers.size()-1
-    2 (a) -> polies_of_interest (b) -> traj_of_interest (c)-> complete_intersection_velocity_subnet.csv
+    2 (a) -> polies_of_interest (b) -> traj_of_interest (c)-> complete_intersection_velocity_subnet.csv 
     3 (a) -> polies_of_interest(b) -> traj_of_interest (c)-> complete_complement_i_velocity_subnet.csv -- with i = [1,...,fcm_centers.size()-1] FORMAT {id_local;time;av_speed;time_percorrence}
 
 
 */
 
-void analysis_subnets(std::vector<traj_base> &traj,std::vector<poly_base> &poly,map<string, vector<int>> &subnets)
+void analysis_subnets(std::vector<traj_base> &traj,std::vector<poly_base> &poly,map<string, vector<int>> &subnets)  
 {
     // FILL SUBNETS80 {"class":vector<int>polies}
     std::map<std::string, std::vector<int>> subnets80;
@@ -2531,7 +2384,7 @@ void analysis_subnets(std::vector<traj_base> &traj,std::vector<poly_base> &poly,
         else
             continue;
     }
-    std::map<std::string,std::vector<int>> hierarchically_selected_subnets;
+    std::map<std::string,std::vector<int>> hierarchically_selected_subnets; 
     hierarchically_selected_subnets = hierarchical_deletion_of_intersection(subnets80);
     assign_new_class(traj,poly,hierarchically_selected_subnets);
     hierarchically_selected_subnets.clear();
@@ -2552,7 +2405,7 @@ void analysis_subnets(std::vector<traj_base> &traj,std::vector<poly_base> &poly,
                     {
                         spaced_file_subnet << p << " ";
                     }
-                    spaced_file_subnet.close();
+                    spaced_file_subnet.close(); 
                     traj_subnet_tmp = selecttraj_from_vectorpolysubnet_velsubnet(polies, traj, poly, "class_"+tokens[1]);
 
                 }
@@ -2575,7 +2428,7 @@ void analysis_subnets(std::vector<traj_base> &traj,std::vector<poly_base> &poly,
         std::map<std::string, std::vector<int>> total_complement = simplifies_c_complement(subnets80,traj,poly);
         total_complement.clear();
         }
-
+    
 }
 /* Description dump_FD:
 */
@@ -2631,18 +2484,18 @@ std::map<int, std::vector<long long int>> get_class2idact_from_fcm_csv(confit &c
 }
 
 //
-initialize_class2countpoly_traj:
+initialize_class2countpoly_traj: 
 Per ogni classe vedere a quale sottorete le traiettorie appartengono.
-Supponiamo per id = 110000000
+Supponiamo per id = 110000000 
 Ho che 20 pt sono in 0 (di questi )
-15 in 1
+15 in 1 
 10 in 2
 5 in 3
 //
 
 
 void initialize_class2countpoly_traj(std::vector<traj_base> &traj){
-    // NOTA: per semplicità e non tirare fuori di nuovo subnets e iterare li, prendo direttamente il range di classi che so mi servano, nel mio caso 4
+    // NOTA: per semplicità e non tirare fuori di nuovo subnets e iterare li, prendo direttamente il range di classi che so mi servano, nel mio caso 4 
     std::vector<std::string> tokens {"0","1","2","3","4"};
     for (auto &tok:tokens){
         std::ifstream spaced_file_subnet(config_.cartout_basename + "/" + config_.name_pro + "class_"+tok+".txt");
@@ -2670,13 +2523,13 @@ void initialize_class2countpoly_traj(std::vector<traj_base> &traj){
     }
     spaced_file_subnet.close();
     std::ofstream out_class2countpoly_traj(config_.cartout_basename + "/" + config_.name_pro + "_reinit_class.csv");
-    out_class2countpoly_traj << "id_act;" << std::endl;
+    out_class2countpoly_traj << "id_act;" << std::endl;     
     for (auto &tok:tokens){
         std::ifstream spaced_file_subnet(config_.cartout_basename + "/" + config_.name_pro + "class_"+tok+".txt");
         if spaced_file_subnet.is_open(){
             out_class2countpoly_traj <<
 
-        }
+        }    
     for (auto &t : traj){
         int biggest_count_class = 0;
         int new_class;
@@ -2740,7 +2593,9 @@ void dump_fluxes(std::vector<traj_base> &traj,config &config_,std::vector<center
                 out_timed << datetime << ";" << p.id << ";" << p.id_local << ";" << p.cid_Fjnct << ";" << p.cid_Tjnct << ";" << p.length << ";" << p.timed_fluxes[n].first + p.timed_fluxes[n].second << ";" << p.timed_fluxes[n].first << ";" << p.timed_fluxes[n].second << ";" << p.cid_poly << std::endl;
             }
         }
+        
     }
+    out_timed.close();
     out.close();
     if (0 == 1)
     {
