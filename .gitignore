@@ -47,3 +47,5 @@ input/
 *.csv
 *.fluxes
 *.log
+bologna_mdt_detailed/
+utils*/

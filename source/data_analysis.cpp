@@ -16,7 +16,7 @@
 #include <set>
 #include <featsel.hpp>
 #include "global_params.h"
-#include <unistd.h>
+//#include <unistd.h>
 #include <type_traits>
 #include <chrono>
 #include <thread>
@@ -25,57 +25,7 @@ using namespace Eigen;
 using namespace std;
 extern config config_;
 extern double ds_lat, ds_lon;
-// ALBI
-/*std::map<int,std::vector<int>> count_flux_per_poly(std::vector<int> poly_ids,std::vector<int> classes,std::vector<int> fcm_centers_id){
-    std::vector<int> considered_polies;
-    std::map<int,std::vector<int>> poly2class_count;
-    for (auto fc:fcm_centers_id){
-        std::cout <<"fcm center id: "<<fc<<std::endl;
-    }
 
-    for(int i=0;i<poly_ids.size();i++){
-        poly2class_count[poly_ids[i]]=std::vector<int>(4,0);
-    }
-    for(int i=0;i<poly_ids.size();i++){
-
-        for (int fc = 0; fc<fcm_centers_id.size();fc++){
-            if(classes[i]==fcm_centers_id[fc]){
-                if (poly_ids[i]<0){
-                    std::cout<<"poly negative id: "<<poly_ids[i]<<std::endl;
-                    poly2class_count[-poly_ids[i]][fc]++;}
-                else{poly2class_count[poly_ids[i]][fc]++;}
-                }
-            }
-        }
-    return poly2class_count;
-    }
-*/
-
-void dump_coords_traj(config &config_, vector<traj_base> &traj)
-{
-    std::cout << " dump coords traj" << std::endl;
-    long long int ids[] = {692410, 846737, 504205, 173098401, 261751914, 265019034, 165465954};
-    ofstream out_coords_traj(config_.cartout_basename + config_.name_pro + "_coordinates_possible_errors.csv");
-    for (auto i : ids)
-    {
-        std::cout << "identification " << to_string(i) << std::endl;
-        out_coords_traj << to_string(i) << ";";
-        for (auto &t : traj)
-        {
-            if (t.id_act == i)
-            {
-                for (auto &sp : t.stop_point)
-                {
-                    out_coords_traj << to_string(sp.centroid.lat) << ";" << to_string(sp.centroid.lon) << ";" << to_string(sp.points.front().itime) << ";";
-                }
-                out_coords_traj << std::endl;
-            }
-        }
-    }
-    out_coords_traj.close();
-}
-
-// ALBI
 
 //----------------------------------------------------------------------------------------------------
 bool comp_rec_itime(const record_base &a, const record_base &b) { return (a.itime < b.itime); }
@@ -1545,8 +1495,8 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
     int num_N = int(traj.size());                                   // number trajectories
     int num_feat = 4;                                               // v_average, v_max, v_min, sinuosity
     double epsilon_fcm = 0.005;                                     // threshold used to create initial points in FCM
-    FCM *fcm;                                                       // fcm object   \\\\\NOTE: Problem?//////
-    fcm = new FCM(2, epsilon_fcm);                                  // Can it be done? Declare and then initialized with new?
+    FCM *fcm;                                                       // fcm object   
+    fcm = new FCM(2, epsilon_fcm);                                  // Can it be done? Declare and then initialized with new? Yes
     Map<MatrixXf> data_tr(features_data.data(), num_N, num_feat);   // matrix initialized with (features_data, shape (N traj, N features))
     MatrixXf data = data_tr;                                        // 
     fcm->set_data(&data);                                           // Copy the memory to fcm.m_data (N traj, N features)
