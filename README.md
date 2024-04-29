@@ -1,4 +1,37 @@
 # city-pro
+Goal:
+    This project is a C++ project whose goal is multiple and can be summed up in these follwoing steps.
+    1) READING:
+        1a) Trajectory information:
+            Reads .csv files containing information about mobilephone data containing the following columns:
+            [iD,lat,lon,time]
+            NOTE: Usually, we need to create this dataset. TIM gives another format of data that we need to preprocess and create these columns.
+            Further informations about preprocessing needed...
+        1b) Cartography information:
+            It creates a graph of the city from cartography.pnt and .pro. Essentially these are used to create objects that are contained
+            in carto.h. Whose attributes and functions are initialized in carto.cpp
+    2) EXTRACT TRAJECTORIES:
+        
+
+
+
+Input: (Described in Description)
+    REQUIRED:
+        I1) cartography.pnt, cartography.pro
+        R1) DatiTelecom.csv
+
+
+Description:
+    I1)
+        To produce these files:
+            WORKSPACE/cartography-data/
+        - (cartography.pnt,cartography.pro):
+            Contain all informations needed to build the road network in such a way that the program is able
+            to read these informations from them.
+        - cartography.pnt: 
+            Contains informations about where the points of the road are.
+        - cartography.pro:
+            Contains informations about links.
 
 Sorgente esperimento, do il nome di source perchè così non devo
 modificare il make ogni volta.
@@ -8,7 +41,10 @@ Gli script sono fatti per analizzare un giorno alla volta. La struttura delle ca
 Description:
 Telecom gives initial dataset day by day with a lot of fields and zipped. I have created mdt_converter.py that essentially takes the dataset, and extract [iD,lat,lon,time] and saves it in a csv that will be given to analysis.cpp
 
+Description:
+    R1)
 
+    I1)
 
 ANALISI DATI BOLOGNA MDT:
     cd /codice/city-pro

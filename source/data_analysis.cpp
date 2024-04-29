@@ -747,8 +747,8 @@ void dump_fluxes_file(std::vector<poly_base> &poly,config &config_,std::vector<s
         }
     // count flux per poly
     //count_flux_per_poly(poly_ids,classes,fcm_centers_id,poly2class_count);
-    std::cout << config_.cartout_basename + "/weights/" + config_.name_pro + ".fluxes" << std::endl;
-    std::ofstream out(config_.cartout_basename + "/weights/" + config_.name_pro + ".fluxes");
+    std::cout << config_.cartout_basename + "weights/" + config_.name_pro + ".fluxes" << std::endl;
+    std::ofstream out(config_.cartout_basename + "weights/" + config_.name_pro + ".fluxes");
     if (!out.is_open())
         throw std::runtime_error("Could not open fluxes file");
     else{    
@@ -2746,7 +2746,7 @@ map<string, vector<int>> make_subnet(config &config_)
             // auto nodesel = FeatureSelection(ind, (int)poly.size(), int(f * nodes.size()), true, false);
             for (const auto &p : nodesel.begin()->second){
                 subnets[label].push_back(node_poly[lid_cid[p.first]][lid_cid[p.second]]);
-                std::cout << "pushed " << node_poly[lid_cid[p.first]][lid_cid[p.second]] << std::endl;
+//                std::cout << "pushed " << node_poly[lid_cid[p.first]][lid_cid[p.second]] << std::endl;
             }
             sort(subnets[label].begin(), subnets[label].end());
             cout << "Selected poly : " << subnets[label].size() << endl;
