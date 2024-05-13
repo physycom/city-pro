@@ -50,3 +50,5 @@ input/
 bologna_mdt_detailed/
 utils*/
 citations/
+work_mdt/
+outputlastrun.txt

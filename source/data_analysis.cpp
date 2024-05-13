@@ -358,17 +358,18 @@ presence: filled*/
         t.sigma_accel /= (t.stop_point.size() - window_size);
         t.sigma_accel = sqrt(t.sigma_accel);
     }
-    if (config_.enable_print)
-    {
-    ofstream out_stats(config_.cartout_basename + config_.name_pro + "_stats.csv");
-    out_stats << "id_act;lenght;time;av_speed;ndat;front_lat;front_lon;tail_lat;tail_lon;start_time;end_time" << std::endl;
-    for (auto &t : traj)
-        {if(t.average_inst_speed<t.v_max && t.average_inst_speed>t.v_min)            
-            out_stats << t.id_act << ";" << t.length << ";" << t.time << ";" << t.average_inst_speed << ";" << t.stop_point.size() << ";" << t.stop_point.front().centroid.lat << ";" << t.stop_point.front().centroid.lon << ";" << t.stop_point.back().centroid.lat << ";" << t.stop_point.back().centroid.lon << ";" << t.stop_point.front().points.front().itime << ";" << t.stop_point.back().points.back().itime << std::endl;
-        else std::cout<<"average speed out of bound: "<< t.id_act << " vmin " << t.v_min << " vmax " <<t.v_max << " av_inst_speed "<< t.average_inst_speed<<std::endl;
-        }
-        out_stats.close();
-        }
+    // Useless All the Informations Are Taken From Fcm.csv
+//    if (config_.enable_print)
+//    {
+//    ofstream out_stats(config_.cartout_basename + config_.name_pro + "_stats.csv");
+//    out_stats << "id_act;lenght;time;av_speed;ndat;front_lat;front_lon;tail_lat;tail_lon;start_time;end_time" << std::endl;
+//    for (auto &t : traj)
+//        {if(t.average_inst_speed<t.v_max && t.average_inst_speed>t.v_min)            
+//            out_stats << t.id_act << ";" << t.length << ";" << t.time << ";" << t.average_inst_speed << ";" << t.stop_point.size() << ";" << t.stop_point.front().centroid.lat << ";" << t.stop_point.front().centroid.lon << ";" << t.stop_point.back().centroid.lat << ";" << t.stop_point.back().centroid.lon << ";" << t.stop_point.front().points.front().itime << ";" << t.stop_point.back().points.back().itime << std::endl;
+//        else std::cout<<"average speed out of bound: "<< t.id_act << " vmin " << t.v_min << " vmax " <<t.v_max << " av_inst_speed "<< t.average_inst_speed<<std::endl;
+//        }
+//        out_stats.close();
+//        }
 }
 //-------------------------------------------------------------------------------------------------
 // SEED //
@@ -1645,36 +1646,21 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
         for (auto &c : centers_fcm_slow){
             std::cout<< "centers fcm slow: " << c.idx << " velocity: " << c.feat_vector[0] << std::endl;
         }
-        
-//        for (auto &c : centers_fcm_slow)
-//            std::cout << c.idx << " velocity: " << c.feat_vector[0] << std::endl;
-        // update results IN THE CASE I WANT: slow_id2 is always the smallest velocity class
-/*        if (centers_fcm_slow[0].feat_vector[0] < centers_fcm_slow[1].feat_vector[0])
-        {
-            slow_id2 = 0; // I expect to be dropped here
-            medium_id2 = 1;
-        }
-        else
-        {
-            slow_id2 = 1;
-            medium_id2 = 0;
-            std::cout << "ERROR in the order of fcm of slower classes"  << std::endl;
-        }
-*/
-        int slow_id2 = 0; int medium_id2 = 1;
-         
 
+        // SET ORDERED INDICES
+        int slow_id2 = 0; int medium_id2 = 1;
+        // CENTER FCM [1] <- CENTER FCM (Slow Classification)
         centers_fcm[slow_id].feat_vector = centers_fcm_slow[slow_id2].feat_vector;
-        
+        std::cout << "Index and Velocity for Classes in Centers Fcm Slow: " << std::endl;
         for (auto &c: centers_fcm_slow){
             std::cout << "index " << c.idx << "velocity " << c.feat_vector[0] << std::endl;
         }
+        std::cout << "Index and Velocity for Classes in Centers Fcm Without Slow Classification: " << std::endl;
         for (auto &c : centers_fcm){
             if (c.idx >= 1 && c.idx != 10){
                 c.idx += 1;
             }
             std::cout<< "centers fcm: " << c.idx << " velocity: " << c.feat_vector[0] << std::endl;
-
         }
 
         centers_fcm.insert(centers_fcm.begin()+1,centers_fcm_slow[1]);
@@ -1682,40 +1668,18 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
             std::cout<< "centers fcm: " << c.idx << " velocity: " << c.feat_vector[0] << std::endl;
         }
 
-//        centers_fcm.push_back(centers_fcm_slow[medium_id2]);
         // update centers_fcm: idx
         centers_fcm[1].idx = 1;
-//        centers_fcm[num_tm].idx = num_tm;
-        // update centers_fcm: cnt
-
         // EXTEND VECTOR P_CLUSTER for each trajectory
         int idx_2fcm = 0;
         for (int n = 0; n < traj.size(); ++n)
         {
-//          DEBUG
-//            int i = 0;
-//            for (auto &p:traj[n].p_cluster){
-//                std::cout<<"Prob index: "<< p << " counter " << i << " " << std::endl;
-//                i++;
-//            }
-//          END DEBUG
             std::vector<double>::iterator it_0 = traj[n].p_cluster.begin();
             std::vector<double>::iterator it = traj[n].p_cluster.begin() + 1;
             if (traj[n].means_class == slow_id){
                 traj[n].p_cluster.insert(it,(*(fcm2->get_membership()))(idx_2fcm, medium_id2));
-                traj[n].p_cluster[slow_id2] = (*fcm2->get_membership())(idx_2fcm, slow_id2);
-                traj[n].p_cluster[medium_id2] = (*fcm2->get_membership())(idx_2fcm, medium_id2);
-                // DEBUG on the PROBABILITY OF BELONGING TO A CLUSTER: CHECK -> OK
-//                std::cout << "Trajectory number: " << n << std::endl;
-//                std::cout << "Velocity: " << traj[n].average_speed << std::endl;
-//                std::cout << "Info class slow: " << slow_id << std::endl;
-//                std::cout << "Velocity: " << centers_fcm_slow[slow_id2].feat_vector[0] << std::endl;
-//                std::cout << "Probability: " << traj[n].p_cluster[slow_id2] << std::endl;
-//                std::cout << "Info class medium: " << medium_id2 << std::endl;
-//                std::cout << "Velocity: " << centers_fcm_slow[medium_id2].feat_vector[0] << std::endl;
-//                std::cout << "Probability: " << traj[n].p_cluster[medium_id2] << std::endl;
-//                std::cout << "Probability 2 classes: " << traj[n].p_cluster[medium_id2] + traj[n].p_cluster[slow_id] << std::endl;
-//              END DEBUG
+                traj[n].p_cluster[slow_id2] = (*fcm2->get_membership())(idx_2fcm, fcm2->get_reordered_map_centers_value(slow_id2));
+                traj[n].p_cluster[medium_id2] = (*fcm2->get_membership())(idx_2fcm, fcm2->get_reordered_map_centers_value(medium_id2));
                 // NORMALIZE THE PROBABILiTY OF p_cluster
                 float total_prob_with_all_classes = 0.;
                 for(auto &p:traj[n].p_cluster){
@@ -1723,10 +1687,6 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
                 }
                 for(auto &p:traj[n].p_cluster){
                     p = p/total_prob_with_all_classes;
-                }
-                total_prob_with_all_classes = 0.;
-                for(auto &p:traj[n].p_cluster){
-                    total_prob_with_all_classes += p;
                 }
 //              DEBUG probability normalized: CHECK
 //                std::cout << "Probability all classes: " << total_prob_with_all_classes << std::endl;
@@ -1743,18 +1703,7 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
 
         }
 
-// DEBUG
-/*        ofstream control_size_cluster(config_.cartout_basename + config_.name_pro + "_control.txt");
-        for (int n = 0; n < traj.size(); ++n)
-            if(traj[n].p_cluster.size() == 5){
-                control_size_cluster << "traj: " << n << " size: " <<  traj[n].p_cluster.size() << " velocty: "<< centers_fcm[traj[n].means_class].feat_vector[0];
-                for(auto &p:traj[n].p_cluster){
-                    control_size_cluster << p << ";" <<std::endl;
-                    }
-                }
-        control_size_cluster.close();
-*/
-        std::cout << "fcm2 txt" << std::endl;
+        std::cout << "DEBUG: fcm2 txt" << std::endl;
         ofstream out_fcm2(config_.cartout_basename + config_.name_pro + "_fcm2.txt");
         idx_2fcm = 0;         
         for (int n = 0; n < traj.size(); ++n)
@@ -1830,11 +1779,7 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
     for (auto &c : centers_fcm){
         std::cout << "slow mobilty upgraded class: " << c.idx << " velocity: " << c.feat_vector[0] << " number of trajectories: "<< c.cnt << std::endl;
     }
- 
-    // measure validation parameter ( intercluster dist/intracluster dist)
-    // double dunn_index = measure_dunn_index();
-    // std::cout << "Dunn index                      :      " << dunn_index << std::endl;
-
+    // OUTPUT
     if (config_.enable_print)
     {
         ofstream out_fcm_center(config_.cartout_basename + config_.name_pro + "_fcm_centers.csv");
@@ -1848,10 +1793,10 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
         out_fcm_center.close();
         std::cout << config_.cartout_basename + config_.name_pro << std::endl;
         ofstream out_fcm(config_.cartout_basename + config_.name_pro + "_fcm.csv");
-        out_fcm << "id_act;lenght;time;av_speed;v_max;v_min;cnt;av_accel;a_max;class;p" << std::endl;
+        out_fcm << "id_act;lenght;time;av_speed;v_max;v_min;cnt;av_accel;a_max;class;p;origin_lat;origin_lon;destination_lat;destination_lon;start_time;end_time" << std::endl;
         for (auto &t : traj)
         {
-            out_fcm << t.id_act << ";" << t.length << ";" << t.time << ";" << t.average_inst_speed << ";" << t.v_max << ";" << t.v_min << ";" << t.stop_point.size() << ";" << t.average_accel << ";" << t.a_max << ";" << t.means_class << ";" << t.means_p <<std::endl;
+            out_fcm << t.id_act << ";" << t.length << ";" << t.time << ";" << t.average_inst_speed << ";" << t.v_max << ";" << t.v_min << ";" << t.stop_point.size() << ";" << t.average_accel << ";" << t.a_max << ";" << t.means_class << ";" << t.means_p << ";" << t.stop_point.front().centroid.lat << ";" << t.stop_point.front().centroid.lon << ";" << t.stop_point.back().centroid.lat << ";" << t.stop_point.back().centroid.lon << ";" << t.stop_point.front().points.front().itime << ";" << t.stop_point.back().points.back().itime <<std::endl;
         }
         out_fcm.close();
 
