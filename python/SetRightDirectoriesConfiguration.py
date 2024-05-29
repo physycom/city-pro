@@ -10,7 +10,7 @@ for StrDate in StrDates:
         config = json.load(f)
     config["file_pnt"] = os.path.join(WORKSPACE,"city-pro","bologna_mdt_detailed","carto",Carto + ".pnt")
     config["file_pro"] = os.path.join(WORKSPACE,"city-pro","bologna_mdt_detailed","carto",Carto + ".pro")
-    config["file_data"] = os.path.join(WORKSPACE,"city-pro","bologna_mdt_detailed",StrDate,BaseName + "_" + StrDate + "_" + StrDate + ".csv")
+    config["file_data"] = [os.path.join(WORKSPACE,"city-pro","bologna_mdt_detailed",StrDate,BaseName + "_" + StrDate + "_" + StrDate + ".csv")]
     config["cartout_basename"] = os.path.join(WORKSPACE,"city-pro","output","bologna_mdt_detailed") + "/"
     config["file_subnet"] = os.path.join(WORKSPACE,"city-pro","output","bologna_mdt_detailed","weights",BaseName + "_" + StrDate + "_" + StrDate + ".fluxes.sub") 
     with open(os.path.join(WORKSPACE,"city-pro","bologna_mdt_detailed",StrDate,"config_bologna.json"),"w") as f:
