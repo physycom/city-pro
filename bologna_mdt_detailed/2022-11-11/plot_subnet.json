@@ -1,0 +1,68 @@
+{
+  "working_dir": "/home/aamad/codice/city-pro/output/bologna_mdt_detailed/2022-11-11",
+  "plot_dir": "/home/aamad/codice/city-pro/output/bologna_mdt_detailed/2022-11-11/plot",
+  "cartout_basename": "/home/aamad/codice/city-pro/output/bologna_mdt_detailed/2022-11-11",
+  "file_geojson": "/home/aamad/codice/city-pro/bologna-provincia.geojson",
+  "weights_dir": "/home/aamad/codice/city-pro/output/bologna_mdt_detailed/weights/bologna_mdt_2022-11-11_2022-11-11.fluxes.sub",
+  "prefix_name": "bologna_mdt_2022-11-11_2022-11-11",
+  "colors": [
+    "red",
+    "blue",
+    "yellow",
+    "orange"
+  ],
+  "class_names": [
+    "1 slowest",
+    "2 slowest",
+    "2 quickest",
+    "1 quickest"
+  ],
+  "class_idx": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "start_date": "2022-11-11 00:00:00",
+  "end_date": "2022-11-11 23:59:59",
+  "bin_time": 15,
+  "day_in_sec": 86400,
+  "dt": 900,
+  "day_analysis": "2022-11-11",
+  "save_label": [
+    "_complete_intersection_",
+    "_complete_complement_"
+  ],
+  "subnet_txt_files_complete_intersection": "/home/aamad/codice/city-pro/output/bologna_mdt_detailed/2022-11-11/bologna_mdt_2022-11-11_2022-11-11_complete_intersection.txt",
+  "subnet_txt_files_complement": [
+    "/home/aamad/codice/city-pro/output/bologna_mdt_detailed/2022-11-11/bologna_mdt_2022-11-11_2022-11-110_complete_complement.txt",
+    "/home/aamad/codice/city-pro/output/bologna_mdt_detailed/2022-11-11/bologna_mdt_2022-11-11_2022-11-111_complete_complement.txt",
+    "/home/aamad/codice/city-pro/output/bologna_mdt_detailed/2022-11-11/bologna_mdt_2022-11-11_2022-11-112_complete_complement.txt",
+    "/home/aamad/codice/city-pro/output/bologna_mdt_detailed/2022-11-11/bologna_mdt_2022-11-11_2022-11-113_complete_complement.txt"
+  ],
+  "subnet_txt_files": [
+    "/home/aamad/codice/city-pro/output/bologna_mdt_detailed/2022-11-11/bologna_mdt_2022-11-11_2022-11-11class_0.txt",
+    "/home/aamad/codice/city-pro/output/bologna_mdt_detailed/2022-11-11/bologna_mdt_2022-11-11_2022-11-11class_1.txt",
+    "/home/aamad/codice/city-pro/output/bologna_mdt_detailed/2022-11-11/bologna_mdt_2022-11-11_2022-11-11class_2.txt",
+    "/home/aamad/codice/city-pro/output/bologna_mdt_detailed/2022-11-11/bologna_mdt_2022-11-11_2022-11-11class_3.txt"
+  ],
+  "subnet_csv_files_complete_intersection": "/home/aamad/codice/city-pro/output/bologna_mdt_detailed/2022-11-11/bologna_mdt_2022-11-11_2022-11-11_complete_intersection_velocity_subnet.csv",
+  "subnet_csv_files_complement": [
+    "/home/aamad/codice/city-pro/output/bologna_mdt_detailed/2022-11-11/bologna_mdt_2022-11-11_2022-11-11_complete_complement_0_velocity_subnet.csv",
+    "/home/aamad/codice/city-pro/output/bologna_mdt_detailed/2022-11-11/bologna_mdt_2022-11-11_2022-11-11_complete_complement_1_velocity_subnet.csv",
+    "/home/aamad/codice/city-pro/output/bologna_mdt_detailed/2022-11-11/bologna_mdt_2022-11-11_2022-11-11_complete_complement_2_velocity_subnet.csv",
+    "/home/aamad/codice/city-pro/output/bologna_mdt_detailed/2022-11-11/bologna_mdt_2022-11-11_2022-11-11_complete_complement_3_velocity_subnet.csv"
+  ],
+  "subnet_csv_files": [
+    "/home/aamad/codice/city-pro/output/bologna_mdt_detailed/2022-11-11/bologna_mdt_2022-11-11_2022-11-11_class_0_velocity_subnet.csv",
+    "/home/aamad/codice/city-pro/output/bologna_mdt_detailed/2022-11-11/bologna_mdt_2022-11-11_2022-11-11_class_1_velocity_subnet.csv",
+    "/home/aamad/codice/city-pro/output/bologna_mdt_detailed/2022-11-11/bologna_mdt_2022-11-11_2022-11-11_class_2_velocity_subnet.csv",
+    "/home/aamad/codice/city-pro/output/bologna_mdt_detailed/2022-11-11/bologna_mdt_2022-11-11_2022-11-11_class_3_velocity_subnet.csv"
+  ],
+  "hierarchical_subnets": [
+    "/home/aamad/codice/city-pro/output/bologna_mdt_detailed/2022-11-11/bologna_mdt_2022-11-11_2022-11-110_class_subnet.txt",
+    "/home/aamad/codice/city-pro/output/bologna_mdt_detailed/2022-11-11/bologna_mdt_2022-11-11_2022-11-111_class_subnet.txt",
+    "/home/aamad/codice/city-pro/output/bologna_mdt_detailed/2022-11-11/bologna_mdt_2022-11-11_2022-11-112_class_subnet.txt",
+    "/home/aamad/codice/city-pro/output/bologna_mdt_detailed/2022-11-11/bologna_mdt_2022-11-11_2022-11-113_class_subnet.txt"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+    "base_dir": "/home/aamad/codice/city-pro/work_geo/bologna_mdt_detailed/dati_decompressi_ad_aprile/",
+    "list_files":["ond-er-provbo_20221230_Micheli08_mrgps.csv"],
+    "base_dir1": "/home/aamad/codice/city-pro/work_geo/bologna_mdt_detailed/dati_mdt_bologna/",
+    "list_files1":[],
+    "save_dir": "/home/aamad/codice/city-pro_old/work_geo/bologna_mdt_detailed/data/",
+    "chunk_size":100000
+
+}

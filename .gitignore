@@ -44,12 +44,12 @@ source - Copy/
 source_original/
 output/
 input/
+old/
 *.csv
 *.fluxes
 *.log
-bologna_mdt_detailed/
 utils*/
 citations/
-work_mdt/
+Model/
 outputlastrun.txt
 z_config_analysis/

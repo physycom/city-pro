@@ -1,0 +1,69 @@
+{"city_tag"        : "Bologna",
+    ///// cartography setup
+    "file_pro"        : "/home/aamad/codice/city-pro/work_geo/bologna_mdt_detailed/bologna_mdt.pro",  // poly properties input file
+    "file_pnt"        : "/home/aamad/codice/city-pro/work_geo/bologna_mdt_detailed/bologna_mdt.pnt",  // poly geometry input file
+
+    "file_data"       : ["/home/aamad/codice/city-pro/work_geo/bologna_mdt_detailed/data/bologna_mdt_2022-12-30_2023-01-01_total.csv"], // name of data file
+    "_file_data"       : ["/home/aamad/codice/city-pro/work_geo/bologna_mdt_detailed/data/bologna_mdt_31-12.csv"], // name of data file
+
+    "_file_polygons"   : "C:/Users/Chiara/Desktop/Code/city-pro/input/extra/viasat/polygons_2points.geojson",  // poly geometry input file
+    "cartout_basename" : "/home/aamad/codice/city-pro/work_geo/bologna_mdt_detailed/",
+    ///// time restrictions
+    "start_time"      : "2022-12-30 00:00:00",        // date-time analysis start
+    "end_time"        : "2023-01-01 23:59:59",        // date-time analysis end
+    "_start_time"      : "2022-12-30 00:00:00",        // date-time analysis start
+    "_end_time"        : "2023-01-01 23:59:59",        // date-time analysis end
+
+    "_start_time"      : "2021-06-28 00:00:00",        // date-time analysis start
+    "_end_time"        : "2021-07-05 00:00:00",        // date-time analysis end
+    "bin_time"        : "15.0",                       // time interval for binning (minutes)
+    "_slice_time"      : [12.00,14.00] ,            //take just data present in the slice time (in double format) for each day
+  
+    ///// space restricions
+    "mode_funct"  : "mobility",
+    //carto
+    "lat_min" : 44.024152,
+    "lat_max" : 44.823687,
+    "lon_min" : 10.789523,
+    "lon_max" : 11.867708,
+  
+    ///// distances and resolutions
+    "map_resolution"    : 60.0,                       // meters for map resolution
+    "grid_resolution"   : 150.0,                      // meters for grid resolution
+    "l_gauss"           : 10.0,                       // meters for GPS data precision
+    "min_data_distance" : 50.0,                       // minimum distance between two consecutive data
+    "max_inst_speed"    : 50.0,                       // maximum istantaneus speed between two consecutive data
+    "min_node_distance" : 20.0,                       // minimum distance datum-node
+    "min_poly_distance" : 50.0,                       // minimum distance datum-poly
+  
+  ///// threshold
+    "enable_threshold"       : true,                        //make threshold of traj
+    "threshold_v"            : 50.0,                        //threshold avarage speed (m/s)
+    "threshold_t"            : 86400,                        //threshold duration (s)
+    "threshold_n"            : 3,                           //threshold number of stop points
+    "threshold_polyunique"   : 2,                           //threshold number of crossed poly
+  
+  ///// functionalities
+    "enable_multimodality" : false,                      // enable multimodality analysis
+    "enable_slow_classification" : false,                   // enable multimodality analysis
+    "num_tm"               : 4,                          // number of cluster for multimodality classification
+    "threshold_p"          : 0.50,                       // threshold of p for multimodality classification (0.0-1.0)
+  
+  //// dump timed fluxes
+    "dump_dt":             60,                            //minutes
+  
+  ///// polygons
+    "_polygons_code"          : ["coast","center", 0],    // 2 args [location, code number (0 start or stop, 1 just start, 2 just stop)]
+                                                           // 3 args [location_start, location_stop, code_number (0 both way, 1 oneway)]
+  
+  //// subnetwor functionalities
+    "enable_fluxes_print"  : true,                       // print fluxes info for subnet
+    "enable_subnet"        : false,                      // make subnet reconstruction
+    "file_subnet"          : "/home/aamad/codice/city-pro/work_geo/bologna_mdt_detailed/weights/bologna_mdt_2022-12-30_2023-01-01_total.fluxes.sub",
+  
+    "_enable_bin_act"       : false,                      // print time binned data
+    "enable_print"         : true,                        // print output file
+    "enable_geojson"      : true,                        //minitest to show poly lid and cid
+    "enable_gui"        : true                          //minitest 
+  }
+  

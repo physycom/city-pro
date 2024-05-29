@@ -17,11 +17,11 @@ for StrDate in StrDates:
         config = json.dump(config,f,indent=2)
 
 if not os.path.exists(os.path.join(WORKSPACE,"city-pro","output")):
-    os.mkdir(os.path.join(WORKSPACE,"city-pro","output"))
+    os.makedirs(os.path.join(WORKSPACE,"city-pro","output"))
 if not os.path.exists(os.path.join(WORKSPACE,"city-pro","output","bologna_mdt_detailed")):
-    os.mkdir(os.path.join(WORKSPACE,"city-pro","output","bologna_mdt_detailed"))
+    os.makedirs(os.path.join(WORKSPACE,"city-pro","output","bologna_mdt_detailed"))
 if not os.path.exists(os.path.join(WORKSPACE,"city-pro","output","bologna_mdt_detailed","weights")):
-    os.mkdir(os.path.join(WORKSPACE,"city-pro","output","bologna_mdt_detailed","weights"))
+    os.makedirs(os.path.join(WORKSPACE,"city-pro","output","bologna_mdt_detailed","weights"))
 
 
 
