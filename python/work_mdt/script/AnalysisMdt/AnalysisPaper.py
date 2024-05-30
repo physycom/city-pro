@@ -53,11 +53,17 @@ if __name__ == "__main__":
         # Create Classes
         Network.ReadFcmCenters()
         Network.ReadFcm()
+        Network.GetIncreasinglyIncludedSubnets()
+        Network.ReadGeojson()
         # Create Dictionaries
         Network.CreateDictionaryIntClass2StrClass()
-        
+        # PLOT SUBNETS
+        Network.PlotSubnetHTML()
+        Network.PlotIncrementSubnetHTML()   
+        Network.PlotFluxesHTML()
+        Network.PlotTimePercorrenceHTML()     
+
         Network.ReadFluxes()
-        Network.ReadStats()
 ## +++++++++++++++ FITTING PROCEDURES +++++++++++++++++++++++++++++
         # ALL CLASSES
         StartingGuessParametersPerLabel = Network.RetrieveGuessParametersPerLabel()
@@ -74,10 +80,6 @@ if __name__ == "__main__":
                     Network.FittingFunctionSubClasses(Class,label,Network.labels2FitNames2Try[label],bins = 100)
 
 ## +++++++++++++++++ PLOT SUBNETWORKS +++++++++++++++++++++++++++
-        Network.ReadGeojson()
-        Network.ReadFluxesSub()
-        Network.PlotSubNetworks()
-
         # Add to Lists to Give in Input for the All Days Analysis
         ListNetworkDays.append(Network)
     # 1 Day Network Analysis
