@@ -1,5 +1,8 @@
 '''
-    NOTE: Stats is Useless
+    NOTE: stats.csv Is Useless but I keep it for reference.
+    NOTE: The Organization of the script is around DailyNetworkStats.
+        This class contains all the informations about trrajectories and Network in one day.
+    The motivation is to simplify the analysis for multiple days.
 '''
 from collections import defaultdict
 import geopandas as gpd
@@ -9,6 +12,14 @@ import pandas as pd
 from shapely.geometry import box
 import folium
 import datetime
+import matplotlib.pyplot as plt
+if os.path.isfile(os.path.join(os.environ["WORKSPACE"],"city-pro","custom_style.mplstyle")):
+    plt.style.use(os.path.join(os.environ["WORKSPACE"],"city-pro","custom_style.mplstyle"))
+else:
+    try:
+        import PlotSettings
+    except Exception as e:
+        print("No Plot Settings File Found")
 
 def NormalizeWidthForPlot(arr,min_width = 1, max_width = 10):
     '''
@@ -38,6 +49,16 @@ def km2m(x):
 
 def StrDate2DateFormatLocalProject(StrDate):
     return StrDate.split("_")[0],StrDate.split("_")[1],StrDate.split("_")[2]
+
+def Timestamp2Datetime(timestamp):
+    return datetime.datetime.fromtimestamp(timestamp)
+
+def Timestamp2Date(timestamp):
+    return datetime.datetime.fromtimestamp(timestamp).date()
+
+def Datetime2Timestamp(datetime):
+    return datetime.timestamp()
+
 class DailyNetworkStats:
     '''
         This Class is Used to Contain Informations about The Daily info About the Network.
@@ -65,6 +86,8 @@ class DailyNetworkStats:
         # FILES
         self.DictDirInput = {"fcm": os.path.join(self.InputBaseDir,self.BaseFileName + '_' + self.StrDate + '_' + self.StrDate + '_fcm.csv'),
                         "fcm_centers": os.path.join(self.InputBaseDir,self.BaseFileName + '_' + self.StrDate + '_' + self.StrDate + '_fcm_centers.csv'),
+                        "fcm_new":os.path.join(self.InputBaseDir,self.BaseFileName + '_' + self.StrDate + '_' + self.StrDate + '_fcm_new.csv'),
+                        "stats":os.path.join(self.InputBaseDir,self.BaseFileName + '_' + self.StrDate + '_' + self.StrDate + '_stats.csv'),
                         "timed_fluxes": os.path.join(self.InputBaseDir,self.BaseFileName+'_'+ self.StrDate+'_'+ self.StrDate + '_timed_fluxes.csv'),
                         "fluxes": os.path.join(self.InputBaseDir,"weights",self.BaseFileName+'_'+ self.StrDate+'_'+ self.StrDate + '.fluxes'),
                         "fluxes_sub": os.path.join(self.InputBaseDir,"weights",self.BaseFileName+'_'+ self.StrDate+'_'+ self.StrDate + '.fluxes.sub')}
@@ -101,10 +124,12 @@ class DailyNetworkStats:
         self.ReadFluxes = False
         self.ReadFluxesSub = False
         self.ReadFcm = False
+        self.ReadFcmNew = False
         self.ReadFcmCenters = False
         self.ReadGeojson = False
         self.ReadVelocitySubnet = False
         self.BoolStrClass2IntClass = False
+        self.ComputedMFD = False
         # SETTINGS INFO
         self.colors = ['red','blue','green','orange','purple','yellow','cyan','magenta','lime','pink','teal','lavender','brown','beige','maroon','mint','coral','navy','olive','grey']
         self.Name = BaseName
@@ -133,9 +158,8 @@ class DailyNetworkStats:
         # FUNDAMENTAL DIAGRAM
         self.MFD = pd.DataFrame({"time":[],"population":[],"speed":[]})
         self.Class2MFD = {class_:pd.DataFrame({"time":[],"population":[],"speed":[]}) for class_ in self.IntClass2StrClass.keys()}
-
-
-
+        # MINIMUM VALUES FOR (velocity,population,length,time) for trajectories of the day
+        self.MinMaxPlot = defaultdict()
 # --------------- Read Files ---------------- #
     def ReadTimedFluxes(self):
         self.TimedFluxes = pd.read_csv(self.InputBaseDir["timed_fluxes"],delimiter = ';')
@@ -143,12 +167,20 @@ class DailyNetworkStats:
     
     def ReadFluxes(self):
         self.Fluxes = pd.read_csv(self.InputBaseDir["fluxes"],delimiter = ';')
-        self.ReadFluxes = True
-    
+        self.ReadFluxes = True        
     
     def ReadFcm(self):
         self.Fcm = pd.read_csv(self.InputBaseDir["fcm"],delimiter = ';')
         self.ReadFcm = True
+
+    def ReadStats(self):
+        self.Stats = pd.read_csv(self.InputBaseDir["stats"],delimiter = ';')
+        self.ReadStats = True
+    
+    def ReadFcmNew(self):
+        self.FcmNew = pd.read_csv(self.DictDirInput["fcm_new"],delimiter = ';')
+        self.ReadFcmNew = True
+    
     def ReadFcmCenters(self):
         Features = {"class":[],"av_speed":[],"v_min":[],"v_max":[],"sinuosity":[]}
         FcmCenters = pd.read_csv(self.InputBaseDir["fcm_centers"],delimiter = ';')
@@ -161,6 +193,7 @@ class DailyNetworkStats:
             keyidx += 1
         self.FcmCenters = pd.DataFrame(Features)
         self.ReadFcmCenters = True
+    
     def ReadFluxesSub(self,verbose = False):
         '''
             Input:
@@ -246,9 +279,15 @@ class DailyNetworkStats:
             self.VelTimePercorrenceClass[Class] = pd.read_csv(self.RoadInClass2VelocityDir[Class],delimiter = ';')
         self.ReadVelocitySubnet = True
 
+    def AddFcmNew2Fcm(self):
+        if self.ReadFcm and self.ReadFcmNew:
+            self.Fcm["class_new"] = self.FcmNew["class"]
+        if self.ReadStats and self.ReadFcmNew:
+            self.Stats["class_new"] = self.FcmNew["class"]
 ##--------------- Plot Network --------------## 
     def PlotIncrementSubnetHTML(self):
         """
+            NOTE: Informations about the subnet are taken from Subnet Files
             Description:
                 Plots the subnetwork. Considers the case of intersections
         """
@@ -411,32 +450,33 @@ class DailyNetworkStats:
 
 
 ## ------- FUNDAMENTAL DIAGRAM ------ ##
-def FilterStatsByClass(fcm,i,idx,stats):
-    fcm_idx = fcm[i].groupby('class').get_group(idx)['id_act'].to_numpy()
-    mask_idx = [True if x in fcm_idx else False for x in stats[i]['id_act'].to_numpy()]
-    f_idx = stats[i].loc[mask_idx]
-    f_idx = f_idx.sort_values(by = 'start_time')
-    return f_idx
-
-    def PlotMFD(self):
+    def ComputeMFDVariables(self):
+        '''
+            Description:
+                Computes the MFD variables (t,population,speed) -> and the hysteresis diagram:
+                    1) Aggregated data for the day
+                    2) Conditional to class
+            Save them in two dictionaries 
+                1) self.MFD = {time:[],population:[],speed:[]}
+                2) self.Class2MFD = {Class:{"time":[],"population":[],"speed":[]}}
+        '''
         if self.ReadFcm:
             if "start_time" in self.Fcm.columns:
                 # ALL TOGETHER MFD
                 for t in range(int(self.iterations)):
                     mask_idx = [True if (int(x['start_time'])>int(self.TimeStampDate)+t*self.dt and int(x['start_time'])<int(self.TimeStampDate)+(t+1)*self.dt) or (int(x['end_time'])>int(self.TimeStampDate)+t*self.dt and int(x['end_time'])<int(self.TimeStampDate)+(t+1)*self.dt) else False for _,x in self.Fcm.iterrows()]
                     TmpFcm = self.Fcm[mask_idx]
-                    # TODO timstamp2datetime
-                    self.MFD["time"].append()
+                    self.MFD["time"].append(Timestamp2Date(int(self.TimeStampDate)+t*self.dt).dt.strftime('%H:%M:%S'))
                     self.MFD["population"].append(len(TmpFcm))
                     self.MFD["speed"].append(np.mean(TmpFcm["av_speed"]))
                 # PER CLASS
                 for t in range(int(self.iterations)):
                     for Class in self.Class2MFD.keys():
-                        TmpClassFCM = self.FCM.groupby("class").get_group(Class)[mask_idx]
+                        TmpClassFCM = self.Fcm.groupby("class").get_group(Class)[mask_idx]
                         mask_idx = [True if (int(x['start_time'])>int(self.TimeStampDate)+t*self.dt and int(x['start_time'])<int(self.TimeStampDate)+(t+1)*self.dt) or (int(x['end_time'])>int(self.TimeStampDate)+t*self.dt and int(x['end_time'])<int(self.TimeStampDate)+(t+1)*self.dt) else False for _,x in TmpClassFCM.iterrows()]
                         TmpClassFCM = TmpClassFCM[mask_idx]
                         # TODO timstamp2datetime
-                        self.Class2MFD[Class]["time"].append() 
+                        self.Class2MFD[Class]["time"].append(Timestamp2Date(int(self.TimeStampDate)+t*self.dt).dt.strftime('%H:%M:%S')) 
                         self.Class2MFD[Class]["population"].append(len(TmpClassFCM))
                         self.Class2MFD[Class]["speed"].append(np.mean(TmpClassFcm["av_speed"]))
                     
@@ -444,10 +484,103 @@ def FilterStatsByClass(fcm,i,idx,stats):
                 pass
         elif self.ReadStats:
             if "start_time" in self.Stats.columns:
-                mask_idx = [True if (int(x['start_time'])>int(self.TimeStampDate)+t*self.dt and int(x['start_time'])<int(self.TimeStampDate)+(t+1)*self.dt) or (int(x['end_time'])>int(self.TimeStampDate)+t*self.dt and int(x['end_time'])<int(self.TimeStampDate)+(t+1)*self.dt) else False for _,x in self.Stats.iterrows()]
+                # ALL TOGETHER MFD
+                for t in range(int(self.iterations)):
+                    mask_idx = [True if (int(x['start_time'])>int(self.TimeStampDate)+t*self.dt and int(x['start_time'])<int(self.TimeStampDate)+(t+1)*self.dt) or (int(x['end_time'])>int(self.TimeStampDate)+t*self.dt and int(x['end_time'])<int(self.TimeStampDate)+(t+1)*self.dt) else False for _,x in self.Stats.iterrows()]
+                    TmpFcm = self.Fcm[mask_idx]
+                    self.MFD["time"].append(Timestamp2Date(int(self.TimeStampDate)+t*self.dt).dt.strftime('%H:%M:%S'))
+                    self.MFD["population"].append(len(TmpFcm))
+                    self.MFD["speed"].append(np.mean(TmpFcm["av_speed"]))
+                # PER CLASS
+                for t in range(int(self.iterations)):
+                    for Class in self.Class2MFD.keys():
+                        TmpClassFCM = self.Stats.groupby("class").get_group(Class)[mask_idx]
+                        mask_idx = [True if (int(x['start_time'])>int(self.TimeStampDate)+t*self.dt and int(x['start_time'])<int(self.TimeStampDate)+(t+1)*self.dt) or (int(x['end_time'])>int(self.TimeStampDate)+t*self.dt and int(x['end_time'])<int(self.TimeStampDate)+(t+1)*self.dt) else False for _,x in TmpClassFCM.iterrows()]
+                        TmpClassFCM = TmpClassFCM[mask_idx]
+                        # TODO timstamp2datetime
+                        self.Class2MFD[Class]["time"].append(Timestamp2Date(int(self.TimeStampDate)+t*self.dt).dt.strftime('%H:%M:%S')) 
+                        self.Class2MFD[Class]["population"].append(len(TmpClassFCM))
+                        self.Class2MFD[Class]["speed"].append(np.mean(TmpClassFcm["av_speed"]))
+        self.ComputedMFD = True
 
+    def GetLowerBoundsFromBins(self,bins,label):
+        if len(self.MinMaxPlot.keys())==0:
+            self.MinMaxPlot["aggregated"] = defaultdict()
+        else:
+            self.MinMaxPlot["aggregated"][label] = {"min":bins[0],"max":bins[-1]}  
+
+    def GetLowerBoundsFromBinsPerClass(self,Class,bins,label):
+        if len(self.MinMaxPlotPerClass[Class].keys())==0:
+            self.MinMaxPlotPerClass[Class] = defaultdict()
+        else:
+            self.MinMaxPlotPerClass[Class][label] = {"min":bins[0],"max":bins[-1]}  
+
+    def PlotMFD(self):
+        """
+        Plots the Fundamental Diagram for the calculated MFD (Mobility Fundamental Diagram) and per class.
         
+        This function plots the Fundamental Diagram for the calculated MFD (Mobility Fundamental Diagram) and per class. 
+        The Fundamental Diagram shows the average speed and the standard deviation of the speed for each population bin.
+        The population bins are determined by the number of vehicles in each bin.
+        
+        Parameters:
+            self (object): The instance of the class.
+        
+        Returns:
+            None
+        
+        Raises:
+            None
+        """
+        if self.ComputedMFD: 
+            # AGGREGATED
+            fig, ax = plt.subplots(1,1,figsize = (10,8))
+            n, bins = np.histogram(self.MFD["population"],bins = 20)
+            self.MFD["bins_population"] = pd.cut(self.MFD["population"],bins=bins,labels=bins,right=False)
+            self.MFD2Plot['binned_av_speed'] = self.MFD.groupby('bins_population')['speed'].mean().reset_index()
+            self.MFD2Plot['binned_av_speed'] = self.MFD2Plot['binned_av_speed'].fillna(method='bfill')
+            self.MFD2Plot['binned_sqrt_err_speed'] = self.MFD.groupby('bins_population')['speed'].std().reset_index()    
+            self.GetLowerBoundsFromBins(bins,"population")
+            self.GetLowerBoundsFromBins(self.MFD2Plot['binned_av_speed'],"speed")
+            Y_Interval = max(self.MFD2Plot['binned_av_speed']) - min(self.MFD2Plot['binned_av_speed'])
+            RelativeChange = Y_Interval/max(self.MFD2Plot['binned_av_speed'])/100
+            text = "Relative change : {}%".format(RelativeChange)
+            ax.plot(bins,self.MFD2Plot['binned_av_speed'])
+            ax.fill_between(bins, self.MFD2Plot['binned_av_speed'] - self.MFD2Plot['binned_sqrt_err_speed'], self.MFD2Plot['binned_av_speed'] + self.MFD2Plot['binned_sqrt_err_speed'], color='gray', alpha=0.2, label='Std')
+            props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+            ax.text(0.05, 0.95, text, transform=plt.gca().transAxes, fontsize=10,
+            verticalalignment='top', bbox=props)
+            ax.set_title("Fondamental Diagram")
+            ax.set_xlabel("time")
+            ax.set_ylabel("speed")
+            plt.savefig(os.path.join(self.SaveDir,"MFD.png"),dpi = 200)
 
+            # PER CLASS
+            if self.Class2MFD.keys():
+                self.MinMaxPlotPerClass = {Class: defaultdict() for Class in self.Class2MFD.keys()}
+            else:
+                self.MinMaxPlotPerClass = defaultdict(dict)
+            for Class in self.Class2MFD.keys():
+                fig, ax = plt.subplots(1,1,figsize = (10,8))
+                n, bins = np.histogram(self.Class2MFD[Class]["population"],bins = 20)
+                self.Class2MFD[Class]["bins_population"] = pd.cut(self.Class2MFD[Class]["population"],bins,labels=bins,right=False)
+                self.Class2MFD2Plot[Class]['binned_av_speed'] = self.Class2MFD[Class].groupby('bins_population')['speed'].mean().reset_index()
+                self.Class2MFD2Plot[Class]['binned_av_speed'] = self.Class2MFD2Plot[Class]['binned_av_speed'].fillna(method='bfill')
+                self.Class2MFD2Plot[Class]['binned_sqrt_err_speed'] = self.Class2MFD[Class].groupby('bins_population')['speed'].std().reset_index()
+                self.GetLowerBoundsFromBinsPerClass(Class,bins,"population")
+                self.GetLowerBoundsFromBinsPerClass(Class,self.Class2MFD2Plot[Class]['binned_av_speed'],"speed")
+                Y_Interval = max(self.Class2MFD2Plot[Class]['binned_av_speed']) - min(self.Class2MFD2Plot[Class]['binned_av_speed'])
+                RelativeChange = Y_Interval/max(self.Class2MFD2Plot[Class]['binned_av_speed'])/100
+                text = "Relative change : {}%".format(RelativeChange)
+                ax.plot(bins,self.Class2MFD[Class]['binned_av_speed'])
+                ax.fill_between(bins, self.Class2MFD2Plot[Class]['binned_av_speed'] - self.Class2MFD2Plot[Class]['binned_sqrt_err_speed'], self.Class2MFD2Plot[Class]['binned_av_speed'] + self.Class2MFD2Plot[Class]['binned_sqrt_err_speed'], color='gray', alpha=0.2, label='Std')
+                props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+                ax.text(0.05, 0.95, text, transform=plt.gca().transAxes, fontsize=10,
+                verticalalignment='top', bbox=props)
+                ax.set_title(self.IntClass2StrClass[Class])
+                ax.set_xlabel("time")
+                ax.set_ylabel("speed")
+                plt.savefig(os.path.join(self.SaveDir,"MFD_{}.png".format(Class)),dpi = 200)
 ##--------------- Dictionaries --------------##
     def CreateDictionaryIntClass2StrClass(self):
         '''
@@ -492,7 +625,7 @@ def FilterStatsByClass(fcm,i,idx,stats):
    
    
     def CreateDictConstraintsAll(self):
-
+        pass
 
 
 
@@ -567,9 +700,9 @@ def FilterStatsByClass(fcm,i,idx,stats):
                         elif "exponential" in function:
                             self.InitialGuessPerClassAndLabel[class_][label][function] = (6000,np.mean(self.Fcm.groupby("class").get_group(class_)[label]))
                         elif "gaussian" in function:
-                            self.InitialGuessPerClassAndLabel[class_][label][function] = (,self.Fcm.groupby("class").get_group(class_)[label])
+                            self.InitialGuessPerClassAndLabel[class_][label][function] = (6000,self.Fcm.groupby("class").get_group(class_)[label])
                         else:
-                            self.InitialGuessPerClassAndLabel[class_][label][function] = (,self.Fcm.groupby("class").get_group(class_)[label])
+                            self.InitialGuessPerClassAndLabel[class_][label][function] = (6000,self.Fcm.groupby("class").get_group(class_)[label])
         else:
             print("FcmCenters not read Not retrieving parameters")
 def GetDistributionPerClass(fcm,label,class_):

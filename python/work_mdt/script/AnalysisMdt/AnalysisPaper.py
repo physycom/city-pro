@@ -1,7 +1,5 @@
-from analysisNetwork1Day import *
-from AnalysisNetworkAllDays import *
-from AnalysisMobility1Day import *
-from AnalysisMobilityAllDays import *
+from AnalysisNetwork1Day import *
+#from AnalysisNetworkAllDays import *
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -53,16 +51,25 @@ if __name__ == "__main__":
         # Create Classes
         Network.ReadFcmCenters()
         Network.ReadFcm()
+        ## Classes associated to inclusion principle
+        Network.ReadFcmNew()
+        Netwok.AddFcmNew2Fcm()
         Network.GetIncreasinglyIncludedSubnets()
         Network.ReadGeojson()
         # Create Dictionaries
         Network.CreateDictionaryIntClass2StrClass()
+        # SAVE SUBNETS IN GEOJSON
+        Network.CompleteGeoJsonWithClassInfo()
         # PLOT SUBNETS
         Network.PlotSubnetHTML()
         Network.PlotIncrementSubnetHTML()   
         Network.PlotFluxesHTML()
         Network.PlotTimePercorrenceHTML()     
-
+        # FUNDAMENTAL DIAGRAM 
+        Network.ComputeMFDVariables()
+        Network.PlotMFD()
+        # HYSTERESIS DIAGRAM
+        
         Network.ReadFluxes()
 ## +++++++++++++++ FITTING PROCEDURES +++++++++++++++++++++++++++++
         # ALL CLASSES
@@ -78,7 +85,7 @@ if __name__ == "__main__":
                 for FunctionName in Network.labels2FitNames2Try[label]:
                     print("====== FITTING FUNCTION: " + label + " class {0} {1} ======".format(Class, label))
                     Network.FittingFunctionSubClasses(Class,label,Network.labels2FitNames2Try[label],bins = 100)
-
+    ## ALL DAYS ANALYSIS
 ## +++++++++++++++++ PLOT SUBNETWORKS +++++++++++++++++++++++++++
         # Add to Lists to Give in Input for the All Days Analysis
         ListNetworkDays.append(Network)

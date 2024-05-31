@@ -1,0 +1,13 @@
+# custom_style.mplstyle
+figure.figsize: 10, 6
+axes.titlesize: 14
+axes.labelsize: 12
+lines.linewidth: 2
+lines.markersize: 6
+font.size: 12
+legend.fontsize: 10
+grid.color: gray
+grid.linestyle: --
+grid.linewidth: 0.5
+axes.grid: True
+axes.grid.axis: both
