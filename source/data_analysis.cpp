@@ -2200,6 +2200,7 @@ void assign_new_class(std::vector<traj_base> &traj,std::vector<poly_base> &poly,
 
 std::map<std::string, std::vector<int>> simplifies_c_complement(std::map<std::string, std::vector<int>> subnets80,std::vector<traj_base> &traj,std::vector<poly_base> &poly)
 {
+    std::cout << "Compute the complete complement" << std::endl;
     std::map<std::string, std::vector<int>> complete_complement;
     for (std::map<std::string, std::vector<int>>::iterator k = subnets80.begin(); k != subnets80.end(); ++k)
     {
@@ -2266,6 +2267,7 @@ void analysis_subnets(std::vector<traj_base> &traj,std::vector<poly_base> &poly,
         std::string lab = i->first;
         std::vector<int> polies = i->second;
         physycom::split(tokens, lab, string("_"), physycom::token_compress_on);
+        // Fill subnets80[tokens[2](0,..4) fcm indices] with the polies of respective subnet 
         if (tokens[0] != "tot")
         {
             if (tokens[2] == std::to_string(80))
@@ -2278,39 +2280,43 @@ void analysis_subnets(std::vector<traj_base> &traj,std::vector<poly_base> &poly,
         else
             continue;
     }
+    // Create a map 
+    // hierarchically_selected_subnets[0] = subnets80[0] - (Intersection {subnets80[0],subnets80[1]})
+    // hierarchically_selected_subnets[1] = subnets80[1] - (Intersection {subnets80[1],subnets80[2]})
+    // and so on ...
     std::map<std::string,std::vector<int>> hierarchically_selected_subnets; 
     hierarchically_selected_subnets = hierarchical_deletion_of_intersection(subnets80);
     assign_new_class(traj,poly,hierarchically_selected_subnets);
     hierarchically_selected_subnets.clear();
     // VELOCITY TIME SUBNET FOR EACH CLASS
-    if(config_.all_subnets_speed == true){
-        for (std::map<std::string, std::vector<int>>::iterator i = subnets.begin(); i != subnets.end(); ++i){
-            std::vector<traj_base> traj_subnet_tmp;
-            std::vector<std::string> tokens;
-            std::string lab = i->first; // takes values in "sub_60","sub_70","sub_80","tot_80"
-            std::vector<int> polies = i->second; // takes int values of polies
-            physycom::split(tokens, lab, string("_"), physycom::token_compress_on);
-            if (tokens[0] != "tot")
+    std::cout << "Print all subnets? " << config_.all_subnets_speed << " (1 = yes, 0 = no)" << std::endl;
+    for (std::map<std::string, std::vector<int>>::iterator i = subnets.begin(); i != subnets.end(); ++i){
+        std::vector<traj_base> traj_subnet_tmp;
+        std::vector<std::string> tokens;
+        std::string lab = i->first; // takes values in "sub_60","sub_70","sub_80","tot_80"
+        std::vector<int> polies = i->second; // takes int values of polies
+        physycom::split(tokens, lab, string("_"), physycom::token_compress_on);
+        if (tokens[0] != "tot")
+        {
+            if (tokens[2] == std::to_string(80))
             {
-                if (tokens[2] == std::to_string(80))
+                std::cout << "Filling Class: " << tokens[1] << std::endl;
+                ofstream spaced_file_subnet(config_.cartout_basename + "/" + config_.name_pro + "class_"+tokens[1]+".txt");
+                for (auto &p : polies)
                 {
-                    ofstream spaced_file_subnet(config_.cartout_basename + "/" + config_.name_pro + "class_"+tokens[1]+".txt");
-                    for (auto &p : polies)
-                    {
-                        spaced_file_subnet << p << " ";
-                    }
-                    spaced_file_subnet.close(); 
-                    traj_subnet_tmp = selecttraj_from_vectorpolysubnet_velsubnet(polies, traj, poly, "class_"+tokens[1]);
-
+                    spaced_file_subnet << p << " ";
                 }
-                else
-                    continue;
+                spaced_file_subnet.close(); 
+                traj_subnet_tmp = selecttraj_from_vectorpolysubnet_velsubnet(polies, traj, poly, "class_"+tokens[1]);
+
             }
             else
                 continue;
-
-            traj_subnet_tmp.clear();
         }
+        else
+            continue;
+
+        traj_subnet_tmp.clear();
     }
     // COMPUTE INTERSECTION // PRODUCE VELOCITY AND TIME SUBNETS:
     if(config_.complete_intersection_speed==true){
@@ -2341,112 +2347,6 @@ void dump_FD(std::vector<poly_base> &poly)
     }
     out_fd.close();
 }
-/*
-std::map<int, std::vector<long long int>> get_class2idact_from_fcm_csv(confit &config_){
-    std::map<int, std::vector<long long int>> p2id_act;
-    std::ifstream file(config_.cartout_basename + "/" + config_.name_pro +"_fcm.csv");
-    if (!file.is_open()) {
-        std::cerr << "Error: Unable to open file." << std::endl;
-        return 1;
-    }
-
-    // Read and process each line of the CSV file
-    std::string line;
-    while (std::getline(file, line)) {
-        std::istringstream lineStream(line);
-        std::string token;
-        std::vector<std::string> tokens;
-
-        // Split the line into tokens using ";" as the delimiter
-        while (std::getline(lineStream, token, ';')) {
-            tokens.push_back(token);
-        }
-
-        // Check if the line has enough columns
-        if (tokens.size() >= 11) {
-            int p = std::stoi(tokens[10]);  // Assuming "p" is in the 11th column (0-based indexing)
-            long long int id_act = std::stoll(tokens[0]);  // Assuming "id_act" is in the 1st column (0-based indexing)
-
-            // Add the id_act to the corresponding "p" key in the map
-            p2id_act[p].push_back(id_act);
-        }
-    }
-
-    // Close the file
-    file.close();
-    return p2id_act;
-}
-
-//
-initialize_class2countpoly_traj: 
-Per ogni classe vedere a quale sottorete le traiettorie appartengono.
-Supponiamo per id = 110000000 
-Ho che 20 pt sono in 0 (di questi )
-15 in 1 
-10 in 2
-5 in 3
-//
-
-
-void initialize_class2countpoly_traj(std::vector<traj_base> &traj){
-    // NOTA: per semplicità e non tirare fuori di nuovo subnets e iterare li, prendo direttamente il range di classi che so mi servano, nel mio caso 4 
-    std::vector<std::string> tokens {"0","1","2","3","4"};
-    for (auto &tok:tokens){
-        std::ifstream spaced_file_subnet(config_.cartout_basename + "/" + config_.name_pro + "class_"+tok+".txt");
-        if spaced_file_subnet.is_open(){
-            std::vector<int> polies;
-            polies.clear();
-            std::string line;
-            while (std::getline(spaced_file_subnet, line)){
-                std::istringstream lineStream(line);
-                std::string token;
-                while (std::getline(lineStream, token, ' ')){
-                    polies.push_back(std::stoi(token));
-                    }
-                for (auto &t : traj){
-                    for (auto &sp:t.path)
-                        if (std::find(polies.begin(), polies.end(), sp.first) != polies.end()){
-                            t.class2countpoly_traj[std::stoi(tok)] += 1;
-                    }
-                }
-            }
-        }
-        else{
-            std::cout  << config_.cartout_basename + "/" + config_.name_pro + "class_"+tok+".txt"<< " not found, continue..." <<std::endl;
-            continue;}
-    }
-    spaced_file_subnet.close();
-    std::ofstream out_class2countpoly_traj(config_.cartout_basename + "/" + config_.name_pro + "_reinit_class.csv");
-    out_class2countpoly_traj << "id_act;" << std::endl;     
-    for (auto &tok:tokens){
-        std::ifstream spaced_file_subnet(config_.cartout_basename + "/" + config_.name_pro + "class_"+tok+".txt");
-        if spaced_file_subnet.is_open(){
-            out_class2countpoly_traj <<
-
-        }    
-    for (auto &t : traj){
-        int biggest_count_class = 0;
-        int new_class;
-        for (auto &c : t.class2countpoly_traj){
-            if (c.second > biggest_count_class){
-                biggest_count_class = c.second;
-                new_class = c.first;
-            }
-        }
-
-        out_class2countpoly_traj << t.id_act << ";" << new_class << std::endl;
-    }
-    out_class2countpoly_traj.close();
-    }
-}
-void reclassify_traj_(std::vector<traj_base> &traj,std::vector<poly_base> &poly,config &config_)
-{
-    std::map<int, std::vector<long long int>> p2id_act;
-    p2id_act = get_class2idact_from_fcm_csv(config_);
-
-}
-*/
-// ALBI
 
 //----------------------------------------------------------------------------------------------------
 void dump_fluxes(std::vector<traj_base> &traj,config &config_,std::vector<centers_fcm_base> &centers_fcm,std::vector<poly_base> &poly,std::vector<std::map<int,int>> &classes_flux)
