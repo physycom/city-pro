@@ -11,26 +11,23 @@ from FittingProcedures import *
 import json
 
 WORKSPACE = os.environ['WORKSPACE']
-def parse_arguments():
-    '''
-        {
-            "base_dir": "/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/",
-        }
-    '''
-    parser = argparse.ArgumentParser(description="Process configuration file.")
-    parser.add_argument("config_file","-c", help="Path to the configuration file")
-    return parser.parse_args()
+os.environ["DISPLAY"] = ":0.0"
 
 
 if __name__ == "__main__":
     try:
-        args = parse_arguments()
-        base_dir = args.base_dir
+        parser = argparse.ArgumentParser(description="Process configuration file.")
+        parser.add_argument("-c","--config_file", help="Path to the configuration file")
+        args = parser.parse_args()
+        print("Args: ", args)
+        base_dir = args.config_file
+        print("Base directory: ",base_dir)
     except Exception as e:
         print("No Configuration file provided")
-        base_dir = os.path.join(WORKSPACE,"output","bologna_mdt_detailed")
+        base_dir = os.path.join(WORKSPACE,"city-pro","config")
+        print("Second Directory: ",base_dir)
     try:
-        with open(os.path.join(base_dir,"config.json")) as f:
+        with open(os.path.join(base_dir,"ConfigPythonAnalysis.json")) as f:
             config = json.load(f)
     except Exception as e:
         print("No Configuration file provided")
@@ -53,9 +50,10 @@ if __name__ == "__main__":
         Network.ReadFcm()
         ## Classes associated to inclusion principle
         Network.ReadFcmNew()
-        Netwok.AddFcmNew2Fcm()
+        Network.AddFcmNew2Fcm()
         Network.GetIncreasinglyIncludedSubnets()
-        Network.ReadGeojson()
+        Network.ReadGeoJson()
+        Network.ReadFluxesSub()
         # Create Dictionaries
         Network.CreateDictionaryIntClass2StrClass()
         # SAVE SUBNETS IN GEOJSON

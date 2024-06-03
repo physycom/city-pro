@@ -48,7 +48,7 @@ def km2m(x):
     return m*1000
 
 def StrDate2DateFormatLocalProject(StrDate):
-    return StrDate.split("_")[0],StrDate.split("_")[1],StrDate.split("_")[2]
+    return StrDate.split("-")[0],StrDate.split("-")[1],StrDate.split("-")[2]
 
 def Timestamp2Datetime(timestamp):
     return datetime.datetime.fromtimestamp(timestamp)
@@ -76,6 +76,11 @@ class DailyNetworkStats:
         else:
             print("StrDate not found in config")
             exit(1)
+        if "verbose" in config.keys():
+            self.verbose = config["verbose"]
+        else:
+            self.verbose = False
+        
         # INPUT DIR 
         if "InputBaseDir" in config.keys():
             self.InputBaseDir = config["InputBaseDir"]
@@ -90,12 +95,11 @@ class DailyNetworkStats:
                         "stats":os.path.join(self.InputBaseDir,self.BaseFileName + '_' + self.StrDate + '_' + self.StrDate + '_stats.csv'),
                         "timed_fluxes": os.path.join(self.InputBaseDir,self.BaseFileName+'_'+ self.StrDate+'_'+ self.StrDate + '_timed_fluxes.csv'),
                         "fluxes": os.path.join(self.InputBaseDir,"weights",self.BaseFileName+'_'+ self.StrDate+'_'+ self.StrDate + '.fluxes'),
-                        "fluxes_sub": os.path.join(self.InputBaseDir,"weights",self.BaseFileName+'_'+ self.StrDate+'_'+ self.StrDate + '.fluxes.sub')}
-        if "geojson_file" in config.keys():
-            self.GeojsonDirFile = os.path.join(config["geojson_file"])
+                        "fluxes_sub": os.path.join(self.InputBaseDir,"weights",self.BaseFileName+'_'+ self.StrDate+'_'+ self.StrDate + '.fluxes.sub')}        
+        if "geojson" in config.keys():
+            self.GeoJsonFile = os.path.join(config["geojson"])
         else:
-            self.GeojsonDirFile = os.path.join(os.environ['WORKSPACE'],"city-pro","city-pro-carto.geojson")
-        
+            self.GeoJsonFile = os.path.join(os.environ['WORKSPACE'],"city-pro","city-pro-carto.geojson")
         self.PlotDir = os.path.join(os.environ['WORKSPACE'],"city-pro","output","bologna_mdt_detailed","plots",self.StrDate)
         if not os.path.exists(self.PlotDir):
             os.makedirs(self.PlotDir)
@@ -103,7 +107,7 @@ class DailyNetworkStats:
         if "bounding_box" in config.keys():
             try:
                 self.bounding_box = [(config["bounding_box"]["lat_min"],config["bounding_box"]["lon_min"]),(config["bounding_box"]["lat_max"],config["bounding_box"]["lon_min"]),(config["bounding_box"]["lat_max"],config["bounding_box"]["lon_max"]),(config["bounding_box"]["lat_min"],config["bounding_box"]["lon_max"])]
-                bbox = box((config["bounding_box"]["lat_min"],config["bounding_box"]["lon_min"],config["bounding_box"]["lat_max"],config["bounding_box"]["lon_max"]))
+                bbox = box(config["bounding_box"]["lat_min"],config["bounding_box"]["lon_min"],config["bounding_box"]["lat_max"],config["bounding_box"]["lon_max"])
                 self.centroid = gpd.GeoDataFrame([1], geometry=[bbox], crs="EPSG:4326").centroid
             except:
                 exit("bounding_box not defined well in config. Should be 'bounding_box': {'lat_min': 44.463121,'lon_min': 11.287085,'lat_max': 44.518165,'lon_max': 11.367472}")
@@ -114,25 +118,27 @@ class DailyNetworkStats:
         ## CONVERSIONS and CONSTANTS
         self.day_in_sec = 24*3600
         self.dt = 15*60
-        self.iterations = day_in_sec/dt
+        self.iterations = self.day_in_sec/self.dt
         yy,mm,dd = StrDate2DateFormatLocalProject(self.StrDate)
-        self.Date = datetime.datetime(yy,mm,dd,0,0,0)
+        self.Date = datetime.datetime(int(yy),int(mm),int(dd),0,0,0)
         self.TimeStampDate = datetime.datetime.timestamp(self.Date)
-        
+
         # FLAGS
-        self.ReadTime2Fluxes = False
-        self.ReadFluxes = False
-        self.ReadFluxesSub = False
-        self.ReadFcm = False
-        self.ReadFcmNew = False
-        self.ReadFcmCenters = False
-        self.ReadGeojson = False
-        self.ReadVelocitySubnet = False
+        self.ReadTime2FluxesBool = False
+        self.ReadFluxesBool = False
+        self.ReadFluxesSubBool = False
+        self.ReadFcmBool = False
+        self.ReadFcmNewBool = False
+        self.ReadFcmCentersBool = False
+        self.ReadGeojsonBool = False
+        self.ReadVelocitySubnetBool = False
         self.BoolStrClass2IntClass = False
         self.ComputedMFD = False
+        self.ReadStatsBool = False
+        self.ReadFluxesSubIncreasinglyIncludedIntersectionBool = False
         # SETTINGS INFO
         self.colors = ['red','blue','green','orange','purple','yellow','cyan','magenta','lime','pink','teal','lavender','brown','beige','maroon','mint','coral','navy','olive','grey']
-        self.Name = BaseName
+#        self.Name = BaseName
         self.StrDate = StrDate
         # CLASSES INFO
         self.Class2Color = {"1 slowest": "blue","2 slowest":"green","middle velocity class": "yellow","2 quickest": "orange", "1 quickest":"red"}
@@ -157,44 +163,187 @@ class DailyNetworkStats:
         self.InitialGuessPerClassAndLabel = defaultdict(dict) 
         # FUNDAMENTAL DIAGRAM
         self.MFD = pd.DataFrame({"time":[],"population":[],"speed":[]})
+        self.MFD2Plot = defaultdict()
         self.Class2MFD = {class_:pd.DataFrame({"time":[],"population":[],"speed":[]}) for class_ in self.IntClass2StrClass.keys()}
         # MINIMUM VALUES FOR (velocity,population,length,time) for trajectories of the day
         self.MinMaxPlot = defaultdict()
 # --------------- Read Files ---------------- #
     def ReadTimedFluxes(self):
-        self.TimedFluxes = pd.read_csv(self.InputBaseDir["timed_fluxes"],delimiter = ';')
-        self.ReadTime2Fluxes = True
-    
+        if self.verbose:
+            print("Reading timed_fluxes")
+            print(self.DictDirInput["timed_fluxes"])
+        if os.path.isfile(self.DictDirInput["timed_fluxes"]):
+            self.TimedFluxes = pd.read_csv(self.DictDirInput["timed_fluxes"],delimiter = ';')
+            self.ReadTime2FluxesBool = True
+        else:   
+            print("No timed_fluxes")    
     def ReadFluxes(self):
-        self.Fluxes = pd.read_csv(self.InputBaseDir["fluxes"],delimiter = ';')
-        self.ReadFluxes = True        
-    
+        if self.verbose:
+            print("Reading fluxes")
+            print(self.DictDirInput["fluxes"])
+        if os.path.isfile(self.DictDirInput["fluxes"]):
+            self.Fluxes = pd.read_csv(self.DictDirInput["fluxes"],delimiter = ';')
+            self.ReadFluxesBool = True        
+        else:
+            print("No fluxes")    
     def ReadFcm(self):
-        self.Fcm = pd.read_csv(self.InputBaseDir["fcm"],delimiter = ';')
-        self.ReadFcm = True
-
+        if self.verbose:
+            print("Reading fcm")
+            print(self.DictDirInput["fcm"])
+        if os.path.isfile(self.DictDirInput["fcm"]):
+            self.Fcm = pd.read_csv(self.DictDirInput["fcm"],delimiter = ';')
+            self.ReadFcmBool = True
+        else:
+            print("No fcm")
     def ReadStats(self):
-        self.Stats = pd.read_csv(self.InputBaseDir["stats"],delimiter = ';')
-        self.ReadStats = True
-    
+        if self.verbose:
+            print("Reading stats")
+            print(self.DictDirInput["stats"])
+        if os.path.isfile(self.DictDirInput["stats"]):
+            self.Stats = pd.read_csv(self.DictDirInput["stats"],delimiter = ';')
+            self.ReadStatsBool = True
+        else:
+            print("No stats")    
     def ReadFcmNew(self):
-        self.FcmNew = pd.read_csv(self.DictDirInput["fcm_new"],delimiter = ';')
-        self.ReadFcmNew = True
-    
-    def ReadFcmCenters(self):
-        Features = {"class":[],"av_speed":[],"v_min":[],"v_max":[],"sinuosity":[]}
-        FcmCenters = pd.read_csv(self.InputBaseDir["fcm_centers"],delimiter = ';')
-        keyidx = 0
-        for feat in FcmCenters.columns:
-            if keyidx == 0:
-                Features[Features.keys()[keyidx]] = int(feat)
+        if self.verbose:
+            print("Reading fcm_new")
+            print(self.DictDirInput["fcm_new"])
+        if os.path.isfile(self.DictDirInput["fcm_new"]):
+            self.FcmNew = pd.read_csv(self.DictDirInput["fcm_new"],delimiter = ';')
+            self.ReadFcmNewBool = True
+        else:
+            print("No fcm_new")    
+    def ReadFcmCenters(self,verbose=False):
+        """
+            Description:
+                Read the centers of the FCM
+            NOTE: This function will define also what are the classes in any plot since it is used to initialize
+            IntClass2StrClass
+        """
+        if self.verbose:
+            print("Reading fcm_centers")
+            print(self.DictDirInput["fcm_centers"])
+        Features = {"class":[],"av_speed":[],"v_max":[],"v_min":[],"sinuosity":[],"people":[]}
+        FcmCenters = pd.read_csv(self.DictDirInput["fcm_centers"],delimiter = ';') 
+        FlattenedFcmCenters = FcmCenters.to_numpy().flatten()    
+        Row2Jump = False   
+        idxcol = 0
+        # Initialize Features by Reading the the columns as 1st row.
+        for col in FcmCenters.columns:
+            if idxcol == 0 or idxcol == len(FcmCenters.columns)-1:
+                Features[list(Features.keys())[idxcol]].append(int(col))
             else:
-                Features[Features.keys()[keyidx]] = float(feat)
-            keyidx += 1
+                Features[list(Features.keys())[idxcol]].append(float(col))
+            idxcol += 1
+        # Fill the other rows
+        for val in range(len(FlattenedFcmCenters)):
+            # Check that is the first row
+            if int(val/len(FcmCenters.columns)) == 0: 
+                if verbose:
+                    print("Iteration: ", val," case Row {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[val])
+                # Check that is the first element of the row
+                if val%len(FcmCenters.columns) == 0: 
+                    if verbose:
+                        print("\tIteration: ", val," case Row {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[val])
+                    Row2Jump = False
+                    # Check that the velocity is not too high
+                    if float(FlattenedFcmCenters[val + 1]) > 50:
+                        if verbose:                
+                            print("\t\tDiscarded Row: ", val/len(FcmCenters.columns))
+                        Row2Jump = True
+                        pass
+                    else:
+                        if verbose:
+                            print("\t\tRow2Jump: ",Row2Jump)
+                        if not Row2Jump:
+                            if verbose:
+                                print("\t\tIteration: ", val," not Jump:")
+                            keyidx = val
+                            if list(Features.keys())[keyidx] == "class" or list(Features.keys())[keyidx] == "people":
+                                Features[list(Features.keys())[keyidx]].append(int(FlattenedFcmCenters[val]))
+                                if verbose:
+                                    print("\t\t\tIteration: ", val," Col: " ,list(Features.keys())[keyidx]," Appending: ", int(FlattenedFcmCenters[val]))
+                            else:
+                                Features[list(Features.keys())[keyidx]].append(float(FlattenedFcmCenters[val]))
+                                if verbose:
+                                    print("\t\t\tIteration: ", val," Col: " ,list(Features.keys())[keyidx]," Appending: ", float(FlattenedFcmCenters[val]))
+                        else:
+                            if verbose:
+                                print("\t\tJump: ", "Iteration: ", val,"Row: {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[keyidx],"Value FCM info: ", float(FlattenedFcmCenters[val]))
+                else:
+                    if verbose:
+                        print("\tIteration: ",  val,"Row: {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[keyidx],"Value FCM info: ", float(FlattenedFcmCenters[val]))
+                    if not Row2Jump:
+                        if verbose:
+                            print("\t\tIteration: ", val," not Jump:")
+                        keyidx = val
+                        if list(Features.keys())[keyidx] == "class" or list(Features.keys())[keyidx] == "people":
+                            Features[list(Features.keys())[keyidx]].append(int(FlattenedFcmCenters[val]))
+                            if verbose:
+                                print("\t\t\tIteration: ", val," Col: " ,list(Features.keys())[keyidx]," Appending: ", int(FlattenedFcmCenters[val]))
+                        else:
+                            Features[list(Features.keys())[keyidx]].append(float(FlattenedFcmCenters[val]))
+                            if verbose:
+                                print("\t\t\tIteration: ", val," Col: " ,list(Features.keys())[keyidx]," Appending: ", float(FlattenedFcmCenters[val]))
+                    else:
+                        if verbose:
+                            print("\t\tJump: ", "Iteration: ", val,"Row: {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[keyidx],"Value FCM info: ", float(FlattenedFcmCenters[val]))
+
+            # Not first row
+            else:
+                if verbose:        
+                    print("Iteration: ", val," case Row {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[val%len(FcmCenters.columns)])                    
+                # Check that is the first element of the row
+                if val%len(FcmCenters.columns) == 0:
+                    if verbose:                
+                        print("\tIteration: ", val," case Row {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[val%len(FcmCenters.columns)])                    
+                    # Check that the velocity is not too high
+                    Row2Jump = False
+                    if float(FlattenedFcmCenters[val + 1]) > 50:
+                        Row2Jump = True
+                        if verbose:                
+                            print("\t\tDiscarded Row: ", val/len(FcmCenters.columns))
+                        pass
+                    else:
+                        if not Row2Jump:
+                            if verbose:                
+                                print("\t\tIteration: ", val," not Jump:")
+                            keyidx = int(val%len(FcmCenters.columns))
+                            if list(Features.keys())[keyidx] == "class" or list(Features.keys())[keyidx] == "people":
+                                Features[list(Features.keys())[keyidx]].append(int(FlattenedFcmCenters[val]))
+                                if verbose:
+                                    print("\t\t\tIteration: ", val," Col: " ,list(Features.keys())[keyidx]," Appending: ", int(FlattenedFcmCenters[val]))
+                            else:
+                                Features[list(Features.keys())[keyidx]].append(float(FlattenedFcmCenters[val]))
+                                if verbose:
+                                    print("\t\t\tIteration: ", val," Col: " ,list(Features.keys())[keyidx]," Appending: ", float(FlattenedFcmCenters[val]))
+                        else:
+                            if verbose:
+                                print("\t\tJump: ", "Iteration: ", val,"Row: {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[keyidx],"Value FCM info: ", float(FlattenedFcmCenters[val]))
+                else:
+                    if verbose:
+                        print("\tIteration: ",  val,"Row: {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[keyidx],"Value FCM info: ", float(FlattenedFcmCenters[val]))
+                    if not Row2Jump:
+                        if verbose:
+                            print("\t\tIteration: ", val," not Jump:")
+                        keyidx = val%len(FcmCenters.columns)
+                        if list(Features.keys())[keyidx] == "class" or list(Features.keys())[keyidx] == "people":
+                            Features[list(Features.keys())[keyidx]].append(int(FlattenedFcmCenters[val]))
+                            if verbose:
+                                print("\t\t\tIteration: ", val," Col: " ,list(Features.keys())[keyidx]," Appending: ", int(FlattenedFcmCenters[val]))
+                        else:
+                            Features[list(Features.keys())[keyidx]].append(float(FlattenedFcmCenters[val]))
+                            if verbose:
+                                print("\t\t\tIteration: ", val," Col: " ,list(Features.keys())[keyidx]," Appending: ", float(FlattenedFcmCenters[val]))
+                    else:
+                        if verbose:
+                            print("\t\tJump: ", "Iteration: ", val,"Row: {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[keyidx],"Value FCM info: ", float(FlattenedFcmCenters[val]))
+
+            
         self.FcmCenters = pd.DataFrame(Features)
-        self.ReadFcmCenters = True
+        self.ReadFcmCentersBool = True
     
-    def ReadFluxesSub(self,verbose = False):
+    def ReadFluxesSub(self):
         '''
             Input:
                 FluxesSubFile: (str) -> FluxesSubFile = '../{basename}_{start}_{start}/fluxes.sub'
@@ -203,38 +352,46 @@ class DailyNetworkStats:
                 self.IntClass2Roads: (dict) -> self.IntClass2Roads = {IntClass:[] for IntClass in self.IntClasses}
                 self.IntClass2RoadsInit: (bool) -> Boolean value to Say I have stored the SubnetInts For each Class
         '''
+        if self.verbose:
+            print("Reading fluxes_sub")
+            print(self.DictDirInput["fluxes_sub"])
         DoNothing = False
         self.IntClass2Roads = defaultdict(list)
         # Read Fluxes.sub
-        with open(self.DictDirInput["fluxes_sub"],'r') as f:
-            FluxesSub = f.readlines()
-        for ClassLines in FluxesSub:
-            ClassandID = ClassLines.split('\t')
-            ClassId  = ClassandID[0].split('_')[1]
-            if verbose:
-                print("Class: ",ClassId)
-            try:
-                ClassFractionRoadsConsidered = ClassandID[0].split('_')[2]
-                if verbose:
-                    print("Fraction of roads considered: ",ClassFractionRoadsConsidered)
-            except IndexError:
-                DoNothing = True
-                if verbose:
-                    print("Considering the Total Subnetwork indipendent on the Subclass")
-            if DoNothing:
-                pass
-            else:
-                IdRoads = [int(RoadId) for RoadId in ClassandID[1:] if RoadId != '\n']
-                self.IntClass2Roads[int(ClassId)] = IdRoads
-                if verbose:
-                    print("Number of Roads SubNetwork: ",len(IdRoads))     
-        self.ReadFluxesSub = True
-
+        if os.path.isfile(self.DictDirInput["fluxes_sub"]):
+            with open(self.DictDirInput["fluxes_sub"],'r') as f:
+                FluxesSub = f.readlines()
+            for ClassLines in FluxesSub:
+                ClassandID = ClassLines.split('\t')
+                ClassId  = ClassandID[0].split('_')[1]
+                if self.verbose:
+                    print("Class: ",ClassId)
+                try:
+                    ClassFractionRoadsConsidered = ClassandID[0].split('_')[2]
+                    if verbose:
+                        print("Fraction of roads considered: ",ClassFractionRoadsConsidered)
+                except IndexError:
+                    DoNothing = True
+                    if self.verbose:
+                        print("Considering the Total Subnetwork indipendent on the Subclass")
+                if DoNothing:
+                    pass
+                else:
+                    IdRoads = [int(RoadId) for RoadId in ClassandID[1:] if RoadId != '\n']
+                    self.IntClass2Roads[int(ClassId)] = IdRoads
+                    if self.verbose:
+                        print("Number of Roads SubNetwork: ",len(IdRoads))     
+            self.ReadFluxesSubBool = True
+        else:
+            print("FluxesSubFile not found")
     def ReadGeoJson(self):
-        if not os.path.exists(GeoJsonFile):
+        if self.verbose:
+            print("Reading GeoJson")
+            print(self.GeoJsonFile)
+        if not os.path.isfile(self.GeoJsonFile):
             exit("GeoJsonFile not found")
-        self.GeoJson = gpd.read_file(GeoJsonFile)
-        self.ReadGeoJson = True
+        self.GeoJson = gpd.read_file(self.GeoJsonFile)
+        self.ReadGeoJsonBool = True
 
     def GetIncreasinglyIncludedSubnets(self):
         self.DictSubnetsTxtDir = defaultdict(dict)
@@ -242,7 +399,7 @@ class DailyNetworkStats:
             self.DictSubnetsTxtDir[Class] = os.path.join(self.InputBaseDir,self.BaseFileName+'_'+ self.StrDate+'_'+ self.StrDate + '{}_class_subnet.txt'.format(Class))
         self.ReadFluxesSubIncreasinglyIncludedIntersection()
 
-    def ReadFluxesSubIncreasinglyIncludedIntersection(self,verbose = False):
+    def ReadFluxesSubIncreasinglyIncludedIntersection(self):
         '''
             Input:
                 FluxesSubFile: (str) -> FluxesSubFile = '../{basename}_{start}_{start}/fluxes.sub'
@@ -257,14 +414,14 @@ class DailyNetworkStats:
             with open(self.DictSubnetsTxtDir[Class],'r') as f:
                 FluxesSub = f.readlines()
             self.IntClass2RoadsIncreasinglyIncludedIntersection[Class] = [int(Road) for Road in FluxesSub.split(" ")]
-
+        self.ReadFluxesSubIncreasinglyIncludedIntersectionBool = True
 #--------- COMPLETE GEOJSON ------- ##
     def CompleteGeoJsonWithClassInfo(self):
         """
             Computes "IntClassOrdered" and "StrClassOrdered" columns for the Geojson.
             Useful when I want to reconstruct the road network for all the days.
         """
-        if self.ReadGeojson and self.ReadFluxesSubIncreasinglyIncludedIntersection:
+        if self.ReadGeojsonBool and self.ReadFluxesSubIncreasinglyIncludedIntersectionBool:
             ClassOrderedForGeojsonRoads = np.zeros(len(self.GeoJson),dtype = int)
             for Class in self.IntClass2RoadsIncreasinglyIncludedIntersection.keys():
                 for Road in self.IntClass2RoadsIncreasinglyIncludedIntersection[Class]: 
@@ -277,12 +434,12 @@ class DailyNetworkStats:
         for Class in self.IntClass2StrClass.keys():
             self.RoadInClass2VelocityDir[Class] = os.path.join(os.path.join(self.InputBaseDir,self.BaseFileName+'_'+ self.StrDate+'_'+ self.StrDate + '_class_{}velocity_subnet.csv'.format(Class)))
             self.VelTimePercorrenceClass[Class] = pd.read_csv(self.RoadInClass2VelocityDir[Class],delimiter = ';')
-        self.ReadVelocitySubnet = True
+        self.ReadVelocitySubnetBool = True
 
     def AddFcmNew2Fcm(self):
-        if self.ReadFcm and self.ReadFcmNew:
+        if self.ReadFcmBool and self.ReadFcmNewBool:
             self.Fcm["class_new"] = self.FcmNew["class"]
-        if self.ReadStats and self.ReadFcmNew:
+        if self.ReadStatsBool and self.ReadFcmNewBool:
             self.Stats["class_new"] = self.FcmNew["class"]
 ##--------------- Plot Network --------------## 
     def PlotIncrementSubnetHTML(self):
@@ -291,8 +448,9 @@ class DailyNetworkStats:
             Description:
                 Plots the subnetwork. Considers the case of intersections
         """
-        if self.ReadFluxesSub and self.ReadGeoJson:
-            print("Plotting Daily Subnetworks in HTML")
+        if self.ReadFluxesSubIncreasinglyIncludedIntersectionBool and self.ReadGeoJsonBool:
+            print("Plotting Daily Incremental Subnetworks in HTML")
+            print("Save in: ",os.path.join(self.PlotDir,"SubnetsIncrementalInclusion_{}.html".format(self.StrDate)))
             # Create a base map
             m = folium.Map(location=[self.centroid.x, self.centroid.y], zoom_start=12)
             # Iterate through the Dictionary of list of poly_lid
@@ -325,7 +483,7 @@ class DailyNetworkStats:
                 NOTE: 
                     Does not consider the intersection
         """
-        if self.ReadFluxesSub and self.ReadGeoJson:
+        if self.ReadFluxesSubBool and self.ReadGeoJsonBool:
             print("Plotting Daily Subnetworks in HTML")
             # Create a base map
             m = folium.Map(location=[self.centroid.x, self.centroid.y], zoom_start=12)
@@ -363,7 +521,7 @@ class DailyNetworkStats:
                     2) TF
                     3) TF + FT
         '''
-        if self.ReadTime2Fluxes:
+        if self.ReadTime2FluxesBool:
             print("Plotting Daily Fluxes in HTML")
             # Create a base map
             m = folium.Map(location=[self.centroid.x, self.centroid.y], zoom_start=12)
@@ -408,7 +566,7 @@ class DailyNetworkStats:
             mFT.save(os.path.join(self.PlotDir,"FrontTailFluxes_{}.html".format(self.StrDate)))
 
     def PlotTimePercorrenceHTML(self):
-        if self.ReadGeojson and self.ReadVelocitySubnet:
+        if self.ReadGeojsonBool and self.ReadVelocitySubnetBool:
             print("Plotting Daily Fluxes in HTML")
             # Create a base map
             m = folium.Map(location=[self.centroid.x, self.centroid.y], zoom_start=12)
@@ -460,7 +618,7 @@ class DailyNetworkStats:
                 1) self.MFD = {time:[],population:[],speed:[]}
                 2) self.Class2MFD = {Class:{"time":[],"population":[],"speed":[]}}
         '''
-        if self.ReadFcm:
+        if self.ReadFcmBool:
             if "start_time" in self.Fcm.columns:
                 # ALL TOGETHER MFD
                 for t in range(int(self.iterations)):
@@ -482,7 +640,7 @@ class DailyNetworkStats:
                     
             else:
                 pass
-        elif self.ReadStats:
+        elif self.ReadStatsBool:
             if "start_time" in self.Stats.columns:
                 # ALL TOGETHER MFD
                 for t in range(int(self.iterations)):
@@ -536,9 +694,10 @@ class DailyNetworkStats:
             # AGGREGATED
             fig, ax = plt.subplots(1,1,figsize = (10,8))
             n, bins = np.histogram(self.MFD["population"],bins = 20)
-            self.MFD["bins_population"] = pd.cut(self.MFD["population"],bins=bins,labels=bins,right=False)
+            labels = range(len(bins) - 1)
+            self.MFD["bins_population"] = pd.cut(self.MFD["population"],bins=bins,labels=labels,right=False)
             self.MFD2Plot['binned_av_speed'] = self.MFD.groupby('bins_population')['speed'].mean().reset_index()
-            self.MFD2Plot['binned_av_speed'] = self.MFD2Plot['binned_av_speed'].fillna(method='bfill')
+            self.MFD2Plot['binned_av_speed'] = self.MFD2Plot['binned_av_speed'][::-1].interpolate(method='pad')[::-1]
             self.MFD2Plot['binned_sqrt_err_speed'] = self.MFD.groupby('bins_population')['speed'].std().reset_index()    
             self.GetLowerBoundsFromBins(bins,"population")
             self.GetLowerBoundsFromBins(self.MFD2Plot['binned_av_speed'],"speed")
@@ -589,7 +748,7 @@ class DailyNetworkStats:
 
         Output: dict: {velocity:'velocity class in words: (slowest,...quickest)]}
         '''
-        if self.ReadFcmCenters:
+        if self.ReadFcmCentersBool:
             number_classes = len(self.FcmCenters["class"]) 
             for i in range(number_classes):
                 if i<number_classes/2:
@@ -689,7 +848,7 @@ class DailyNetworkStats:
             Return:
                 InitialGuessPerClassAndLabel: dict -> {class:{label:{function:(A,b)}}}
         """
-        if self.ReadFcmCenters:
+        if self.ReadFcmCentersBool:
             for class_ in self.FcmCenters["class"]:
                 self.InitialGuessPerClassAndLabel[class_] = defaultdict(dict)
                 for label in self.labels2FitNames2Try.keys():
@@ -705,6 +864,21 @@ class DailyNetworkStats:
                             self.InitialGuessPerClassAndLabel[class_][label][function] = (6000,self.Fcm.groupby("class").get_group(class_)[label])
         else:
             print("FcmCenters not read Not retrieving parameters")
+
+## ------------------- PRINT UTILITIES ---------------- #
+    def PrintTimeInfo(self):
+        print("Date: ", self.StrDate)
+        print("TimeStampDate: ", str(self.TimeStampDate))
+        print("TimeStamp: ", str(Timestamp2Datetime(self.TimeStampDate)))    
+        print("Iterations: ", str(self.iterations))
+        print("Day in seconds: ", str(self.day_in_sec))
+        print("Date: ", self.Date)
+        print("TimeStampDate: ", str(self.TimeStampDate))
+
+    def PrintInputDirectories(self):
+        print("Input Directories: ")
+        print(self.DictDirInput)
+        print(self.GeoJsonFile)
 def GetDistributionPerClass(fcm,label,class_):
     """
         Input:
