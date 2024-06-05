@@ -3,13 +3,13 @@ from AnalysisNetwork1Day import *
 class NetworkAllDays:
     
     self.StrDates = [] 
-    def __init__(self,ListDailyMobilities): 
-        self.ListDailyMobilities = ListDailyMobilities       
-        for MobDate in self.ListDailyMobilities:
+    def __init__(self,ListDailyNetwork): 
+        self.ListDailyNetwork = ListDailyNetwork       
+        for MobDate in self.ListDailyNetwork:
             self.StrDates.append(MobDate.StrDate)
     def ConcatenateAllFcms(self,label):
         self.ConcatenatedFcm = None
-        for DailyMob in ListDailyMobilities:
+        for DailyMob in self.ListDailyNetwork:
             if self.ConcatenatedFcm is None:
                 self.ConcatenatedFcm = DailyMob.Fcm
             else:

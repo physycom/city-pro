@@ -8,6 +8,7 @@ from collections import defaultdict
 import geopandas as gpd
 import numpy as np
 import os
+import polars as pl
 import pandas as pd
 from shapely.geometry import box
 import folium
@@ -21,6 +22,44 @@ else:
     except Exception as e:
         print("No Plot Settings File Found")
 
+def Dict2PolarsDF(Dict,schema):
+    return pl.DataFrame(Dict,schema=schema)
+
+def ComputeMFDVariables(Df,DictMFD,TimeStampDate,dt,iterations,verbose):
+    """
+        NOTE: The bins in time that have 0 trajectories have 0 average speed
+    """
+    TmpDict = {"time":[],"population":[],"speed":[]}
+    for t in range(int(iterations)):
+        StartInterval = datetime.datetime.fromtimestamp(int(TimeStampDate)+t*dt)
+        EndInterval = datetime.datetime.fromtimestamp(int(TimeStampDate)+(t+1)*dt)                    
+        TmpDf = Df.with_columns(pl.col('start_time').apply(lambda x: datetime.datetime.fromtimestamp(x), return_dtype=pl.Datetime).alias("start_time_datetime"),
+                                    pl.col('end_time').apply(lambda x: datetime.datetime.fromtimestamp(x), return_dtype=pl.Datetime).alias("end_time_datetime"))
+
+        TmpFcm = TmpDf.filter(pl.col('start_time_datetime').is_between(StartInterval,EndInterval))
+        Hstr = StartInterval.strftime("%Y-%m-%d %H:%M:%S").split(" ")[1]
+        TmpDict["time"].append(Hstr)
+        TmpDict["population"].append(len(TmpFcm))
+        if len(TmpFcm) > 0:
+            AvSpeed = TmpFcm.select(pl.col("av_speed").mean()).to_pandas().iloc[0]["av_speed"]
+            TmpDict["speed"].append(AvSpeed)
+            MoreThan0Traj = True
+        else:
+            TmpDict["speed"].append(0)
+            MoreThan0Traj = False
+        if verbose:
+            print("Iteration: ",t)
+            print("Considered Hour: ",Hstr)
+            print("Population: ",len(TmpFcm))
+            print("Size dict: ",len(TmpDict["time"]))
+            if MoreThan0Traj:
+                print("Speed: ",AvSpeed)
+    if verbose:
+        print("Dict: ",TmpDict)
+    DictMFD = Dict2PolarsDF(TmpDict,schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed":pl.Float64})
+    return DictMFD,Df
+
+
 def NormalizeWidthForPlot(arr,min_width = 1, max_width = 10):
     '''
         Description:
@@ -33,7 +72,16 @@ def NormalizeWidthForPlot(arr,min_width = 1, max_width = 10):
     min_val = arr.min()
     max_val = arr.max()
     return (arr - min_val) / (max_val - min_val) * (max_width - min_width) + min_width
+# CAST
+def CastString2Int(Road):
+    try:
+        int(Road)
+        return int(Road),True
+    except:
+        print("Road exception: ",Road)
+        return Road,False
 
+# CONVERSIONE
 def ms2kmh(v):
     return v/3.6
 def kmh2ms(v):
@@ -46,7 +94,7 @@ def m2km(x):
     return m/1000
 def km2m(x):
     return m*1000
-
+# TIME
 def StrDate2DateFormatLocalProject(StrDate):
     return StrDate.split("-")[0],StrDate.split("-")[1],StrDate.split("-")[2]
 
@@ -56,8 +104,14 @@ def Timestamp2Datetime(timestamp):
 def Timestamp2Date(timestamp):
     return datetime.datetime.fromtimestamp(timestamp).date()
 
-def Datetime2Timestamp(datetime):
-    return datetime.timestamp()
+def Datetime2Timestamp(datetime_):
+    return datetime_.timestamp()
+
+def InInterval(start_time,end_time,TimeStampDate,t,dt):
+    if (int(start_time)> int(TimeStampDate)+t*dt and int(start_time)<int(TimeStampDate)+(t+1)*dt) and (int(end_time)> int(TimeStampDate)+t*dt and int(end_time)<int(TimeStampDate)+(t+1)*dt):
+        return True
+    else:
+        return False
 
 class DailyNetworkStats:
     '''
@@ -99,7 +153,7 @@ class DailyNetworkStats:
         if "geojson" in config.keys():
             self.GeoJsonFile = os.path.join(config["geojson"])
         else:
-            self.GeoJsonFile = os.path.join(os.environ['WORKSPACE'],"city-pro","city-pro-carto.geojson")
+            self.GeoJsonFile = os.path.join(os.environ['WORKSPACE'],"city-pro","bologna-provincia.geojson")
         self.PlotDir = os.path.join(os.environ['WORKSPACE'],"city-pro","output","bologna_mdt_detailed","plots",self.StrDate)
         if not os.path.exists(self.PlotDir):
             os.makedirs(self.PlotDir)
@@ -162,9 +216,9 @@ class DailyNetworkStats:
         self.InitialGuessPerLabel = defaultdict(dict)
         self.InitialGuessPerClassAndLabel = defaultdict(dict) 
         # FUNDAMENTAL DIAGRAM
-        self.MFD = pd.DataFrame({"time":[],"population":[],"speed":[]})
+        self.MFD = Dict2PolarsDF({"time":[],"population":[],"speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed":pl.Float64})
         self.MFD2Plot = defaultdict()
-        self.Class2MFD = {class_:pd.DataFrame({"time":[],"population":[],"speed":[]}) for class_ in self.IntClass2StrClass.keys()}
+        self.Class2MFD = {class_:Dict2PolarsDF({"time":[],"population":[],"speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed":pl.Float64}) for class_ in self.IntClass2StrClass.keys()}
         # MINIMUM VALUES FOR (velocity,population,length,time) for trajectories of the day
         self.MinMaxPlot = defaultdict()
 # --------------- Read Files ---------------- #
@@ -174,6 +228,7 @@ class DailyNetworkStats:
             print(self.DictDirInput["timed_fluxes"])
         if os.path.isfile(self.DictDirInput["timed_fluxes"]):
             self.TimedFluxes = pd.read_csv(self.DictDirInput["timed_fluxes"],delimiter = ';')
+            self.TimedFluxes = pl.from_pandas(self.TimedFluxes)
             self.ReadTime2FluxesBool = True
         else:   
             print("No timed_fluxes")    
@@ -183,6 +238,7 @@ class DailyNetworkStats:
             print(self.DictDirInput["fluxes"])
         if os.path.isfile(self.DictDirInput["fluxes"]):
             self.Fluxes = pd.read_csv(self.DictDirInput["fluxes"],delimiter = ';')
+            self.Fluxes = pl.from_pandas(self.Fluxes)
             self.ReadFluxesBool = True        
         else:
             print("No fluxes")    
@@ -192,6 +248,7 @@ class DailyNetworkStats:
             print(self.DictDirInput["fcm"])
         if os.path.isfile(self.DictDirInput["fcm"]):
             self.Fcm = pd.read_csv(self.DictDirInput["fcm"],delimiter = ';')
+            self.Fcm = pl.from_pandas(self.Fcm)
             self.ReadFcmBool = True
         else:
             print("No fcm")
@@ -201,6 +258,7 @@ class DailyNetworkStats:
             print(self.DictDirInput["stats"])
         if os.path.isfile(self.DictDirInput["stats"]):
             self.Stats = pd.read_csv(self.DictDirInput["stats"],delimiter = ';')
+            self.Stats = pl.from_pandas(self.Stats)
             self.ReadStatsBool = True
         else:
             print("No stats")    
@@ -210,6 +268,7 @@ class DailyNetworkStats:
             print(self.DictDirInput["fcm_new"])
         if os.path.isfile(self.DictDirInput["fcm_new"]):
             self.FcmNew = pd.read_csv(self.DictDirInput["fcm_new"],delimiter = ';')
+            self.FcmNew = pl.from_pandas(self.FcmNew)
             self.ReadFcmNewBool = True
         else:
             print("No fcm_new")    
@@ -225,6 +284,7 @@ class DailyNetworkStats:
             print(self.DictDirInput["fcm_centers"])
         Features = {"class":[],"av_speed":[],"v_max":[],"v_min":[],"sinuosity":[],"people":[]}
         FcmCenters = pd.read_csv(self.DictDirInput["fcm_centers"],delimiter = ';') 
+        FcmCenters = pl.from_pandas(FcmCenters)
         FlattenedFcmCenters = FcmCenters.to_numpy().flatten()    
         Row2Jump = False   
         idxcol = 0
@@ -340,7 +400,7 @@ class DailyNetworkStats:
                             print("\t\tJump: ", "Iteration: ", val,"Row: {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[keyidx],"Value FCM info: ", float(FlattenedFcmCenters[val]))
 
             
-        self.FcmCenters = pd.DataFrame(Features)
+        self.FcmCenters = pl.DataFrame(Features)
         self.ReadFcmCentersBool = True
     
     def ReadFluxesSub(self):
@@ -398,7 +458,10 @@ class DailyNetworkStats:
         for Class in self.IntClass2StrClass.keys():
             self.DictSubnetsTxtDir[Class] = os.path.join(self.InputBaseDir,self.BaseFileName+'_'+ self.StrDate+'_'+ self.StrDate + '{}_class_subnet.txt'.format(Class))
         self.ReadFluxesSubIncreasinglyIncludedIntersection()
-
+        if self.verbose:
+            print("Get increasingly included subnets")
+            for class_ in self.DictSubnetsTxtDir:
+                print(self.DictSubnetsTxtDir[class_])
     def ReadFluxesSubIncreasinglyIncludedIntersection(self):
         '''
             Input:
@@ -413,7 +476,13 @@ class DailyNetworkStats:
         for Class in self.DictSubnetsTxtDir.keys():
             with open(self.DictSubnetsTxtDir[Class],'r') as f:
                 FluxesSub = f.readlines()
-            self.IntClass2RoadsIncreasinglyIncludedIntersection[Class] = [int(Road) for Road in FluxesSub.split(" ")]
+            for Road in FluxesSub[0].split(" "):
+                intRoad,BoolInt = CastString2Int(Road)
+                if BoolInt:
+                    self.IntClass2RoadsIncreasinglyIncludedIntersection[Class].append(intRoad)
+                else:
+                    pass
+#            self.IntClass2RoadsIncreasinglyIncludedIntersection[Class] = [CastString2Int(Road) for Road in FluxesSub[0].split(" ")] 
         self.ReadFluxesSubIncreasinglyIncludedIntersectionBool = True
 #--------- COMPLETE GEOJSON ------- ##
     def CompleteGeoJsonWithClassInfo(self):
@@ -434,13 +503,22 @@ class DailyNetworkStats:
         for Class in self.IntClass2StrClass.keys():
             self.RoadInClass2VelocityDir[Class] = os.path.join(os.path.join(self.InputBaseDir,self.BaseFileName+'_'+ self.StrDate+'_'+ self.StrDate + '_class_{}velocity_subnet.csv'.format(Class)))
             self.VelTimePercorrenceClass[Class] = pd.read_csv(self.RoadInClass2VelocityDir[Class],delimiter = ';')
+            self.VelTimePercorrenceClass[Class] = pl.from_pandas(self.VelTimePercorrenceClass[Class])
         self.ReadVelocitySubnetBool = True
 
     def AddFcmNew2Fcm(self):
         if self.ReadFcmBool and self.ReadFcmNewBool:
-            self.Fcm["class_new"] = self.FcmNew["class"]
+            FcmNew = self.FcmNew.with_columns([self.FcmNew['class'].alias('class_new')])
+            self.Fcm = self.Fcm.join(FcmNew[['id_act', 'class_new']], on='id_act', how='left')
+            print("1st join Fcm: ",self.Fcm.head())
+            self.Fcm =self.Fcm.with_columns([self.Fcm['class'].alias('class_new')])
+            print("renamed: ",self.Fcm.head())
         if self.ReadStatsBool and self.ReadFcmNewBool:
-            self.Stats["class_new"] = self.FcmNew["class"]
+            FcmNew = self.FcmNew.with_columns([self.FcmNew['class'].alias('class_new')])
+            self.Stats["class_new"] = self.Stats.join(self.FcmNew[['id_act', 'class_new']], on='id_act', how='left')
+            print("1st join Stats: ",self.Stats.head())
+            self.Stats =self.Stats.with_columns([self.Stats['class'].alias('class_new')])
+            print("renamed: ",self.Stats.head())
 ##--------------- Plot Network --------------## 
     def PlotIncrementSubnetHTML(self):
         """
@@ -454,20 +532,25 @@ class DailyNetworkStats:
             # Create a base map
             m = folium.Map(location=[self.centroid.x, self.centroid.y], zoom_start=12)
             # Iterate through the Dictionary of list of poly_lid
+            if self.verbose:
+                for class_ in self.IntClass2RoadsIncreasinglyIncludedIntersection.keys(): 
+                    print(self.IntClass2RoadsIncreasinglyIncludedIntersection[class_][:10])
             for class_, index_list in self.IntClass2RoadsIncreasinglyIncludedIntersection.items():
+                print("Plotting Class ",class_)
+                print("Number of Roads: ",len(index_list))
                 # Filter GeoDataFrame for roads with indices in the current list
                 filtered_gdf = self.GeoJson[self.GeoJson['poly_lid'].isin(index_list)]
                 # Create a feature group for the current layer
-                layer_group = folium.FeatureGroup(name=f"Layer {class_}")
+                layer_group = folium.FeatureGroup(name="Layer {}".format(class_))
                 # Add roads to the feature group with a unique color
+                print("Class: ",class_," Number of Roads: ",len(filtered_gdf),"Color: ",self.Class2Color[self.IntClass2StrClass[class_]])
                 for _, road in filtered_gdf.iterrows():
                     folium.GeoJson(road.geometry, style_function=lambda x: {'color': self.Class2Color[self.IntClass2StrClass[class_]]}).add_to(layer_group)
                 
                 # Add the feature group to the map
                 layer_group.add_to(m)
-
-            # Add layer control to the map
-            folium.LayerControl().add_to(m)
+                # Add layer control to the map
+                folium.LayerControl().add_to(m)
 
             # Save or display the map
             m.save(os.path.join(self.PlotDir,"SubnetsIncrementalInclusion_{}.html".format(self.StrDate)))
@@ -502,8 +585,8 @@ class DailyNetworkStats:
                 # Add the feature group to the map
                 layer_group.add_to(m)
 
-            # Add layer control to the map
-            folium.LayerControl().add_to(m)
+                # Add layer control to the map
+                folium.LayerControl().add_to(m)
 
             # Save or display the map
             m.save(os.path.join(self.PlotDir,"Subnets_{}.html".format(self.StrDate)))
@@ -606,7 +689,6 @@ class DailyNetworkStats:
             m.save(os.path.join(self.PlotDir,"AvSpeed_{}.html".format(self.StrDate)))
             m1.save(os.path.join(self.PlotDir,"TimePercorrence_{}.html".format(self.StrDate)))
 
-
 ## ------- FUNDAMENTAL DIAGRAM ------ ##
     def ComputeMFDVariables(self):
         '''
@@ -619,47 +701,42 @@ class DailyNetworkStats:
                 2) self.Class2MFD = {Class:{"time":[],"population":[],"speed":[]}}
         '''
         if self.ReadFcmBool:
+            if self.verbose:
+                print("Computing MFD Variables from Fcm")
+
             if "start_time" in self.Fcm.columns:
                 # ALL TOGETHER MFD
-                for t in range(int(self.iterations)):
-                    mask_idx = [True if (int(x['start_time'])>int(self.TimeStampDate)+t*self.dt and int(x['start_time'])<int(self.TimeStampDate)+(t+1)*self.dt) or (int(x['end_time'])>int(self.TimeStampDate)+t*self.dt and int(x['end_time'])<int(self.TimeStampDate)+(t+1)*self.dt) else False for _,x in self.Fcm.iterrows()]
-                    TmpFcm = self.Fcm[mask_idx]
-                    self.MFD["time"].append(Timestamp2Date(int(self.TimeStampDate)+t*self.dt).dt.strftime('%H:%M:%S'))
-                    self.MFD["population"].append(len(TmpFcm))
-                    self.MFD["speed"].append(np.mean(TmpFcm["av_speed"]))
+                self.MFD,self.Fcm = ComputeMFDVariables(self.Fcm,self.MFD,self.TimeStampDate,self.dt,self.iterations,self.verbose)
                 # PER CLASS
-                for t in range(int(self.iterations)):
-                    for Class in self.Class2MFD.keys():
-                        TmpClassFCM = self.Fcm.groupby("class").get_group(Class)[mask_idx]
-                        mask_idx = [True if (int(x['start_time'])>int(self.TimeStampDate)+t*self.dt and int(x['start_time'])<int(self.TimeStampDate)+(t+1)*self.dt) or (int(x['end_time'])>int(self.TimeStampDate)+t*self.dt and int(x['end_time'])<int(self.TimeStampDate)+(t+1)*self.dt) else False for _,x in TmpClassFCM.iterrows()]
-                        TmpClassFCM = TmpClassFCM[mask_idx]
-                        # TODO timstamp2datetime
-                        self.Class2MFD[Class]["time"].append(Timestamp2Date(int(self.TimeStampDate)+t*self.dt).dt.strftime('%H:%M:%S')) 
-                        self.Class2MFD[Class]["population"].append(len(TmpClassFCM))
-                        self.Class2MFD[Class]["speed"].append(np.mean(TmpClassFcm["av_speed"]))
-                    
+                for Class in self.Class2MFD.keys():
+                    self.Class2MFD[Class],self.Fcm = ComputeMFDVariables(self.Fcm,self.Class2MFD[Class],self.TimeStampDate,self.dt,self.iterations,self.verbose)
+                if self.verbose:
+                    print("Class 2 MFD: ")
+                    print("Keys: ",self.Class2MFD.keys())
+                    print("Lenght of values: ")
+                    for key in self.Class2MFD.keys():
+                        print("Values: ",len(self.Class2MFD[key]))
+                self.ComputedMFD = True    
             else:
                 pass
-        elif self.ReadStatsBool:
-            if "start_time" in self.Stats.columns:
+                
+        if self.ReadStatsBool:
+            if self.verbose:
+                print("Computing MFD Variables from Stats")
                 # ALL TOGETHER MFD
-                for t in range(int(self.iterations)):
-                    mask_idx = [True if (int(x['start_time'])>int(self.TimeStampDate)+t*self.dt and int(x['start_time'])<int(self.TimeStampDate)+(t+1)*self.dt) or (int(x['end_time'])>int(self.TimeStampDate)+t*self.dt and int(x['end_time'])<int(self.TimeStampDate)+(t+1)*self.dt) else False for _,x in self.Stats.iterrows()]
-                    TmpFcm = self.Fcm[mask_idx]
-                    self.MFD["time"].append(Timestamp2Date(int(self.TimeStampDate)+t*self.dt).dt.strftime('%H:%M:%S'))
-                    self.MFD["population"].append(len(TmpFcm))
-                    self.MFD["speed"].append(np.mean(TmpFcm["av_speed"]))
+                self.MFD,self.Stats = ComputeMFDVariables(self.Stats,self.MFD,self.TimeStampDate,self.dt,self.iterations,self.verbose)
                 # PER CLASS
-                for t in range(int(self.iterations)):
-                    for Class in self.Class2MFD.keys():
-                        TmpClassFCM = self.Stats.groupby("class").get_group(Class)[mask_idx]
-                        mask_idx = [True if (int(x['start_time'])>int(self.TimeStampDate)+t*self.dt and int(x['start_time'])<int(self.TimeStampDate)+(t+1)*self.dt) or (int(x['end_time'])>int(self.TimeStampDate)+t*self.dt and int(x['end_time'])<int(self.TimeStampDate)+(t+1)*self.dt) else False for _,x in TmpClassFCM.iterrows()]
-                        TmpClassFCM = TmpClassFCM[mask_idx]
-                        # TODO timstamp2datetime
-                        self.Class2MFD[Class]["time"].append(Timestamp2Date(int(self.TimeStampDate)+t*self.dt).dt.strftime('%H:%M:%S')) 
-                        self.Class2MFD[Class]["population"].append(len(TmpClassFCM))
-                        self.Class2MFD[Class]["speed"].append(np.mean(TmpClassFcm["av_speed"]))
-        self.ComputedMFD = True
+                for Class in self.Class2MFD.keys():
+                    self.Class2MFD[Class],self.Stats = ComputeMFDVariables(self.Stats,self.Class2MFD[Class],self.TimeStampDate,self.dt,self.iterations,self.verbose)
+
+                if self.verbose:
+                    print("Class 2 MFD: ")
+                    print("Keys: ",self.Class2MFD.keys())
+                    print("Lenght of values: ")
+                    for key in self.Class2MFD.keys():
+                        print("Values: ",len(self.Class2MFD[key]))
+
+                self.ComputedMFD = True
 
     def GetLowerBoundsFromBins(self,bins,label):
         if len(self.MinMaxPlot.keys())==0:
@@ -696,13 +773,21 @@ class DailyNetworkStats:
             n, bins = np.histogram(self.MFD["population"],bins = 20)
             labels = range(len(bins) - 1)
             self.MFD["bins_population"] = pd.cut(self.MFD["population"],bins=bins,labels=labels,right=False)
-            self.MFD2Plot['binned_av_speed'] = self.MFD.groupby('bins_population')['speed'].mean().reset_index()
+            self.MFD2Plot['binned_av_speed'] = self.MFD.groupby('bins_population', observed=False)['speed'].mean().reset_index()
             self.MFD2Plot['binned_av_speed'] = self.MFD2Plot['binned_av_speed'][::-1].interpolate(method='pad')[::-1]
-            self.MFD2Plot['binned_sqrt_err_speed'] = self.MFD.groupby('bins_population')['speed'].std().reset_index()    
+            self.MFD2Plot['binned_sqrt_err_speed'] = self.MFD.groupby('bins_population', observed=False)['speed'].std().reset_index()    
+            if self.verbose:
+                print("MFD Features Aggregated: ")
+                print("Bins Population:\n",self.MFD['bins_population'])
+                print("Bins Average Speed:\n",self.MFD2Plot['binned_av_speed'])
+                print("Bins Standard Deviation:\n",self.MFD2Plot['binned_sqrt_err_speed'])
             self.GetLowerBoundsFromBins(bins,"population")
             self.GetLowerBoundsFromBins(self.MFD2Plot['binned_av_speed'],"speed")
             Y_Interval = max(self.MFD2Plot['binned_av_speed']) - min(self.MFD2Plot['binned_av_speed'])
             RelativeChange = Y_Interval/max(self.MFD2Plot['binned_av_speed'])/100
+            if self.verbose:
+                print("min(bins): ",self.MinMaxPlot["aggregated"]["population"]["min"]," max(bins): ",self.MinMaxPlot["aggregated"]["population"]["max"])                
+                print("Interval Error: ",Y_Interval)            
             text = "Relative change : {}%".format(RelativeChange)
             ax.plot(bins,self.MFD2Plot['binned_av_speed'])
             ax.fill_between(bins, self.MFD2Plot['binned_av_speed'] - self.MFD2Plot['binned_sqrt_err_speed'], self.MFD2Plot['binned_av_speed'] + self.MFD2Plot['binned_sqrt_err_speed'], color='gray', alpha=0.2, label='Std')
@@ -723,13 +808,20 @@ class DailyNetworkStats:
                 fig, ax = plt.subplots(1,1,figsize = (10,8))
                 n, bins = np.histogram(self.Class2MFD[Class]["population"],bins = 20)
                 self.Class2MFD[Class]["bins_population"] = pd.cut(self.Class2MFD[Class]["population"],bins,labels=bins,right=False)
-                self.Class2MFD2Plot[Class]['binned_av_speed'] = self.Class2MFD[Class].groupby('bins_population')['speed'].mean().reset_index()
+                self.Class2MFD2Plot[Class]['binned_av_speed'] = self.MFD.groupby('bins_population', observed=True)['speed'].mean().reset_index()
                 self.Class2MFD2Plot[Class]['binned_av_speed'] = self.Class2MFD2Plot[Class]['binned_av_speed'].fillna(method='bfill')
-                self.Class2MFD2Plot[Class]['binned_sqrt_err_speed'] = self.Class2MFD[Class].groupby('bins_population')['speed'].std().reset_index()
+                self.Class2MFD2Plot[Class]['binned_sqrt_err_speed'] = self.MFD.groupby('bins_population', observed=True)['speed'].std().reset_index()                
+                if self.verbose:
+                    print("MFD Features Class: ",Class)
+                    print("Bins Average Speed:\n",self.Class2MFD2Plot[Class]['binned_av_speed'])
+                    print("Bins Standard Deviation:\n",self.Class2MFD2Plot[Class]['binned_sqrt_err_speed'])
                 self.GetLowerBoundsFromBinsPerClass(Class,bins,"population")
                 self.GetLowerBoundsFromBinsPerClass(Class,self.Class2MFD2Plot[Class]['binned_av_speed'],"speed")
                 Y_Interval = max(self.Class2MFD2Plot[Class]['binned_av_speed']) - min(self.Class2MFD2Plot[Class]['binned_av_speed'])
                 RelativeChange = Y_Interval/max(self.Class2MFD2Plot[Class]['binned_av_speed'])/100
+                if self.verbose:
+                    print("min(bins): ",self.MinMaxPlotPerClass[Class]["min"]," max(bins): ",self.MinMaxPlotPerClass[Class]["max"])                
+                    print("Interval Error: ",Y_Interval)
                 text = "Relative change : {}%".format(RelativeChange)
                 ax.plot(bins,self.Class2MFD[Class]['binned_av_speed'])
                 ax.fill_between(bins, self.Class2MFD2Plot[Class]['binned_av_speed'] - self.Class2MFD2Plot[Class]['binned_sqrt_err_speed'], self.Class2MFD2Plot[Class]['binned_av_speed'] + self.Class2MFD2Plot[Class]['binned_sqrt_err_speed'], color='gray', alpha=0.2, label='Std')
@@ -867,18 +959,31 @@ class DailyNetworkStats:
 
 ## ------------------- PRINT UTILITIES ---------------- #
     def PrintTimeInfo(self):
-        print("Date: ", self.StrDate)
-        print("TimeStampDate: ", str(self.TimeStampDate))
-        print("TimeStamp: ", str(Timestamp2Datetime(self.TimeStampDate)))    
-        print("Iterations: ", str(self.iterations))
-        print("Day in seconds: ", str(self.day_in_sec))
-        print("Date: ", self.Date)
-        print("TimeStampDate: ", str(self.TimeStampDate))
+        print("StrDate: ", self.StrDate, "Type: ", type(self.StrDate))
+        print("TimeStampDate: ", str(self.TimeStampDate), "Type: ", type(self.TimeStampDate))
+        print("str(Timestamp2Datetime(self.TimeStampDate)): ", str(Timestamp2Datetime(self.TimeStampDate)), "Type: ", type(self.TimeStampDate))    
+        print("Iterations: ", str(self.iterations), "Type: ", type(self.iterations))
+        print("Day in seconds: ", str(self.day_in_sec), "Type: ", type(self.day_in_sec))
+        print("Date: ", self.Date, "Type: ", type(self.Date))
 
     def PrintInputDirectories(self):
         print("Input Directories: ")
         print(self.DictDirInput)
         print(self.GeoJsonFile)
+    def PrintBool(self):
+        print("Read Fcm: ",self.ReadFcmBool)
+        print("Read FcmCenters: ",self.ReadFcmCentersBool)
+        print("Read FcmNew: ",self.ReadFcmNewBool)
+        print("Read GeoJson: ",self.ReadGeoJsonBool)
+        print("Read Fluxes: ",self.ReadFluxesBool)
+        print("Time2Fluxes: ",self.ReadTime2FluxesBool)
+        print("Read FluxesSub: ",self.ReadFluxesSubBool)
+        print("Read Velocity Subnet: ",self.ReadVelocitySubnetBool)
+        print("StrClass2IntClass: ",self.BoolStrClass2IntClass)
+        print("MFD: ",self.ComputedMFD)
+        print("Stats: ",self.ReadStatsBool)
+        print("Incremental subnet: ",self.ReadFluxesSubIncreasinglyIncludedIntersectionBool)
+
 def GetDistributionPerClass(fcm,label,class_):
     """
         Input:

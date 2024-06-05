@@ -47,15 +47,22 @@ if __name__ == "__main__":
 ## +++++++++++++++++ INITIALIZE CLASSES +++++++++++++++++++++++++++
         # Create Classes
         Network.ReadFcmCenters()
+        # Create Dictionaries
+        Network.CreateDictionaryIntClass2StrClass()
         Network.ReadFcm()
         ## Classes associated to inclusion principle
         Network.ReadFcmNew()
         Network.AddFcmNew2Fcm()
+        Network.ReadStats()
+        print("Debug") 
+        Network.PrintTimeInfo()
+
         Network.GetIncreasinglyIncludedSubnets()
         Network.ReadGeoJson()
         Network.ReadFluxesSub()
-        # Create Dictionaries
-        Network.CreateDictionaryIntClass2StrClass()
+#        print("Just before MFD")
+#        Network.PrintBool()
+        Network.ComputeMFDVariables()
         # SAVE SUBNETS IN GEOJSON
         Network.CompleteGeoJsonWithClassInfo()
         # PLOT SUBNETS
@@ -63,8 +70,8 @@ if __name__ == "__main__":
         Network.PlotIncrementSubnetHTML()   
         Network.PlotFluxesHTML()
         Network.PlotTimePercorrenceHTML()     
-        # FUNDAMENTAL DIAGRAM 
-        Network.ComputeMFDVariables()
+        # FUNDAMENTAL DIAGRAM
+        Network.ReadVelocitySubnet()
         Network.PlotMFD()
         # HYSTERESIS DIAGRAM
         
@@ -74,7 +81,7 @@ if __name__ == "__main__":
         StartingGuessParametersPerLabel = Network.RetrieveGuessParametersPerLabel()
         for label in Network.labels2FitNames2Try.keys():
             for FunctionName in Network.labels2FitNames2Try[label]:
-                print("====== FITTING FUNCTION: " + Network.labels2FitNames2Try[label] + " quantity: {} ======".format(label))
+                print("====== FITTING FUNCTION: ",Network.labels2FitNames2Try[label] ," quantity: {} ======".format(label))
                 Network.FittingFunctionAllClasses(label,Network.labels2FitNames2Try[label],bins = 100)
         # SUB CLASSES
         StartingGuessParametersPerClassAndLabel = Network.RetrieveGuessParametersPerClassLabel()

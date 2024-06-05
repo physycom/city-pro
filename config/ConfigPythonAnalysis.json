@@ -8,6 +8,6 @@
         "lon_min":"11.287085",
         "lon_max":"11.367472"
         },
-    "geojson": "/home/aamad/Desktop/phd/codice/city-pro/city-pro-carto.geojson",
+    "geojson": "/home/aamad/Desktop/phd/codice/city-pro/bologna-provincia.geojson",
     "verbose": true
     }
