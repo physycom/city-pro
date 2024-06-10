@@ -25,10 +25,11 @@ else:
 def Dict2PolarsDF(Dict,schema):
     return pl.DataFrame(Dict,schema=schema)
 
-def ComputeMFDVariables(Df,DictMFD,TimeStampDate,dt,iterations,verbose):
+def ComputeMFDVariables(Df,MFD,TimeStampDate,dt,iterations,verbose = False):
     """
         NOTE: The bins in time that have 0 trajectories have 0 average speed
     """
+    print("Compute MFD Variables:")
     TmpDict = {"time":[],"population":[],"speed":[]}
     for t in range(int(iterations)):
         StartInterval = datetime.datetime.fromtimestamp(int(TimeStampDate)+t*dt)
@@ -56,9 +57,133 @@ def ComputeMFDVariables(Df,DictMFD,TimeStampDate,dt,iterations,verbose):
                 print("Speed: ",AvSpeed)
     if verbose:
         print("Dict: ",TmpDict)
-    DictMFD = Dict2PolarsDF(TmpDict,schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed":pl.Float64})
-    return DictMFD,Df
+    MFD = Dict2PolarsDF(TmpDict,schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed":pl.Float64})
+    return MFD,Df
 
+def GetAverageConditional(Df,ConditioningLabel,ConditionedLabel,binsi,binsi1):
+    """
+        Df: pl.DataFrame 
+        ConditioningLabel: str -> Conditioning Variable name in the DataFrame.
+        ConditionedLabel: str -> The Column from which extracting the average.
+        bini: int
+        binsi1: int
+        Return: float -> Average of the ConditionedLabel in the interval [bini,binsi1]
+
+    """
+    assert ConditioningLabel in Df.columns,  "Error: ConditioningLabel -> {} Column in the DataFrame".format(ConditioningLabel)
+    assert ConditionedLabel in Df.columns,  "Error: ConditionedLabel -> {} Column in the DataFrame".format(ConditionedLabel)
+    DfTmp = Df.filter((pl.col(ConditioningLabel) >= binsi) & 
+                (pl.col(ConditioningLabel)<=binsi1))
+    if len(DfTmp)>0:
+        return DfTmp.with_columns(pl.col(ConditionedLabel).mean()).to_pandas().iloc[0][ConditionedLabel]
+    else:
+        return 0
+
+def GetStdErrorConditional(Df,ConditioningLabel,ConditionedLabel,binsi,binsi1):
+    """
+        Df: pl.DataFrame 
+        ConditioningLabel: str -> Conditioning Variable name in the DataFrame.
+        ConditionedLabel: str -> The Column from which extracting the average.
+        bini: int
+        binsi1: int
+        Return: float -> Standard Error of the ConditionedLabel in the interval [bini,binsi1]
+
+    """
+    assert ConditioningLabel in Df.columns,  "Error: ConditioningLabel -> {} Column in the DataFrame".format(ConditioningLabel)
+    assert ConditionedLabel in Df.columns,  "Error: ConditionedLabel -> {} Column in the DataFrame".format(ConditionedLabel)
+    DfTmp = Df.filter((pl.col(ConditioningLabel) >= binsi) & 
+                (pl.col(ConditioningLabel)<=binsi1))
+    if len(DfTmp)>1:
+        return DfTmp.with_columns(pl.col(ConditionedLabel).std()).to_pandas().iloc[0][ConditionedLabel]
+    else:
+        return 0
+
+def GetLowerBoundsFromBins(bins,label,MinMaxPlot,Class,case):
+    if case == "no-classes":
+        print("Get Lower Bounds From Bins: {}".format(label))
+        MinMaxPlot[label] = {"min":bins[0],"max":bins[-1]}  
+        return MinMaxPlot
+    else:
+        print("Get Lower Bounds From Bins: {0} Class {1}".format(label,Class))
+        MinMaxPlot[Class][label] = {"min":bins[0],"max":bins[-1]}
+        return MinMaxPlot
+
+def GetMFDForPlot(MFD,MFD2Plot,MinMaxPlot,Class,case,verbose = False,bins_ = 20):
+    """
+        Input:
+            MFD: {"population":[],"time":[],"speed":[]} or {Class:pl.DataFrame{"population":[],"time":[],"speed":[]}}
+        NOTE: Used in self.PlotMFD()
+        NOTE: Modifies MDF2Plot = {"bins_population":[p0,..,p19],"binned_av_speed":[v0,..,v19],"binned_sqrt_err_speed":[e0,..,e19]}
+        NOTE: Modifies MinMaxPlot = {"speed":{"min":v0,"max":v19},"population":{"min":p0,"max":p19}}    
+    """
+    assert "population" in MFD.columns, "population not in MFD"
+    assert "speed" in MFD.columns, "speed not in MFD"
+#    assert "bins_population" in MFD2Plot.columns, "bins_population not in MFD2Plot"
+#    assert "binned_av_speed" in MFD2Plot.columns, "binned_av_speed not in MFD2Plot"
+#    assert "binned_sqrt_err_speed" in MFD2Plot.columns, "binned_sqrt_err_speed not in MFD2Plot"
+    print("Get MFD For Plot: {}".format(Class))
+    n, bins = np.histogram(MFD["population"],bins = bins_)
+    labels = range(len(bins) - 1)
+    for i in range(len(labels)):
+        # Fill Average/Std Speed (to plot)
+        BinnedAvSpeed = GetAverageConditional(MFD,"population","speed",bins[i],bins[i+1])
+        MFD2Plot['binned_av_speed'].append(BinnedAvSpeed)
+        BinnedSqrtSpeed = GetStdErrorConditional(MFD,"population","speed",bins[i],bins[i+1])
+        MFD2Plot['binned_sqrt_err_speed'].append(BinnedSqrtSpeed)
+        if verbose:
+            print("Bin [",bins[i],',',bins[i+1],']')
+            print("Av Speed: ",BinnedAvSpeed)
+            print("SqrtError: ",BinnedSqrtSpeed)
+    MFD2Plot["bins_population"] = bins
+    if verbose:
+        print("MFD Features Aggregated: ")
+        print("Bins Population:\n",MFD2Plot['bins_population'])
+        print("\nBins Average Speed:\n",MFD2Plot['binned_av_speed'])
+        print("\nBins Standard Deviation:\n",MFD2Plot['binned_sqrt_err_speed'])
+    MinMaxPlot = GetLowerBoundsFromBins(bins = bins,label = "population",MinMaxPlot = MinMaxPlot,Class = Class,case = case)
+    MinMaxPlot = GetLowerBoundsFromBins(bins = MFD2Plot['binned_av_speed'],label = "speed",MinMaxPlot = MinMaxPlot, Class = Class,case = case)
+    Y_Interval = max(MFD2Plot['binned_av_speed']) - min(MFD2Plot['binned_av_speed'])
+    RelativeChange = Y_Interval/max(MFD2Plot['binned_av_speed'])/100
+    if verbose:
+        print("\nMinMaxPlot:\n",MinMaxPlot)
+        print("\nInterval Error: ",Y_Interval)            
+    return MFD2Plot,MinMaxPlot,RelativeChange
+
+def SaveMFDPlot(binsPop,binsAvSpeed,binsSqrt,RelativeChange,SaveDir,Title = "Fondamental Diagram Aggregated",NameFile = "MFD.png"):
+    """
+        
+    """
+#    assert "bins_population" in MFD2Plot.columns, "bins_population not in MFD2Plot"
+#    assert "binned_av_speed" in MFD2Plot.columns, "binned_av_speed not in MFD2Plot"
+#    assert "binned_sqrt_err_speed" in MFD2Plot.columns, "binned_sqrt_err_speed not in MFD2Plot"
+    print("Plotting MFD:\n")
+    fig, ax = plt.subplots(1,1,figsize = (10,8))
+    text = "Relative change : {}%".format(round(RelativeChange,2))
+    ax.plot(binsPop[1:],binsAvSpeed)
+    ax.fill_between(np.array(binsPop[1:]),
+                        np.array(binsAvSpeed) - np.array(binsSqrt), 
+                        np.array(binsAvSpeed) + np.array(binsSqrt), color='gray', alpha=0.2, label='Std')
+    props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+    ax.text(0.05, 0.95, text, transform=plt.gca().transAxes, fontsize=10,
+    verticalalignment='top', bbox=props)
+    ax.set_title(Title)
+    ax.set_xlabel("number people")
+    ax.set_ylabel("speed")
+    plt.savefig(os.path.join(SaveDir,NameFile),dpi = 200)
+
+def PlotHysteresis(MFD,Title,SaveDir,NameFile):
+    fig,ax = plt.subplots(1,1,figsize = (10,10))
+    x = MFD['population'].to_list()
+    y = MFD['speed'].to_list()
+    u = [x[i+1]-x[i] for i in range(len(x)-1)]
+    v = [y[i+1]-y[i] for i in range(len(y)-1)]
+    u.append(x[len(x)-1] -x[0])
+    v.append(y[len(y)-1] -y[0])
+    plt.quiver(x,y,u,v,angles='xy', scale_units='xy', scale=1,width = 0.0025)
+    plt.xlabel('Number People')
+    plt.ylabel('Speed')
+    plt.title(Title)
+    plt.savefig(os.path.join(SaveDir,NameFile),dpi = 200)
 
 def NormalizeWidthForPlot(arr,min_width = 1, max_width = 10):
     '''
@@ -112,6 +237,10 @@ def InInterval(start_time,end_time,TimeStampDate,t,dt):
         return True
     else:
         return False
+# PRINT
+def PrintMFDDictInfo(MFD,StartingString = "Class 2 MFD: "):
+    print(StartingString)
+    print(MFD)
 
 class DailyNetworkStats:
     '''
@@ -217,8 +346,12 @@ class DailyNetworkStats:
         self.InitialGuessPerClassAndLabel = defaultdict(dict) 
         # FUNDAMENTAL DIAGRAM
         self.MFD = Dict2PolarsDF({"time":[],"population":[],"speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed":pl.Float64})
-        self.MFD2Plot = defaultdict()
-        self.Class2MFD = {class_:Dict2PolarsDF({"time":[],"population":[],"speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed":pl.Float64}) for class_ in self.IntClass2StrClass.keys()}
+        self.MFD2Plot = {"binned_av_speed":[],"binned_sqrt_err_speed":[],"bins_population":[]}
+        if self.BoolStrClass2IntClass:
+            self.Class2MFD = {class_:Dict2PolarsDF({"time":[],"population":[],"speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed":pl.Float64}) for class_ in self.IntClass2StrClass.keys()}
+        else:
+            self.Class2MFD = defaultdict(dict)
+            print("Warning: Not Initialized Class2MFD")
         # MINIMUM VALUES FOR (velocity,population,length,time) for trajectories of the day
         self.MinMaxPlot = defaultdict()
 # --------------- Read Files ---------------- #
@@ -348,7 +481,6 @@ class DailyNetworkStats:
                     else:
                         if verbose:
                             print("\t\tJump: ", "Iteration: ", val,"Row: {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[keyidx],"Value FCM info: ", float(FlattenedFcmCenters[val]))
-
             # Not first row
             else:
                 if verbose:        
@@ -401,8 +533,7 @@ class DailyNetworkStats:
 
             
         self.FcmCenters = pl.DataFrame(Features)
-        self.ReadFcmCentersBool = True
-    
+        self.ReadFcmCentersBool = True    
     def ReadFluxesSub(self):
         '''
             Input:
@@ -452,16 +583,18 @@ class DailyNetworkStats:
             exit("GeoJsonFile not found")
         self.GeoJson = gpd.read_file(self.GeoJsonFile)
         self.ReadGeoJsonBool = True
-
     def GetIncreasinglyIncludedSubnets(self):
         self.DictSubnetsTxtDir = defaultdict(dict)
-        for Class in self.IntClass2StrClass.keys():
-            self.DictSubnetsTxtDir[Class] = os.path.join(self.InputBaseDir,self.BaseFileName+'_'+ self.StrDate+'_'+ self.StrDate + '{}_class_subnet.txt'.format(Class))
-        self.ReadFluxesSubIncreasinglyIncludedIntersection()
-        if self.verbose:
-            print("Get increasingly included subnets")
-            for class_ in self.DictSubnetsTxtDir:
-                print(self.DictSubnetsTxtDir[class_])
+        if self.BoolStrClass2IntClass:
+            for Class in self.IntClass2StrClass.keys():
+                self.DictSubnetsTxtDir[Class] = os.path.join(self.InputBaseDir,self.BaseFileName+'_'+ self.StrDate+'_'+ self.StrDate + '{}_class_subnet.txt'.format(Class))
+            self.ReadFluxesSubIncreasinglyIncludedIntersection()
+            if self.verbose:
+                print("Get increasingly included subnets")
+                for class_ in self.DictSubnetsTxtDir:
+                    print(self.DictSubnetsTxtDir[class_])
+        else:
+            print("Warning: Not Initialized DictSubnetsTxtDir -> Will not have Increasingly Included SubNetworks")
     def ReadFluxesSubIncreasinglyIncludedIntersection(self):
         '''
             Input:
@@ -500,25 +633,31 @@ class DailyNetworkStats:
         self.GeoJson.to_file(os.path.join(self.InputBaseDir,"BolognaMDTClassInfo.geojson"))
 
     def ReadVelocitySubnet(self):
-        for Class in self.IntClass2StrClass.keys():
-            self.RoadInClass2VelocityDir[Class] = os.path.join(os.path.join(self.InputBaseDir,self.BaseFileName+'_'+ self.StrDate+'_'+ self.StrDate + '_class_{}velocity_subnet.csv'.format(Class)))
-            self.VelTimePercorrenceClass[Class] = pd.read_csv(self.RoadInClass2VelocityDir[Class],delimiter = ';')
-            self.VelTimePercorrenceClass[Class] = pl.from_pandas(self.VelTimePercorrenceClass[Class])
-        self.ReadVelocitySubnetBool = True
-
-    def AddFcmNew2Fcm(self):
+        if self.BoolStrClass2IntClass:
+            for Class in self.IntClass2StrClass.keys():
+                self.RoadInClass2VelocityDir[Class] = os.path.join(os.path.join(self.InputBaseDir,self.BaseFileName+'_'+ self.StrDate+'_'+ self.StrDate + '_class_{}velocity_subnet.csv'.format(Class)))
+                self.VelTimePercorrenceClass[Class] = pd.read_csv(self.RoadInClass2VelocityDir[Class],delimiter = ';')
+                self.VelTimePercorrenceClass[Class] = pl.from_pandas(self.VelTimePercorrenceClass[Class])
+            self.ReadVelocitySubnetBool = True
+        else:
+            print("Warning: No Initialization of VelTimePercorrenceClass due to lack of definition of IntClass2Str")
+    def AddFcmNew2Fcm(self,verbose = False):
         if self.ReadFcmBool and self.ReadFcmNewBool:
             FcmNew = self.FcmNew.with_columns([self.FcmNew['class'].alias('class_new')])
             self.Fcm = self.Fcm.join(FcmNew[['id_act', 'class_new']], on='id_act', how='left')
-            print("1st join Fcm: ",self.Fcm.head())
+            if verbose:
+                print("1st join Fcm: ",self.Fcm.head())
             self.Fcm =self.Fcm.with_columns([self.Fcm['class'].alias('class_new')])
-            print("renamed: ",self.Fcm.head())
+            if verbose:
+                print("renamed: ",self.Fcm.head())
         if self.ReadStatsBool and self.ReadFcmNewBool:
             FcmNew = self.FcmNew.with_columns([self.FcmNew['class'].alias('class_new')])
             self.Stats["class_new"] = self.Stats.join(self.FcmNew[['id_act', 'class_new']], on='id_act', how='left')
-            print("1st join Stats: ",self.Stats.head())
+            if verbose:
+                print("1st join Stats: ",self.Stats.head())
             self.Stats =self.Stats.with_columns([self.Stats['class'].alias('class_new')])
-            print("renamed: ",self.Stats.head())
+            if verbose:
+                print("renamed: ",self.Stats.head())
 ##--------------- Plot Network --------------## 
     def PlotIncrementSubnetHTML(self):
         """
@@ -526,7 +665,7 @@ class DailyNetworkStats:
             Description:
                 Plots the subnetwork. Considers the case of intersections
         """
-        if self.ReadFluxesSubIncreasinglyIncludedIntersectionBool and self.ReadGeoJsonBool:
+        if self.ReadFluxesSubIncreasinglyIncludedIntersectionBool and self.ReadGeoJsonBool and self.BoolStrClass2IntClass:
             print("Plotting Daily Incremental Subnetworks in HTML")
             print("Save in: ",os.path.join(self.PlotDir,"SubnetsIncrementalInclusion_{}.html".format(self.StrDate)))
             # Create a base map
@@ -536,14 +675,16 @@ class DailyNetworkStats:
                 for class_ in self.IntClass2RoadsIncreasinglyIncludedIntersection.keys(): 
                     print(self.IntClass2RoadsIncreasinglyIncludedIntersection[class_][:10])
             for class_, index_list in self.IntClass2RoadsIncreasinglyIncludedIntersection.items():
-                print("Plotting Class ",class_)
-                print("Number of Roads: ",len(index_list))
+                if self.verbose:
+                    print("Plotting Class ",class_)
+                    print("Number of Roads: ",len(index_list))
                 # Filter GeoDataFrame for roads with indices in the current list
                 filtered_gdf = self.GeoJson[self.GeoJson['poly_lid'].isin(index_list)]
                 # Create a feature group for the current layer
                 layer_group = folium.FeatureGroup(name="Layer {}".format(class_))
                 # Add roads to the feature group with a unique color
-                print("Class: ",class_," Number of Roads: ",len(filtered_gdf),"Color: ",self.Class2Color[self.IntClass2StrClass[class_]])
+                if self.verbose:
+                    print("Class: ",class_," Number of Roads: ",len(filtered_gdf),"Color: ",self.Class2Color[self.IntClass2StrClass[class_]])
                 for _, road in filtered_gdf.iterrows():
                     folium.GeoJson(road.geometry, style_function=lambda x: {'color': self.Class2Color[self.IntClass2StrClass[class_]]}).add_to(layer_group)
                 
@@ -566,7 +707,7 @@ class DailyNetworkStats:
                 NOTE: 
                     Does not consider the intersection
         """
-        if self.ReadFluxesSubBool and self.ReadGeoJsonBool:
+        if self.ReadFluxesSubBool and self.ReadGeoJsonBool and self.BoolStrClass2IntClass:
             print("Plotting Daily Subnetworks in HTML")
             # Create a base map
             m = folium.Map(location=[self.centroid.x, self.centroid.y], zoom_start=12)
@@ -610,11 +751,11 @@ class DailyNetworkStats:
             m = folium.Map(location=[self.centroid.x, self.centroid.y], zoom_start=12)
             mFT = folium.Map(location=[self.centroid.x, self.centroid.y], zoom_start=12)
             mTF = folium.Map(location=[self.centroid.x, self.centroid.y], zoom_start=12)
-            TF = self.TimedFluxes.copy()
+            TF = self.TimedFluxes
             TF["width_total_fluxes"] = NormalizeWidthForPlot(TF["total_fluxes"])
             TF["width_n_traj_FT"] = NormalizeWidthForPlot(TF["n_traj_FT"])
             TF["width_n_traj_TF"] = NormalizeWidthForPlot(TF["n_traj_TF"])
-            CopyGdf = self.GeoJson.copy()
+            CopyGdf = self.GeoJson
             CopyGdf["width_total_fluxes"] = TF["width_total_fluxes"]
             CopyGdf["width_n_traj_FT"] = TF["width_n_traj_FT"]
             CopyGdf["width_n_traj_TF"] = TF["width_n_traj_TF"]
@@ -658,7 +799,7 @@ class DailyNetworkStats:
                 layer_group = folium.FeatureGroup(name=f"Layer {time}")
                 layer_group1 = folium.FeatureGroup(name=f"Layer {time}")
                 for Class in self.IntClass2BestFit.keys():
-                    RoadsTimeVel = self.VelTimePercorrenceClass[Class].copy()
+                    RoadsTimeVel = self.VelTimePercorrenceClass[Class]
                     RoadsTimeVel["av_speed"] = [x if x!=-1 else 0 for x in RoadsTimeVel["av_speed"]]
                     RoadsTimeVel["time_percorrence"] = [x if x!=-1 else 0 for x in RoadsTimeVel["time_percorrence"]]
                     RoadsTimeVel["width_speed"] = NormalizeWidthForPlot(RoadsTimeVel["av_speed"])
@@ -690,7 +831,7 @@ class DailyNetworkStats:
             m1.save(os.path.join(self.PlotDir,"TimePercorrence_{}.html".format(self.StrDate)))
 
 ## ------- FUNDAMENTAL DIAGRAM ------ ##
-    def ComputeMFDVariables(self):
+    def ComputeMFDVariablesClass(self):
         '''
             Description:
                 Computes the MFD variables (t,population,speed) -> and the hysteresis diagram:
@@ -698,140 +839,136 @@ class DailyNetworkStats:
                     2) Conditional to class
             Save them in two dictionaries 
                 1) self.MFD = {time:[],population:[],speed:[]}
-                2) self.Class2MFD = {Class:{"time":[],"population":[],"speed":[]}}
+                2) self.Class2MFD = {Class:pl.DataFrame{"time":[],"population":[],"speed":[]}}
         '''
         if self.ReadFcmBool:
-            if self.verbose:
-                print("Computing MFD Variables from Fcm")
-
+            print("Computing MFD Variables from Fcm")
             if "start_time" in self.Fcm.columns:
                 # ALL TOGETHER MFD
-                self.MFD,self.Fcm = ComputeMFDVariables(self.Fcm,self.MFD,self.TimeStampDate,self.dt,self.iterations,self.verbose)
-                # PER CLASS
-                for Class in self.Class2MFD.keys():
-                    self.Class2MFD[Class],self.Fcm = ComputeMFDVariables(self.Fcm,self.Class2MFD[Class],self.TimeStampDate,self.dt,self.iterations,self.verbose)
+                self.MFD,self.Fcm = ComputeMFDVariables(self.Fcm,self.MFD,self.TimeStampDate,self.dt,self.iterations)
                 if self.verbose:
-                    print("Class 2 MFD: ")
-                    print("Keys: ",self.Class2MFD.keys())
-                    print("Lenght of values: ")
-                    for key in self.Class2MFD.keys():
-                        print("Values: ",len(self.Class2MFD[key]))
+                    PrintMFDDictInfo(self.MFD,StartingString = "MFD: ")            
+                # PER CLASS
+                self.Class2MFD = {class_:Dict2PolarsDF({"time":[],"population":[],"speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed":pl.Float64}) for class_ in self.IntClass2StrClass.keys()}
+                if self.verbose:
+                    print(self.Class2MFD.keys())
+                for Class in self.Class2MFD.keys():
+                    Fcm2Class = self.Fcm.filter(pl.col("class") == Class)
+                    self.Class2MFD[Class],Fcm2Class = ComputeMFDVariables(Fcm2Class,self.Class2MFD[Class],self.TimeStampDate,self.dt,self.iterations)
+                    if self.verbose:
+                        PrintMFDDictInfo(self.Class2MFD[Class],StartingString = "Class 2 MFD: ")
                 self.ComputedMFD = True    
             else:
                 pass
                 
         if self.ReadStatsBool:
+            print("Computing MFD Variables from Stats")
+            # ALL TOGETHER MFD
+            self.Stats = self.Stats.join(self.Fcm[['id_act', 'class']], on='id_act', how='left')
+            self.MFD,self.Stats = ComputeMFDVariables(self.Stats,self.MFD,self.TimeStampDate,self.dt,self.iterations)
+            # PER CLASS
             if self.verbose:
-                print("Computing MFD Variables from Stats")
-                # ALL TOGETHER MFD
-                self.MFD,self.Stats = ComputeMFDVariables(self.Stats,self.MFD,self.TimeStampDate,self.dt,self.iterations,self.verbose)
-                # PER CLASS
-                for Class in self.Class2MFD.keys():
-                    self.Class2MFD[Class],self.Stats = ComputeMFDVariables(self.Stats,self.Class2MFD[Class],self.TimeStampDate,self.dt,self.iterations,self.verbose)
-
+                PrintMFDDictInfo(self.MFD,StartingString = "MFD: ")
+            if self.BoolStrClass2IntClass:
+                print("Filling Class2MFD: ")
+                for class_ in self.IntClass2StrClass.keys():
+                    if self.verbose:
+                        print("Class: ",class_)
+                    self.Class2MFD[class_] = Dict2PolarsDF({"time":[],"population":[],"speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed":pl.Float64})
+                else:
+                    print("Warning: No Plotting MFD due to not Definition of StrInt2Class")
+            for Class in self.Class2MFD.keys():
+                Stats2Class = self.Stats.filter(pl.col("class") == Class)
+                self.Class2MFD[Class],Stats2Class = ComputeMFDVariables(Stats2Class,self.Class2MFD[Class],self.TimeStampDate,self.dt,self.iterations,self.verbose)
                 if self.verbose:
-                    print("Class 2 MFD: ")
-                    print("Keys: ",self.Class2MFD.keys())
-                    print("Lenght of values: ")
-                    for key in self.Class2MFD.keys():
-                        print("Values: ",len(self.Class2MFD[key]))
-
-                self.ComputedMFD = True
-
-    def GetLowerBoundsFromBins(self,bins,label):
-        if len(self.MinMaxPlot.keys())==0:
-            self.MinMaxPlot["aggregated"] = defaultdict()
-        else:
-            self.MinMaxPlot["aggregated"][label] = {"min":bins[0],"max":bins[-1]}  
-
-    def GetLowerBoundsFromBinsPerClass(self,Class,bins,label):
-        if len(self.MinMaxPlotPerClass[Class].keys())==0:
-            self.MinMaxPlotPerClass[Class] = defaultdict()
-        else:
-            self.MinMaxPlotPerClass[Class][label] = {"min":bins[0],"max":bins[-1]}  
+                    PrintMFDDictInfo(self.Class2MFD[Class],StartingString = "Class 2 MFD: ")
+            self.ComputedMFD = True
 
     def PlotMFD(self):
         """
-        Plots the Fundamental Diagram for the calculated MFD (Mobility Fundamental Diagram) and per class.
-        
-        This function plots the Fundamental Diagram for the calculated MFD (Mobility Fundamental Diagram) and per class. 
-        The Fundamental Diagram shows the average speed and the standard deviation of the speed for each population bin.
-        The population bins are determined by the number of vehicles in each bin.
-        
+        Description:
+            Plots the Fundamental Diagram for the calculated MFD (Mobility Fundamental Diagram) and per class.
+        <<<
+            This function plots the Fundamental Diagram for the calculated MFD (Mobility Fundamental Diagram) and per class. 
+            The Fundamental Diagram shows the average speed and the standard deviation of the speed for each population bin.
+            The population bins are determined by the number of vehicles in each bin.
+        >>>
         Parameters:
             self (object): The instance of the class.
         
         Returns:
-            None
+            NOTE: Aggregated Important Variables Initialized
+            self.MFD2Plot (dict): {"binned_av_speed": [], "binned_sqrt_err_speed": [], "bins_population": []}
+            self.MinMaxPlot (dict): {"aggregated": {"population": {"min": int, "max": int}, "speed": {"min": int, "max": int}}}
+            NOTE: Per Class Important Variables Initialized
+            self.Class2MFD2Plot (dict): {Class: {"binned_av_speed": [], "binned_sqrt_err_speed": [], "bins_population": []}}
+            self.MinMaxPlotPerClass (dict): {Class: {"population": {"min": int, "max": int}, "speed": {"min": int, "max": int}}}
         
         Raises:
             None
         """
         if self.ComputedMFD: 
             # AGGREGATED
-            fig, ax = plt.subplots(1,1,figsize = (10,8))
-            n, bins = np.histogram(self.MFD["population"],bins = 20)
-            labels = range(len(bins) - 1)
-            self.MFD["bins_population"] = pd.cut(self.MFD["population"],bins=bins,labels=labels,right=False)
-            self.MFD2Plot['binned_av_speed'] = self.MFD.groupby('bins_population', observed=False)['speed'].mean().reset_index()
-            self.MFD2Plot['binned_av_speed'] = self.MFD2Plot['binned_av_speed'][::-1].interpolate(method='pad')[::-1]
-            self.MFD2Plot['binned_sqrt_err_speed'] = self.MFD.groupby('bins_population', observed=False)['speed'].std().reset_index()    
+            self.MFD2Plot, self.MinMaxPlot,RelativeChange = GetMFDForPlot(MFD = self.MFD,
+                                                                        MFD2Plot = self.MFD2Plot,
+                                                                        MinMaxPlot = self.MinMaxPlot,
+                                                                        Class = None,
+                                                                        case = "no-classes",
+                                                                        verbose = self.verbose,
+                                                                        bins_ = 20)
+            PlotHysteresis(MFD = self.MFD,
+                           Title = "Hysteresis Cycle Aggregated",
+                           SaveDir = self.PlotDir,
+                           NameFile = "Hysteresys.png")
             if self.verbose:
-                print("MFD Features Aggregated: ")
-                print("Bins Population:\n",self.MFD['bins_population'])
-                print("Bins Average Speed:\n",self.MFD2Plot['binned_av_speed'])
-                print("Bins Standard Deviation:\n",self.MFD2Plot['binned_sqrt_err_speed'])
-            self.GetLowerBoundsFromBins(bins,"population")
-            self.GetLowerBoundsFromBins(self.MFD2Plot['binned_av_speed'],"speed")
-            Y_Interval = max(self.MFD2Plot['binned_av_speed']) - min(self.MFD2Plot['binned_av_speed'])
-            RelativeChange = Y_Interval/max(self.MFD2Plot['binned_av_speed'])/100
-            if self.verbose:
-                print("min(bins): ",self.MinMaxPlot["aggregated"]["population"]["min"]," max(bins): ",self.MinMaxPlot["aggregated"]["population"]["max"])                
-                print("Interval Error: ",Y_Interval)            
-            text = "Relative change : {}%".format(RelativeChange)
-            ax.plot(bins,self.MFD2Plot['binned_av_speed'])
-            ax.fill_between(bins, self.MFD2Plot['binned_av_speed'] - self.MFD2Plot['binned_sqrt_err_speed'], self.MFD2Plot['binned_av_speed'] + self.MFD2Plot['binned_sqrt_err_speed'], color='gray', alpha=0.2, label='Std')
-            props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
-            ax.text(0.05, 0.95, text, transform=plt.gca().transAxes, fontsize=10,
-            verticalalignment='top', bbox=props)
-            ax.set_title("Fondamental Diagram")
-            ax.set_xlabel("time")
-            ax.set_ylabel("speed")
-            plt.savefig(os.path.join(self.SaveDir,"MFD.png"),dpi = 200)
-
+                print("After GetMFDForPlot:\n")
+                print("\nMFD2Plot:\n",self.MFD2Plot)
+                print("\nMinMaxPlot:\n",self.MinMaxPlot)
+            # Plotting and Save Aggregated
+            SaveMFDPlot(self.MFD2Plot["bins_population"],
+                        self.MFD2Plot["binned_av_speed"],
+                        self.MFD2Plot["binned_sqrt_err_speed"],
+                        RelativeChange,
+                        self.PlotDir,
+                        NameFile = "MFD.png")            
             # PER CLASS
             if self.Class2MFD.keys():
-                self.MinMaxPlotPerClass = {Class: defaultdict() for Class in self.Class2MFD.keys()}
+                self.MinMaxPlotPerClass = {int(Class): defaultdict() for Class in self.Class2MFD.keys()}
             else:
                 self.MinMaxPlotPerClass = defaultdict(dict)
+            self.Class2MFD2Plot = defaultdict(dict)   
             for Class in self.Class2MFD.keys():
-                fig, ax = plt.subplots(1,1,figsize = (10,8))
-                n, bins = np.histogram(self.Class2MFD[Class]["population"],bins = 20)
-                self.Class2MFD[Class]["bins_population"] = pd.cut(self.Class2MFD[Class]["population"],bins,labels=bins,right=False)
-                self.Class2MFD2Plot[Class]['binned_av_speed'] = self.MFD.groupby('bins_population', observed=True)['speed'].mean().reset_index()
-                self.Class2MFD2Plot[Class]['binned_av_speed'] = self.Class2MFD2Plot[Class]['binned_av_speed'].fillna(method='bfill')
-                self.Class2MFD2Plot[Class]['binned_sqrt_err_speed'] = self.MFD.groupby('bins_population', observed=True)['speed'].std().reset_index()                
+                self.Class2MFD2Plot[int(Class)] = {"binned_av_speed": [], "binned_sqrt_err_speed": [], "bins_population": []}
+            for Class in self.Class2MFD.keys():
+                # Fill Average/Std Speed (to plot)
+                self.Class2MFD2Plot[Class], self.MinMaxPlotPerClass,RelativeChange = GetMFDForPlot(MFD = self.Class2MFD[Class],
+                                                                                                     MFD2Plot = self.Class2MFD2Plot[Class],
+                                                                                                    MinMaxPlot = self.MinMaxPlotPerClass,
+                                                                                                    Class = Class,
+                                                                                                    case = None,
+                                                                                                    verbose = self.verbose,
+                                                                                                    bins_ = 20)
+                PlotHysteresis(MFD = self.Class2MFD[Class],
+                            Title = "Hysteresis Cycle Class {}".format(self.IntClass2StrClass[Class]),
+                            SaveDir = self.PlotDir,
+                            NameFile = "HysteresysClass_{}.png".format(self.IntClass2StrClass[Class]))
+                
                 if self.verbose:
-                    print("MFD Features Class: ",Class)
-                    print("Bins Average Speed:\n",self.Class2MFD2Plot[Class]['binned_av_speed'])
-                    print("Bins Standard Deviation:\n",self.Class2MFD2Plot[Class]['binned_sqrt_err_speed'])
-                self.GetLowerBoundsFromBinsPerClass(Class,bins,"population")
-                self.GetLowerBoundsFromBinsPerClass(Class,self.Class2MFD2Plot[Class]['binned_av_speed'],"speed")
-                Y_Interval = max(self.Class2MFD2Plot[Class]['binned_av_speed']) - min(self.Class2MFD2Plot[Class]['binned_av_speed'])
-                RelativeChange = Y_Interval/max(self.Class2MFD2Plot[Class]['binned_av_speed'])/100
-                if self.verbose:
-                    print("min(bins): ",self.MinMaxPlotPerClass[Class]["min"]," max(bins): ",self.MinMaxPlotPerClass[Class]["max"])                
-                    print("Interval Error: ",Y_Interval)
-                text = "Relative change : {}%".format(RelativeChange)
-                ax.plot(bins,self.Class2MFD[Class]['binned_av_speed'])
-                ax.fill_between(bins, self.Class2MFD2Plot[Class]['binned_av_speed'] - self.Class2MFD2Plot[Class]['binned_sqrt_err_speed'], self.Class2MFD2Plot[Class]['binned_av_speed'] + self.Class2MFD2Plot[Class]['binned_sqrt_err_speed'], color='gray', alpha=0.2, label='Std')
-                props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
-                ax.text(0.05, 0.95, text, transform=plt.gca().transAxes, fontsize=10,
-                verticalalignment='top', bbox=props)
-                ax.set_title(self.IntClass2StrClass[Class])
-                ax.set_xlabel("time")
-                ax.set_ylabel("speed")
-                plt.savefig(os.path.join(self.SaveDir,"MFD_{}.png".format(Class)),dpi = 200)
+                    print("After GetMFDForPlot Class {}:\n".format(Class))
+                    print("\nClass2MFD2Plot:\n",self.Class2MFD2Plot)
+                    print("\nMinMaxPlotPerClass:\n",self.MinMaxPlotPerClass)
+
+                if self.BoolStrClass2IntClass:
+                    # Plotting and Save Per Class
+                    SaveMFDPlot(self.Class2MFD2Plot[Class]["bins_population"],
+                                self.Class2MFD2Plot[Class]["binned_av_speed"],
+                                self.Class2MFD2Plot[Class]["binned_sqrt_err_speed"],
+                                RelativeChange = RelativeChange,
+                                SaveDir = self.PlotDir,
+                                Title = "Fondamental Diagram {}".format(self.IntClass2StrClass[Class]),
+                                NameFile = "MFD_{}.png".format(Class))
+                else:
+                    print("Warning: Fondamental Diagram Not Computed for Class Since IntClass2Str is Not Initialized")
 ##--------------- Dictionaries --------------##
     def CreateDictionaryIntClass2StrClass(self):
         '''

@@ -9,5 +9,5 @@
         "lon_max":"11.367472"
         },
     "geojson": "/home/aamad/Desktop/phd/codice/city-pro/bologna-provincia.geojson",
-    "verbose": true
+    "verbose": false
     }

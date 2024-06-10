@@ -53,18 +53,16 @@ if __name__ == "__main__":
         ## Classes associated to inclusion principle
         Network.ReadFcmNew()
         Network.AddFcmNew2Fcm()
+        # NOTE: Network.FcmCenters -> DataFrame ["class","av_speed","vmin","vmax","sinuosity","count"]
         Network.ReadStats()
-        print("Debug") 
-        Network.PrintTimeInfo()
-
         Network.GetIncreasinglyIncludedSubnets()
         Network.ReadGeoJson()
         Network.ReadFluxesSub()
-#        print("Just before MFD")
-#        Network.PrintBool()
-        Network.ComputeMFDVariables()
+        Network.ComputeMFDVariablesClass()
         # SAVE SUBNETS IN GEOJSON
         Network.CompleteGeoJsonWithClassInfo()
+        # TIMED FLUXES
+        Network.ReadTimedFluxes()
         # PLOT SUBNETS
         Network.PlotSubnetHTML()
         Network.PlotIncrementSubnetHTML()   
