@@ -21,6 +21,7 @@
 #include <chrono>
 #include <thread>
 #include<map>
+#include <jsoncons/json.hpp>
 using namespace Eigen;
 using namespace std;
 extern config config_;
@@ -2546,19 +2547,22 @@ map<string, vector<int>> make_subnet(config &config_)
     {
         std::cout << "subtype size" << sub_types.size() << endl;
         int total_crossings = 0;
-        for (const auto &n : poly)
-         {int LocalIter = 0;
-         int LocalLength = n.length; // TODO: Handle the fect that the first poly is Invalid.
-            if (n.flux.at(t)>0 && LocalLength>0)
-            {
-                total_crossings += n.flux.at(t) * n.length;
-                LocalIter++;
-                if (total_crossings < 0)
-                    {std::cerr <<"total crossings < 0 at Iter: " << std::to_string(LocalIter)<< std::endl;
-                    std::cerr << "Length: " << std::to_string(LocalLength) << std::endl;
-                    std::cerr << "Flux: " << std::to_string(n.flux.at(t)) << std::endl;
-                    exit(1);}
-            }
+        for (const auto &n : poly){
+            int LocalIter = 0;
+            float LocalLength = n.length; // TODO: Handle the fect that the first poly is Invalid.
+            int LocalFlux = n.flux.at(t);
+            double MaxPolyLength = 6000.; 
+            if (LocalFlux>0 && LocalLength>0 && LocalLength < 6000)
+                {
+                    total_crossings += LocalFlux * LocalLength;
+                    LocalIter++;
+                    if (total_crossings < 0){
+                        std::cerr <<"total crossings < 0 at Iter: " << std::to_string(LocalIter)<< std::endl;
+                        std::cerr << "Length: " << std::to_string(LocalLength) << std::endl;
+                        std::cerr << "Flux: " << std::to_string(LocalFlux) << std::endl;
+                        exit(0);
+                    }
+                }
             }
         std::cout << "Total crossings per meters: " << total_crossings << std::endl; // totale di metri percorsi dai flussi.
         for (const auto &f : sub_fractions)

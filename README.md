@@ -241,6 +241,9 @@ This bias is probably due to the sensitivity of the algorithm to the speed, givi
 ```std::vector<poly_base> poly``` is initialized with a null element in the position 0. Pay attention to that.
 Or modify.
 
+In ```make_subnet``` is put by hand the maximum length for a poly extracted from the geojson via geopandas.
+For own cartography the parameter needs to be changed. 
+
 # LAUNCH ANALYSIS (WORK IN PROGRESS)
 
    ``` ./python/config_subnet_create.py ```
