@@ -125,8 +125,8 @@ if __name__ == "__main__":
             # PLOT SUBNETS
             Network.PlotSubnetHTML()
             Network.PlotIncrementSubnetHTML()   
-    #        Network.PlotFluxesHTML()
-    #        Network.PlotTimePercorrenceHTML()     
+            Network.PlotFluxesHTML()
+            Network.PlotTimePercorrenceHTML()     
             # FUNDAMENTAL DIAGRAM
             Network.ReadVelocitySubnet()
             Network.PlotMFD()

@@ -34,7 +34,7 @@
         "lenght_km": 10,
         "time": 10,
         "time_hours": 10,
-        "av_accel": 0.1
+        "av_accel": 0.2
     },
     "interval_count":{
         "av_speed": 300,
@@ -59,7 +59,7 @@
         "speed_kmh": "linear",
         "lenght": "linear",
         "lenght_km": "linear",
-        "time": "linar",
+        "time": "linear",
         "time_hours": "linear",
         "av_accel": "linear"
     }

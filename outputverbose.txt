@@ -1,3 +1,1113 @@
 PyMC3 not installed
 Args:  Namespace(config_file='/home/aamad/Desktop/phd/codice/city-pro/config/')
 Base directory:  /home/aamad/Desktop/phd/codice/city-pro/config/
+Initialiaze Mobility and Network for Date: 2023-01-01
+Warning: Not Initialized Class2MFD
+Reading fcm_centers
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2023-01-01_2023-01-01_fcm_centers.csv
+Reading fcm
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2023-01-01_2023-01-01_fcm.csv
+Reading fcm_new
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2023-01-01_2023-01-01_fcm_new.csv
+1st join Fcm:  ['id_act', 'lenght', 'time', 'av_speed', 'v_max', 'v_min', 'cnt', 'av_accel', 'a_max', 'class', 'p', 'time_hours', 'class_new']
+Date:  2023-01-01
+renamed:  ['id_act', 'lenght', 'time', 'av_speed', 'v_max', 'v_min', 'cnt', 'av_accel', 'a_max', 'class', 'p', 'time_hours', 'class_new']
+Reading stats
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2023-01-01_2023-01-01_stats.csv
+Road exception:  
+Road exception:  
+Road exception:  
+Road exception:  
+Get increasingly included subnets
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2023-01-01_2023-01-010_class_subnet.txt
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2023-01-01_2023-01-011_class_subnet.txt
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2023-01-01_2023-01-012_class_subnet.txt
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2023-01-01_2023-01-013_class_subnet.txt
+Reading GeoJson
+Reading fluxes_sub
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/weights/bologna_mdt_2023-01-01_2023-01-01.fluxes.sub
+FluxesSubFile not found
+Computing MFD Variables from Fcm
+Computing MFD Variables from Stats
+Compute MFD Variables:
+MFD: 
+shape: (96, 3)
+┌──────────┬────────────┬───────────┐
+│ time     ┆ population ┆ speed     │
+│ ---      ┆ ---        ┆ ---       │
+│ str      ┆ i64        ┆ f64       │
+╞══════════╪════════════╪═══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       │
+│ 00:15:00 ┆ 0          ┆ 0.0       │
+│ 00:30:00 ┆ 0          ┆ 0.0       │
+│ 00:45:00 ┆ 44         ┆ 25.627299 │
+│ 01:00:00 ┆ 2231       ┆ 21.724281 │
+│ …        ┆ …          ┆ …         │
+│ 22:45:00 ┆ 205        ┆ 52.202309 │
+│ 23:00:00 ┆ 183        ┆ 54.912813 │
+│ 23:15:00 ┆ 198        ┆ 50.193825 │
+│ 23:30:00 ┆ 149        ┆ 55.569313 │
+│ 23:45:00 ┆ 105        ┆ 64.535377 │
+└──────────┴────────────┴───────────┘
+Filling Class2MFD: 
+Class:  0
+Class:  1
+Class:  2
+Class:  3
+Compute MFD Variables:
+Compute MFD Variables:
+Compute MFD Variables:
+Compute MFD Variables:
+Reading timed_fluxes
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2023-01-01_2023-01-01_timed_fluxes.csv
+No Subnetworks to Plot
+Plotting Daily Incremental Subnetworks in HTML
+Save in:  /home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/plots/2023-01-01/SubnetsIncrementalInclusion_2023-01-01.html
+[40, 364, 425, 426, 427, 428, 429, 440, 537, 538]
+[15, 16, 20, 29, 32, 33, 34, 35, 36, 37]
+[2, 3, 4, 5, 6, 8, 10, 12, 13, 14]
+[869, 2274, 2416, 2432, 2433, 2435, 3387, 3846, 3972, 3973]
+Plotting Class  0
+Number of Roads:  4683
+Class:  0  Number of Roads:  4611 Color:  blue
+Plotting Class  1
+Number of Roads:  13644
+Class:  1  Number of Roads:  13387 Color:  green
+Plotting Class  2
+Number of Roads:  6058
+Class:  2  Number of Roads:  5808 Color:  yellow
+Plotting Class  3
+Number of Roads:  63
+Class:  3  Number of Roads:  63 Color:  red
+Get MFD For Plot: None
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population
+Get Lower Bounds From Bins: speed
+
+Interval Error:  52.164952804337794
+After GetMFDForPlot:
+
+Plotting MFD:
+
+Get MFD For Plot: 0
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 0
+Get Lower Bounds From Bins: speed Class 0
+
+Interval Error:  6.309038967905885
+After GetMFDForPlot Class 0:
+
+Plotting MFD:
+
+Get MFD For Plot: 1
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 1
+Get Lower Bounds From Bins: speed Class 1
+
+Interval Error:  28.554917881802748
+After GetMFDForPlot Class 1:
+
+Plotting MFD:
+
+Get MFD For Plot: 2
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 2
+Get Lower Bounds From Bins: speed Class 2
+
+Interval Error:  60.175473979857756
+After GetMFDForPlot Class 2:
+
+Plotting MFD:
+
+Get MFD For Plot: 3
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 3
+Get Lower Bounds From Bins: speed Class 3
+
+Interval Error:  33.55933305494507
+After GetMFDForPlot Class 3:
+
+Plotting MFD:
+
+Reading fluxes
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/weights/bologna_mdt_2023-01-01_2023-01-01.fluxes
+No fluxes
+all different groups colored differently
+Initialiaze Mobility and Network for Date: 2022-08-05
+Warning: Not Initialized Class2MFD
+Reading fcm_centers
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-08-05_2022-08-05_fcm_centers.csv
+Reading fcm
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-08-05_2022-08-05_fcm.csv
+Reading fcm_new
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-08-05_2022-08-05_fcm_new.csv
+1st join Fcm:  ['id_act', 'lenght', 'time', 'av_speed', 'v_max', 'v_min', 'cnt', 'av_accel', 'a_max', 'class', 'p', 'time_hours', 'class_new']
+Date:  2022-08-05
+renamed:  ['id_act', 'lenght', 'time', 'av_speed', 'v_max', 'v_min', 'cnt', 'av_accel', 'a_max', 'class', 'p', 'time_hours', 'class_new']
+Reading stats
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-08-05_2022-08-05_stats.csv
+Road exception:  
+Road exception:  
+Road exception:  
+Road exception:  
+Get increasingly included subnets
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-08-05_2022-08-050_class_subnet.txt
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-08-05_2022-08-051_class_subnet.txt
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-08-05_2022-08-052_class_subnet.txt
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-08-05_2022-08-053_class_subnet.txt
+Reading GeoJson
+Reading fluxes_sub
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/weights/bologna_mdt_2022-08-05_2022-08-05.fluxes.sub
+FluxesSubFile not found
+Computing MFD Variables from Fcm
+Computing MFD Variables from Stats
+Compute MFD Variables:
+MFD: 
+shape: (96, 3)
+┌──────────┬────────────┬───────────┐
+│ time     ┆ population ┆ speed     │
+│ ---      ┆ ---        ┆ ---       │
+│ str      ┆ i64        ┆ f64       │
+╞══════════╪════════════╪═══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       │
+│ 00:15:00 ┆ 0          ┆ 0.0       │
+│ 00:30:00 ┆ 0          ┆ 0.0       │
+│ 00:45:00 ┆ 0          ┆ 0.0       │
+│ 01:00:00 ┆ 0          ┆ 0.0       │
+│ …        ┆ …          ┆ …         │
+│ 22:45:00 ┆ 667        ┆ 53.427145 │
+│ 23:00:00 ┆ 613        ┆ 53.305987 │
+│ 23:15:00 ┆ 600        ┆ 56.872362 │
+│ 23:30:00 ┆ 556        ┆ 59.371307 │
+│ 23:45:00 ┆ 387        ┆ 68.971608 │
+└──────────┴────────────┴───────────┘
+Filling Class2MFD: 
+Class:  0
+Class:  1
+Class:  2
+Class:  3
+Compute MFD Variables:
+Compute MFD Variables:
+Compute MFD Variables:
+Compute MFD Variables:
+Reading timed_fluxes
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-08-05_2022-08-05_timed_fluxes.csv
+No Subnetworks to Plot
+Plotting Daily Incremental Subnetworks in HTML
+Save in:  Initialiaze Mobility and Network for Date: 2022-12-31
+Warning: Not Initialized Class2MFD
+Reading fcm_centers
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-12-31_2022-12-31_fcm_centers.csv
+Reading fcm
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-12-31_2022-12-31_fcm.csv
+Reading fcm_new
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-12-31_2022-12-31_fcm_new.csv
+1st join Fcm:  ['id_act', 'lenght', 'time', 'av_speed', 'v_max', 'v_min', 'cnt', 'av_accel', 'a_max', 'class', 'p', 'time_hours', 'class_new']
+Date:  2022-12-31
+renamed:  ['id_act', 'lenght', 'time', 'av_speed', 'v_max', 'v_min', 'cnt', 'av_accel', 'a_max', 'class', 'p', 'time_hours', 'class_new']
+Reading stats
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-12-31_2022-12-31_stats.csv
+Road exception:  
+Road exception:  
+Road exception:  
+Road exception:  
+Get increasingly included subnets
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-12-31_2022-12-310_class_subnet.txt
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-12-31_2022-12-311_class_subnet.txt
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-12-31_2022-12-312_class_subnet.txt
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-12-31_2022-12-313_class_subnet.txt
+Reading GeoJson
+Reading fluxes_sub
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/weights/bologna_mdt_2022-12-31_2022-12-31.fluxes.sub
+FluxesSubFile not found
+Computing MFD Variables from Fcm
+Computing MFD Variables from Stats
+Compute MFD Variables:
+MFD: 
+shape: (96, 3)
+┌──────────┬────────────┬───────────┐
+│ time     ┆ population ┆ speed     │
+│ ---      ┆ ---        ┆ ---       │
+│ str      ┆ i64        ┆ f64       │
+╞══════════╪════════════╪═══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       │
+│ 00:15:00 ┆ 0          ┆ 0.0       │
+│ 00:30:00 ┆ 0          ┆ 0.0       │
+│ 00:45:00 ┆ 25         ┆ 38.019963 │
+│ 01:00:00 ┆ 1413       ┆ 33.254682 │
+│ …        ┆ …          ┆ …         │
+│ 22:45:00 ┆ 207        ┆ 38.656614 │
+│ 23:00:00 ┆ 216        ┆ 40.770745 │
+│ 23:15:00 ┆ 188        ┆ 38.395337 │
+│ 23:30:00 ┆ 174        ┆ 41.098494 │
+│ 23:45:00 ┆ 130        ┆ 50.163512 │
+└──────────┴────────────┴───────────┘
+Filling Class2MFD: 
+Class:  0
+Class:  1
+Class:  2
+Class:  3
+Compute MFD Variables:
+Compute MFD Variables:
+Compute MFD Variables:
+Compute MFD Variables:
+Reading timed_fluxes
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-12-31_2022-12-31_timed_fluxes.csv
+No Subnetworks to Plot
+Plotting Daily Incremental Subnetworks in HTML
+Save in:  /home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/plots/2022-12-31/SubnetsIncrementalInclusion_2022-12-31.html
+[62, 63, 238, 304, 405, 407, 447, 448, 449, 450]
+[7, 24, 33, 34, 37, 38, 39, 40, 41, 51]
+[2, 3, 4, 5, 6, 8, 9, 10, 11, 12]
+[1, 869, 2432, 2433, 2435, 4766, 7063, 7168, 8660, 19023]
+Plotting Class  0
+Number of Roads:  3917
+Class:  0  Number of Roads:  3875 Color:  blue
+Plotting Class  1
+Number of Roads:  12169
+Class:  1  Number of Roads:  11951 Color:  green
+Plotting Class  2
+Number of Roads:  9155
+Class:  2  Number of Roads:  8847 Color:  yellow
+Plotting Class  3
+Number of Roads:  33
+Class:  3  Number of Roads:  33 Color:  red
+Get MFD For Plot: None
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population
+Get Lower Bounds From Bins: speed
+
+Interval Error:  15.004645532206865
+After GetMFDForPlot:
+
+Plotting MFD:
+
+Get MFD For Plot: 0
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 0
+Get Lower Bounds From Bins: speed Class 0
+
+Interval Error:  6.677965629906692
+After GetMFDForPlot Class 0:
+
+Plotting MFD:
+
+Get MFD For Plot: 1
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 1
+Get Lower Bounds From Bins: speed Class 1
+
+Interval Error:  26.31392946610206
+After GetMFDForPlot Class 1:
+
+Plotting MFD:
+
+Get MFD For Plot: 2
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 2
+Get Lower Bounds From Bins: speed Class 2
+
+Interval Error:  24.96533692934929
+After GetMFDForPlot Class 2:
+
+Plotting MFD:
+
+Get MFD For Plot: 3
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 3
+Get Lower Bounds From Bins: speed Class 3
+
+Interval Error:  112.77179326838295
+After GetMFDForPlot Class 3:
+
+Plotting MFD:
+
+Reading fluxes
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/weights/bologna_mdt_2022-12-31_2022-12-31.fluxes
+No fluxes
+all different groups colored differently
+Initialiaze Mobility and Network for Date: 2022-01-31
+Warning: Not Initialized Class2MFD
+Reading fcm_centers
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-01-31_2022-01-31_fcm_centers.csv
+Reading fcm
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-01-31_2022-01-31_fcm.csv
+Reading fcm_new
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-01-31_2022-01-31_fcm_new.csv
+1st join Fcm:  ['id_act', 'lenght', 'time', 'av_speed', 'v_max', 'v_min', 'cnt', 'av_accel', 'a_max', 'class', 'p', 'time_hours', 'class_new']
+Date:  2022-01-31
+renamed:  ['id_act', 'lenght', 'time', 'av_speed', 'v_max', 'v_min', 'cnt', 'av_accel', 'a_max', 'class', 'p', 'time_hours', 'class_new']
+Reading stats
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-01-31_2022-01-31_stats.csv
+Road exception:  
+Road exception:  
+Road exception:  
+Road exception:  
+Get increasingly included subnets
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-01-31_2022-01-310_class_subnet.txt
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-01-31_2022-01-311_class_subnet.txt
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-01-31_2022-01-312_class_subnet.txt
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-01-31_2022-01-313_class_subnet.txt
+Reading GeoJson
+Reading fluxes_sub
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/weights/bologna_mdt_2022-01-31_2022-01-31.fluxes.sub
+FluxesSubFile not found
+Computing MFD Variables from Fcm
+Computing MFD Variables from Stats
+Compute MFD Variables:
+MFD: 
+shape: (96, 3)
+┌──────────┬────────────┬───────────┐
+│ time     ┆ population ┆ speed     │
+│ ---      ┆ ---        ┆ ---       │
+│ str      ┆ i64        ┆ f64       │
+╞══════════╪════════════╪═══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       │
+│ 00:15:00 ┆ 0          ┆ 0.0       │
+│ 00:30:00 ┆ 0          ┆ 0.0       │
+│ 00:45:00 ┆ 0          ┆ 0.0       │
+│ 01:00:00 ┆ 0          ┆ 0.0       │
+│ …        ┆ …          ┆ …         │
+│ 22:45:00 ┆ 186        ┆ 45.684801 │
+│ 23:00:00 ┆ 181        ┆ 48.591985 │
+│ 23:15:00 ┆ 171        ┆ 52.639133 │
+│ 23:30:00 ┆ 133        ┆ 53.935828 │
+│ 23:45:00 ┆ 76         ┆ 57.437125 │
+└──────────┴────────────┴───────────┘
+Filling Class2MFD: 
+Class:  0
+Class:  1
+Class:  2
+Class:  3
+Compute MFD Variables:
+Compute MFD Variables:
+Compute MFD Variables:
+Compute MFD Variables:
+Reading timed_fluxes
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-01-31_2022-01-31_timed_fluxes.csv
+No Subnetworks to Plot
+Plotting Daily Incremental Subnetworks in HTML
+Save in:  Initialiaze Mobility and Network for Date: 2022-07-01
+Warning: Not Initialized Class2MFD
+Reading fcm_centers
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-07-01_2022-07-01_fcm_centers.csv
+Reading fcm
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-07-01_2022-07-01_fcm.csv
+Reading fcm_new
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-07-01_2022-07-01_fcm_new.csv
+No fcm_new
+Reading stats
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-07-01_2022-07-01_stats.csv
+Road exception:  
+FluxesSubFile not found
+Get increasingly included subnets
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-07-01_2022-07-010_class_subnet.txt
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-07-01_2022-07-011_class_subnet.txt
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-07-01_2022-07-012_class_subnet.txt
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-07-01_2022-07-013_class_subnet.txt
+Reading GeoJson
+Reading fluxes_sub
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/weights/bologna_mdt_2022-07-01_2022-07-01.fluxes.sub
+FluxesSubFile not found
+Computing MFD Variables from Fcm
+Computing MFD Variables from Stats
+Compute MFD Variables:
+MFD: 
+shape: (96, 3)
+┌──────────┬────────────┬───────────┐
+│ time     ┆ population ┆ speed     │
+│ ---      ┆ ---        ┆ ---       │
+│ str      ┆ i64        ┆ f64       │
+╞══════════╪════════════╪═══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       │
+│ 00:15:00 ┆ 0          ┆ 0.0       │
+│ 00:30:00 ┆ 0          ┆ 0.0       │
+│ 00:45:00 ┆ 0          ┆ 0.0       │
+│ 01:00:00 ┆ 0          ┆ 0.0       │
+│ …        ┆ …          ┆ …         │
+│ 22:45:00 ┆ 849        ┆ 46.79497  │
+│ 23:00:00 ┆ 753        ┆ 43.017713 │
+│ 23:15:00 ┆ 600        ┆ 45.783574 │
+│ 23:30:00 ┆ 626        ┆ 49.208299 │
+│ 23:45:00 ┆ 384        ┆ 52.218371 │
+└──────────┴────────────┴───────────┘
+Filling Class2MFD: 
+Class:  0
+Class:  1
+Class:  2
+Class:  3
+Compute MFD Variables:
+Compute MFD Variables:
+Compute MFD Variables:
+Compute MFD Variables:
+Reading timed_fluxes
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-07-01_2022-07-01_timed_fluxes.csv
+No Subnetworks to Plot
+No Subnetworks to Plot
+Get MFD For Plot: None
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population
+Get Lower Bounds From Bins: speed
+
+Interval Error:  53.19914153839286
+After GetMFDForPlot:
+
+Plotting MFD:
+
+Get MFD For Plot: 0
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 0
+Get Lower Bounds From Bins: speed Class 0
+
+Interval Error:  9.074316814869112
+After GetMFDForPlot Class 0:
+
+Plotting MFD:
+
+Get MFD For Plot: 1
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 1
+Get Lower Bounds From Bins: speed Class 1
+
+Interval Error:  31.495120592933638
+After GetMFDForPlot Class 1:
+
+Plotting MFD:
+
+Get MFD For Plot: 2
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 2
+Get Lower Bounds From Bins: speed Class 2
+
+Interval Error:  39.13350289202411
+After GetMFDForPlot Class 2:
+
+Plotting MFD:
+
+Get MFD For Plot: 3
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 3
+Get Lower Bounds From Bins: speed Class 3
+
+Interval Error:  106.96517834862385
+After GetMFDForPlot Class 3:
+
+Plotting MFD:
+
+Reading fluxes
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/weights/bologna_mdt_2022-07-01_2022-07-01.fluxes
+No fluxes
+all different groups colored differently
+Initialiaze Mobility and Network for Date: 2023-03-18
+Warning: Not Initialized Class2MFD
+Reading fcm_centers
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2023-03-18_2023-03-18_fcm_centers.csv
+Reading fcm
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2023-03-18_2023-03-18_fcm.csv
+Reading fcm_new
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2023-03-18_2023-03-18_fcm_new.csv
+1st join Fcm:  ['id_act', 'lenght', 'time', 'av_speed', 'v_max', 'v_min', 'cnt', 'av_accel', 'a_max', 'class', 'p', 'time_hours', 'class_new']
+Date:  2023-03-18
+renamed:  ['id_act', 'lenght', 'time', 'av_speed', 'v_max', 'v_min', 'cnt', 'av_accel', 'a_max', 'class', 'p', 'time_hours', 'class_new']
+Reading stats
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2023-03-18_2023-03-18_stats.csv
+Road exception:  
+Road exception:  
+Road exception:  
+Road exception:  
+Get increasingly included subnets
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2023-03-18_2023-03-180_class_subnet.txt
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2023-03-18_2023-03-181_class_subnet.txt
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2023-03-18_2023-03-182_class_subnet.txt
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2023-03-18_2023-03-183_class_subnet.txt
+Reading GeoJson
+Reading fluxes_sub
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/weights/bologna_mdt_2023-03-18_2023-03-18.fluxes.sub
+FluxesSubFile not found
+Computing MFD Variables from Fcm
+Computing MFD Variables from Stats
+Compute MFD Variables:
+MFD: 
+shape: (96, 3)
+┌──────────┬────────────┬───────────┐
+│ time     ┆ population ┆ speed     │
+│ ---      ┆ ---        ┆ ---       │
+│ str      ┆ i64        ┆ f64       │
+╞══════════╪════════════╪═══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       │
+│ 00:15:00 ┆ 0          ┆ 0.0       │
+│ 00:30:00 ┆ 0          ┆ 0.0       │
+│ 00:45:00 ┆ 53         ┆ 34.593881 │
+│ 01:00:00 ┆ 2053       ┆ 33.600349 │
+│ …        ┆ …          ┆ …         │
+│ 22:45:00 ┆ 280        ┆ 41.793099 │
+│ 23:00:00 ┆ 316        ┆ 44.937954 │
+│ 23:15:00 ┆ 298        ┆ 48.017434 │
+│ 23:30:00 ┆ 265        ┆ 45.193948 │
+│ 23:45:00 ┆ 201        ┆ 52.991801 │
+└──────────┴────────────┴───────────┘
+Filling Class2MFD: 
+Class:  0
+Class:  1
+Class:  2
+Class:  3
+Compute MFD Variables:
+Compute MFD Variables:
+Compute MFD Variables:
+Compute MFD Variables:
+Reading timed_fluxes
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2023-03-18_2023-03-18_timed_fluxes.csv
+No Subnetworks to Plot
+Plotting Daily Incremental Subnetworks in HTML
+Save in:  /home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/plots/2023-03-18/SubnetsIncrementalInclusion_2023-03-18.html
+[9, 16, 20, 45, 62, 63, 82, 94, 159, 165]
+[29, 33, 34, 35, 37, 38, 39, 40, 41, 51]
+[2, 3, 4, 5, 6, 7, 8, 10, 12, 13]
+[1, 780, 869, 2432, 2433, 2435, 3861, 4766, 7063, 7168]
+Plotting Class  0
+Number of Roads:  2641
+Class:  0  Number of Roads:  2574 Color:  blue
+Plotting Class  1
+Number of Roads:  13190
+Class:  1  Number of Roads:  12988 Color:  green
+Plotting Class  2
+Number of Roads:  8187
+Class:  2  Number of Roads:  7897 Color:  yellow
+Plotting Class  3
+Number of Roads:  89
+Class:  3  Number of Roads:  89 Color:  red
+Get MFD For Plot: None
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population
+Get Lower Bounds From Bins: speed
+
+Interval Error:  46.73239583257109
+After GetMFDForPlot:
+
+Plotting MFD:
+
+Get MFD For Plot: 0
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 0
+Get Lower Bounds From Bins: speed Class 0
+
+Interval Error:  6.700364233607293
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/plots/2022-08-05/SubnetsIncrementalInclusion_2022-08-05.html
+[9, 24, 62, 63, 64, 65, 66, 67, 80, 81]
+[20, 23, 26, 29, 32, 33, 34, 35, 36, 37]
+[2, 3, 4, 5, 6, 7, 8, 10, 12, 13]
+[206, 2415, 2431, 2434, 2435, 2493, 2619, 3387, 3804, 4766]
+Plotting Class  0
+Number of Roads:  3418
+Class:  0  Number of Roads:  3331 Color:  blue
+Plotting Class  1
+Number of Roads:  15514
+Class:  1  Number of Roads:  15245 Color:  green
+Plotting Class  2
+Number of Roads:  5912
+Class:  2  Number of Roads:  5699 Color:  yellow
+Plotting Class  3
+Number of Roads:  56
+Class:  3  Number of Roads:  56 Color:  red
+Get MFD For Plot: None
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population
+Get Lower Bounds From Bins: speed
+
+Interval Error:  65.4235539558918
+After GetMFDForPlot:
+
+Plotting MFD:
+
+Get MFD For Plot: 0
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 0
+Get Lower Bounds From Bins: speed Class 0
+
+Interval Error:  4.77626744802342
+After GetMFDForPlot Class 0:
+
+Plotting MFD:
+
+Get MFD For Plot: 1
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 1
+Get Lower Bounds From Bins: speed Class 1
+
+Interval Error:  14.3333549104545
+After GetMFDForPlot Class 1:
+
+Plotting MFD:
+
+Get MFD For Plot: 2
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 2
+Get Lower Bounds From Bins: speed Class 2
+
+Interval Error:  61.46719068125165
+After GetMFDForPlot Class 2:
+
+Plotting MFD:
+
+Get MFD For Plot: 3
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 3
+Get Lower Bounds From Bins: speed Class 3
+
+Interval Error:  106.45223525691699
+After GetMFDForPlot Class 3:
+
+Plotting MFD:
+
+Reading fluxes
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/weights/bologna_mdt_2022-08-05_2022-08-05.fluxes
+No fluxes
+all different groups colored differently
+Initialiaze Mobility and Network for Date: 2022-12-30
+Warning: Not Initialized Class2MFD
+Reading fcm_centers
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-12-30_2022-12-30_fcm_centers.csv
+Reading fcm
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-12-30_2022-12-30_fcm.csv
+Reading fcm_new
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-12-30_2022-12-30_fcm_new.csv
+1st join Fcm:  ['id_act', 'lenght', 'time', 'av_speed', 'v_max', 'v_min', 'cnt', 'av_accel', 'a_max', 'class', 'p', 'time_hours', 'class_new']
+Date:  2022-12-30
+renamed:  ['id_act', 'lenght', 'time', 'av_speed', 'v_max', 'v_min', 'cnt', 'av_accel', 'a_max', 'class', 'p', 'time_hours', 'class_new']
+Reading stats
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-12-30_2022-12-30_stats.csv
+Road exception:  
+Road exception:  
+Road exception:  
+Road exception:  
+Get increasingly included subnets
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-12-30_2022-12-300_class_subnet.txt
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-12-30_2022-12-301_class_subnet.txt
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-12-30_2022-12-302_class_subnet.txt
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-12-30_2022-12-303_class_subnet.txt
+Reading GeoJson
+Reading fluxes_sub
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/weights/bologna_mdt_2022-12-30_2022-12-30.fluxes.sub
+FluxesSubFile not found
+Computing MFD Variables from Fcm
+Computing MFD Variables from Stats
+Compute MFD Variables:
+MFD: 
+shape: (96, 3)
+┌──────────┬────────────┬───────────┐
+│ time     ┆ population ┆ speed     │
+│ ---      ┆ ---        ┆ ---       │
+│ str      ┆ i64        ┆ f64       │
+╞══════════╪════════════╪═══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       │
+│ 00:15:00 ┆ 0          ┆ 0.0       │
+│ 00:30:00 ┆ 0          ┆ 0.0       │
+│ 00:45:00 ┆ 0          ┆ 0.0       │
+│ 01:00:00 ┆ 1          ┆ 88.70616  │
+│ …        ┆ …          ┆ …         │
+│ 22:45:00 ┆ 249        ┆ 47.914521 │
+│ 23:00:00 ┆ 266        ┆ 53.890633 │
+│ 23:15:00 ┆ 224        ┆ 48.269482 │
+│ 23:30:00 ┆ 194        ┆ 49.121835 │
+│ 23:45:00 ┆ 164        ┆ 58.49734  │
+└──────────┴────────────┴───────────┘
+Filling Class2MFD: 
+Class:  0
+Class:  1
+Class:  2
+Class:  3
+Compute MFD Variables:
+Compute MFD Variables:
+Compute MFD Variables:
+Compute MFD Variables:
+Reading timed_fluxes
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-12-30_2022-12-30_timed_fluxes.csv
+No Subnetworks to Plot
+Plotting Daily Incremental Subnetworks in HTML
+Save in:  /home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/plots/2022-12-30/SubnetsIncrementalInclusion_2022-12-30.html
+[7, 9, 11, 16, 20, 24, 45, 51, 81, 93]
+[2, 3, 15, 23, 26, 27, 28, 29, 30, 31]
+[4, 5, 6, 8, 10, 12, 13, 14, 17, 18]
+[869, 2274, 2416, 2432, 2433, 2435, 3119, 3150, 3386, 3846]
+Plotting Class  0
+Number of Roads:  3411
+Class:  0  Number of Roads:  3323 Color:  blue
+Plotting Class  1
+Number of Roads:  14277
+Class:  1  Number of Roads:  14026 Color:  green
+Plotting Class  2
+Number of Roads:  4764
+Class:  2  Number of Roads:  4563 Color:  yellow
+Plotting Class  3
+Number of Roads:  61
+Class:  3  Number of Roads:  61 Color:  red
+Get MFD For Plot: None
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population
+Get Lower Bounds From Bins: speed
+
+Interval Error:  14.50721951808643
+After GetMFDForPlot:
+
+Plotting MFD:
+
+Get MFD For Plot: 0
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 0
+Get Lower Bounds From Bins: speed Class 0
+
+Interval Error:  8.486141344615383
+After GetMFDForPlot Class 0:
+
+Plotting MFD:
+
+Get MFD For Plot: 1
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 1
+Get Lower Bounds From Bins: speed Class 1
+
+Interval Error:  30.366191995922843
+After GetMFDForPlot Class 1:
+
+Plotting MFD:
+
+Get MFD For Plot: 2
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 2
+Get Lower Bounds From Bins: speed Class 2
+
+Interval Error:  61.743804821904
+After GetMFDForPlot Class 2:
+
+Plotting MFD:
+
+Get MFD For Plot: 3
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 3
+Get Lower Bounds From Bins: speed Class 3
+
+Interval Error:  112.14145297297297
+After GetMFDForPlot Class 3:
+
+Plotting MFD:
+
+Reading fluxes
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/weights/bologna_mdt_2022-12-30_2022-12-30.fluxes
+No fluxes
+all different groups colored differently
+Initialiaze Mobility and Network for Date: 2022-11-11
+Warning: Not Initialized Class2MFD
+Reading fcm_centers
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-11-11_2022-11-11_fcm_centers.csv
+Reading fcm
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-11-11_2022-11-11_fcm.csv
+Reading fcm_new
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-11-11_2022-11-11_fcm_new.csv
+1st join Fcm:  ['id_act', 'lenght', 'time', 'av_speed', 'v_max', 'v_min', 'cnt', 'av_accel', 'a_max', 'class', 'p', 'time_hours', 'class_new']
+Date:  2022-11-11
+renamed:  ['id_act', 'lenght', 'time', 'av_speed', 'v_max', 'v_min', 'cnt', 'av_accel', 'a_max', 'class', 'p', 'time_hours', 'class_new']
+Reading stats
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-11-11_2022-11-11_stats.csv
+Road exception:  
+Road exception:  
+Road exception:  
+Road exception:  
+Get increasingly included subnets
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-11-11_2022-11-110_class_subnet.txt
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-11-11_2022-11-111_class_subnet.txt
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-11-11_2022-11-112_class_subnet.txt
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-11-11_2022-11-113_class_subnet.txt
+Reading GeoJson
+Reading fluxes_sub
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/weights/bologna_mdt_2022-11-11_2022-11-11.fluxes.sub
+FluxesSubFile not found
+Computing MFD Variables from Fcm
+Computing MFD Variables from Stats
+Compute MFD Variables:
+MFD: 
+shape: (96, 3)
+┌──────────┬────────────┬───────────┐
+│ time     ┆ population ┆ speed     │
+│ ---      ┆ ---        ┆ ---       │
+│ str      ┆ i64        ┆ f64       │
+╞══════════╪════════════╪═══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       │
+│ 00:15:00 ┆ 0          ┆ 0.0       │
+│ 00:30:00 ┆ 0          ┆ 0.0       │
+│ 00:45:00 ┆ 0          ┆ 0.0       │
+│ 01:00:00 ┆ 2          ┆ 103.11804 │
+│ …        ┆ …          ┆ …         │
+│ 22:45:00 ┆ 319        ┆ 42.391837 │
+│ 23:00:00 ┆ 320        ┆ 44.746182 │
+│ 23:15:00 ┆ 278        ┆ 45.059812 │
+│ 23:30:00 ┆ 266        ┆ 45.632596 │
+│ 23:45:00 ┆ 193        ┆ 50.741123 │
+└──────────┴────────────┴───────────┘
+Filling Class2MFD: 
+Class:  0
+Class:  1
+Class:  2
+Class:  3
+Compute MFD Variables:
+Compute MFD Variables:
+Compute MFD Variables:
+Compute MFD Variables:
+Reading timed_fluxes
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-11-11_2022-11-11_timed_fluxes.csv
+No Subnetworks to Plot
+Plotting Daily Incremental Subnetworks in HTML
+Save in:  /home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/plots/2022-11-11/SubnetsIncrementalInclusion_2022-11-11.html
+[223, 323, 528, 533, 534, 537, 538, 540, 545, 559]
+[2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+[206, 213, 871, 872, 881, 2274, 2325, 2327, 2329, 2385]
+[807, 809, 869, 870, 874, 2384, 2414, 2709, 2710, 2732]
+Plotting Class  0
+Number of Roads:  4162
+Class:  0  Number of Roads:  4096 Color:  blue
+Plotting Class  1
+Number of Roads:  16465
+Class:  1  Number of Roads:  16013 Color:  green
+Plotting Class  2
+Number of Roads:  306
+Class:  2  Number of Roads:  302 Color:  yellow
+Plotting Class  3
+Number of Roads:  150
+Class:  3  Number of Roads:  150 Color:  red
+Get MFD For Plot: None
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population
+Get Lower Bounds From Bins: speed
+
+Interval Error:  47.19262602466032
+After GetMFDForPlot:
+
+Plotting MFD:
+
+Get MFD For Plot: 0
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 0
+Get Lower Bounds From Bins: speed Class 0
+
+Interval Error:  11.021761076614418
+After GetMFDForPlot Class 0:
+
+Plotting MFD:
+
+Get MFD For Plot: 1
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 1
+Get Lower Bounds From Bins: speed Class 1
+
+Interval Error:  36.24784599973209
+After GetMFDForPlot Class 1:
+
+Plotting MFD:
+
+Get MFD For Plot: 2
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 2
+Get Lower Bounds From Bins: speed Class 2
+
+Interval Error:  37.18821865098406
+After GetMFDForPlot Class 2:
+
+Plotting MFD:
+
+Get MFD For Plot: 3
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 3
+Get Lower Bounds From Bins: speed Class 3
+
+Interval Error:  122.84938800000002
+After GetMFDForPlot Class 3:
+
+Plotting MFD:
+
+Reading fluxes
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/weights/bologna_mdt_2022-11-11_2022-11-11.fluxes
+No fluxes
+all different groups colored differently
+After GetMFDForPlot Class 0:
+
+Plotting MFD:
+
+Get MFD For Plot: 1
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 1
+Get Lower Bounds From Bins: speed Class 1
+
+Interval Error:  26.944074571428573
+After GetMFDForPlot Class 1:
+
+Plotting MFD:
+
+Get MFD For Plot: 2
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 2
+Get Lower Bounds From Bins: speed Class 2
+
+Interval Error:  54.59590842976818
+After GetMFDForPlot Class 2:
+
+Plotting MFD:
+
+Get MFD For Plot: 3
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 3
+Get Lower Bounds From Bins: speed Class 3
+
+Interval Error:  105.7398045283019
+After GetMFDForPlot Class 3:
+
+Plotting MFD:
+
+Reading fluxes
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/weights/bologna_mdt_2023-03-18_2023-03-18.fluxes
+No fluxes
+all different groups colored differently
+Initialiaze Mobility and Network for Date: 2022-05-12
+Warning: Not Initialized Class2MFD
+Reading fcm_centers
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-05-12_2022-05-12_fcm_centers.csv
+Reading fcm
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-05-12_2022-05-12_fcm.csv
+Reading fcm_new
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-05-12_2022-05-12_fcm_new.csv
+1st join Fcm:  ['id_act', 'lenght', 'time', 'av_speed', 'v_max', 'v_min', 'cnt', 'av_accel', 'a_max', 'class', 'p', 'time_hours', 'class_new']
+Date:  2022-05-12
+renamed:  ['id_act', 'lenght', 'time', 'av_speed', 'v_max', 'v_min', 'cnt', 'av_accel', 'a_max', 'class', 'p', 'time_hours', 'class_new']
+Reading stats
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-05-12_2022-05-12_stats.csv
+Road exception:  
+Road exception:  
+Road exception:  
+Road exception:  
+Get increasingly included subnets
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-05-12_2022-05-120_class_subnet.txt
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-05-12_2022-05-121_class_subnet.txt
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-05-12_2022-05-122_class_subnet.txt
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-05-12_2022-05-123_class_subnet.txt
+Reading GeoJson
+Reading fluxes_sub
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/weights/bologna_mdt_2022-05-12_2022-05-12.fluxes.sub
+Class:  0
+Fraction of roads considered:  80
+Number of Roads SubNetwork:  20309
+Class:  1
+Fraction of roads considered:  80
+Number of Roads SubNetwork:  19192
+Class:  2
+Fraction of roads considered:  80
+Number of Roads SubNetwork:  7690
+Class:  3
+Fraction of roads considered:  80
+Number of Roads SubNetwork:  205
+Class:  80
+Considering the Total Subnetwork indipendent on the Subclass
+Computing MFD Variables from Fcm
+Computing MFD Variables from Stats
+Compute MFD Variables:
+MFD: 
+shape: (96, 3)
+┌──────────┬────────────┬───────────┐
+│ time     ┆ population ┆ speed     │
+│ ---      ┆ ---        ┆ ---       │
+│ str      ┆ i64        ┆ f64       │
+╞══════════╪════════════╪═══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       │
+│ 00:15:00 ┆ 0          ┆ 0.0       │
+│ 00:30:00 ┆ 0          ┆ 0.0       │
+│ 00:45:00 ┆ 0          ┆ 0.0       │
+│ 01:00:00 ┆ 0          ┆ 0.0       │
+│ …        ┆ …          ┆ …         │
+│ 22:45:00 ┆ 622        ┆ 39.816421 │
+│ 23:00:00 ┆ 527        ┆ 39.835759 │
+│ 23:15:00 ┆ 450        ┆ 44.640538 │
+│ 23:30:00 ┆ 381        ┆ 42.863913 │
+│ 23:45:00 ┆ 237        ┆ 51.996831 │
+└──────────┴────────────┴───────────┘
+Filling Class2MFD: 
+Class:  0
+Class:  1
+Class:  2
+Class:  3
+Compute MFD Variables:
+Compute MFD Variables:
+Compute MFD Variables:
+Compute MFD Variables:
+Reading timed_fluxes
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-05-12_2022-05-12_timed_fluxes.csv
+Plotting Daily Subnetworks in HTML
+Plotting Daily Incremental Subnetworks in HTML
+Save in:  /home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/plots/2022-05-12/SubnetsIncrementalInclusion_2022-05-12.html
+[7, 9, 16, 58, 59, 60, 61, 62, 63, 72]
+[20, 24, 26, 29, 32, 33, 35, 36, 37, 38]
+[2, 3, 4, 5, 6, 8, 10, 12, 13, 14]
+[1, 198, 205, 769, 770, 772, 773, 859, 2258, 2370]
+Plotting Class  0
+Number of Roads:  3105
+Class:  0  Number of Roads:  3105 Color:  blue
+Plotting Class  1
+Number of Roads:  13155
+Class:  1  Number of Roads:  13155 Color:  green
+Plotting Class  2
+Number of Roads:  7485
+Class:  2  Number of Roads:  7485 Color:  yellow
+Plotting Class  3
+Number of Roads:  205
+Class:  3  Number of Roads:  205 Color:  red
+VelTimePercorrenceFile not found
+Get MFD For Plot: None
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population
+Get Lower Bounds From Bins: speed
+
+Interval Error:  50.00231695724253
+After GetMFDForPlot:
+
+Plotting MFD:
+
+Get MFD For Plot: 0
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 0
+Get Lower Bounds From Bins: speed Class 0
+
+Interval Error:  5.460025878511869
+After GetMFDForPlot Class 0:
+
+Plotting MFD:
+
+Get MFD For Plot: 1
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 1
+Get Lower Bounds From Bins: speed Class 1
+
+Interval Error:  27.132257189189193
+After GetMFDForPlot Class 1:
+
+Plotting MFD:
+
+Get MFD For Plot: 2
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 2
+Get Lower Bounds From Bins: speed Class 2
+
+Interval Error:  55.32204600801932
+After GetMFDForPlot Class 2:
+
+Plotting MFD:
+
+Get MFD For Plot: 3
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 3
+Get Lower Bounds From Bins: speed Class 3
+
+Interval Error:  101.66409433315678
+After GetMFDForPlot Class 3:
+
+Plotting MFD:
+
+Reading fluxes
+/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/weights/bologna_mdt_2022-05-12_2022-05-12.fluxes
+all different groups colored differently
+Associate AvSpeed to StrClass

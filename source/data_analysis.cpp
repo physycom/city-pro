@@ -650,9 +650,6 @@ std::vector<int> unique_vector(std::vector<int> classes){
         else unique.push_back(c);
     }
     std::sort(unique.begin(),unique.end());
-    for(auto &u:unique){
-        std::cout<<"unique: "<<u<<std::endl;
-    }
     return unique;
 }
 
@@ -959,6 +956,7 @@ void dump_longest_traj(std::vector<traj_base> &traj)
 
 void make_bp_traj(std::vector<traj_base> &traj,config &config_,double &sigma,data_loss &dataloss,std::vector<poly_base> &poly,std::vector<centers_fcm_base> &centers_fcm,std::vector<node_base> &node,std::vector<std::map<int,int>> &classes_flux)
 {
+    std::cout << "Computing Best Path Trajectories..." << std::endl;
     list<pair<int, double>> path, join_path;
     int cnt = 0, cnt_bestpoly = 0;
 
@@ -1027,6 +1025,7 @@ void make_bp_traj(std::vector<traj_base> &traj,config &config_,double &sigma,dat
 //----------------------------------------------------------------------------------------------------
 void make_polygons_analysis(config &config_,std::vector<centers_fcm_base> &centers_fcm,std::vector<traj_base> &traj,std::vector<polygon_base> &polygon)
 {
+    std::cout << "Polygons Analysis..." << std::endl;
     if (polygon.size() == 0)
         return;
 
@@ -1643,9 +1642,6 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
                 cw.feat_vector.push_back((*(fcm2->get_cluster_center()))(fcm2->get_reordered_map_centers_value(n), m));
             centers_fcm_slow.push_back(cw);
         }
-        for (auto &c : centers_fcm_slow){
-            std::cout<< "centers fcm slow: " << c.idx << " velocity: " << c.feat_vector[0] << std::endl;
-        }
 
         // SET ORDERED INDICES
         int slow_id2 = 0; int medium_id2 = 1;
@@ -1655,19 +1651,14 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
         for (auto &c: centers_fcm_slow){
             std::cout << "index " << c.idx << "velocity " << c.feat_vector[0] << std::endl;
         }
-        std::cout << "Index and Velocity for Classes in Centers Fcm Without Slow Classification: " << std::endl;
+
         for (auto &c : centers_fcm){
             if (c.idx >= 1 && c.idx != 10){
                 c.idx += 1;
             }
-            std::cout<< "centers fcm: " << c.idx << " velocity: " << c.feat_vector[0] << std::endl;
         }
 
         centers_fcm.insert(centers_fcm.begin()+1,centers_fcm_slow[1]);
-        for (auto &c : centers_fcm){
-            std::cout<< "centers fcm: " << c.idx << " velocity: " << c.feat_vector[0] << std::endl;
-        }
-
         // update centers_fcm: idx
         centers_fcm[1].idx = 1;
         // EXTEND VECTOR P_CLUSTER for each trajectory
@@ -1703,7 +1694,6 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
 
         }
 
-        std::cout << "DEBUG: fcm2 txt" << std::endl;
         ofstream out_fcm2(config_.cartout_basename + config_.name_pro + "_fcm2.txt");
         idx_2fcm = 0;         
         for (int n = 0; n < traj.size(); ++n)
@@ -1762,6 +1752,7 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
             }
 //ADDED ALBI ORDERING CENTERS_FCM
 */
+/*
             out_fcm2<< " trajectory number: "<< n <<std::endl;
             for(auto &p:traj[n].p_cluster){
                 out_fcm2 << p << ";";
@@ -1770,6 +1761,7 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
             out_fcm2 << " velocity: " << centers_fcm[traj[n].means_class].feat_vector[0] << " class: "<< traj[n].means_class << " average speed: " << traj[n].average_inst_speed<<std::endl;        
         }
         out_fcm2.close();
+*/        
         for (auto &c : centers_fcm)
         c.cnt = 0;
             // update centers_fcm: feat vector
@@ -2530,6 +2522,7 @@ vector<polystat_base> import_poly_stat(const string &filename)
 //----------------------------------------------------------------------------------------------------
 map<string, vector<int>> make_subnet(config &config_)
 {
+    std::cout << "make subnet" << std::endl;
     string file_fluxes = config_.cartout_basename + "/weights/" + config_.name_pro + ".fluxes";
     std::map<string, vector<int>> subnets;
     auto poly = import_poly_stat(file_fluxes); // leggo dal file che ho creato sopra.

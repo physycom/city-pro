@@ -1243,7 +1243,7 @@ class DailyNetworkStats:
                     if "speed" in Label:
                         ax.hist(df[Label].to_list(),bins = 50,alpha = 0.5)
                     else:
-                        ax.plot(y,x)
+                        ax.plot(y[1:],x)
                     av_speed = np.mean(df[Label].to_list())
                     legend.append(str(self.IntClass2StrClass[cl]) + " " + self.Column2Legend[Label] + " " + str(round(av_speed,3)))
                     self.Class2MaxCountSpeed[cl] = max(x)
@@ -1253,8 +1253,8 @@ class DailyNetworkStats:
             ax.set_ylabel('Count')
             ax.set_xlim(right = maxSpeed + self.Feature2ShiftBin[Label])
             ax.set_ylim(top = maxCount + self.Feature2ShiftCount[Label])
-            ax.set_xscale(self.Feature2ScaleBins[Label]["bins"])
-            ax.set_yscale(self.Feature2ScaleCount[Label]["count"])
+            ax.set_xscale(self.Feature2ScaleBins[Label])
+            ax.set_yscale(self.Feature2ScaleCount[Label])
             legend_ = plt.legend(legend)
             frame = legend_.get_frame()
             frame.set_facecolor('white')

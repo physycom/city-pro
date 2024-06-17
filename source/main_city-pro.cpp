@@ -155,14 +155,13 @@ int main(int argc, char **argv) {
     make_traj(analysis_container.activity,analysis_container.dataloss,analysis_container.traj,analysis_container.data_notoncarto,analysis_container.presence);//for t in traj_temp 1) activity->traj_temp 2) t.record -> t.stop_point 3)t.stop_point = sp_on_carto (vector clster_base)
     if (config_.enable_multimodality)
       {
-        cout << "make multimodality" << endl;
+//        cout << "make multimodality" << endl;
         make_multimodality(analysis_container.traj,analysis_container.config_,analysis_container.centers_fcm);}
-    cout << "make polygons analysis" << endl;
     make_polygons_analysis(analysis_container.config_,analysis_container.centers_fcm,analysis_container.traj,analysis_container.polygon);
-    cout << "make best path trajectories" << endl;
+//    cout << "make best path trajectories" << endl;
     make_bp_traj(analysis_container.traj,analysis_container.config_,analysis_container.sigma,analysis_container.dataloss,analysis_container.poly,analysis_container.centers_fcm,analysis_container.node,analysis_container.classes_flux);
     //dump_longest_traj(analysis_container.traj);
-    cout <<"make fluxes" <<endl;
+//    cout <<"make fluxes" <<endl;
     make_fluxes(analysis_container.traj,analysis_container.sigma,analysis_container.poly,analysis_container.centers_fcm,analysis_container.classes_flux);
 // OBSOLETO ora utilizzo dump_fluxes_file
     if (config_.jump2subnet_analysis == false){
@@ -178,7 +177,6 @@ int main(int argc, char **argv) {
           make_MFD(jconf,analysis_container.traj,analysis_container.centers_fcm);};
         if (config_.enable_subnet)
         {
-          cout << "make subnet" << endl;
           analysis_container.subnets = make_subnet(analysis_container.config_);
         };
         cout << "dump poly geojson" << endl;

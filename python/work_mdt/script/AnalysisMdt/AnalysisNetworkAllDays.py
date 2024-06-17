@@ -98,8 +98,8 @@ class NetworkAllDays:
             # {StrDay: {IntClassStrDay: IntClassRefDay}}
             for Class in self.DictClass2AvSpeed[MobDate.StrDate].keys():
                 # {StrDay: {IntClassStrDay: StrClassRefDay}}
-                self.Day2IntClass2StrClass[MobDate.StrDate][Class] = RefIntClass2StrClass[DictClass2AvSpeed[MobDate.StrDate][Class]]
-                self.Day2StrClass2IntClass[MobDate.StrDate][RefIntClass2StrClass[DictClass2AvSpeed[MobDate.StrDate][Class]]] = Class
+                self.Day2IntClass2StrClass[MobDate.StrDate][Class] = RefIntClass2StrClass[self.DictClass2AvSpeed[MobDate.StrDate][Class]]
+                self.Day2StrClass2IntClass[MobDate.StrDate][RefIntClass2StrClass[self.DictClass2AvSpeed[MobDate.StrDate][Class]]] = Class
         if self.verbose:
             print("Day to StrClass to intClass:\n",self.Day2StrClass2IntClass)
             print("Day to IntClass to StrClass:\n",self.Day2IntClass2StrClass)
@@ -215,8 +215,8 @@ class NetworkAllDays:
                         ax.plot(bins_[1:],count, bins = bins)  
                         ax.set_xlim(right = self.MinMaxPlot[Feature]["bins"])
                         ax.set_ylim(left = self.MinMaxPlot[Feature]["count"])
-                        ax.set_xscale(self.Feature2ScaleCount[Feature]["bins"])
-                        ax.set_yscale(self.Feature2ScaleCount[Feature]["count"])
+                        ax.set_xscale(self.Feature2ScaleBins[Feature])
+                        ax.set_yscale(self.Feature2ScaleCount[Feature])
                         ax.set_xlabel(self.Column2Label[Feature])
                         ax.set_ylabel("Count")
                         ax.set_title(StrClass)               
@@ -238,8 +238,8 @@ class NetworkAllDays:
                         ax.hist(MobDate.Fcm.filter(pl.col("str_class") == StrClass)[Feature], bins = 100)   
                         ax.set_xlim(right = self.MinMaxPlot[Feature]["bins"])
                         ax.set_ylim(left = self.MinMaxPlot[Feature]["count"])
-                        ax.set_xscale(self.Feature2ScaleCount[Feature]["bins"])
-                        ax.set_yscale(self.Feature2ScaleCount[Feature]["count"])
+                        ax.set_xscale(self.Feature2ScaleBins[Feature])
+                        ax.set_yscale(self.Feature2ScaleCount[Feature])
                         ax.set_xlabel(self.Column2Label[Feature])
                         ax.set_ylabel("Count")
                         ax.set_title(StrClass)
@@ -266,8 +266,8 @@ class NetworkAllDays:
                 ax.plot(bins_[1:],count, bins = bins)  
                 ax.set_xlim(right = self.MinMaxPlot[Feature]["bins"])
                 ax.set_ylim(left = self.MinMaxPlot[Feature]["count"])
-                ax.set_xscale(self.Feature2ScaleCount[Feature]["bins"])
-                ax.set_yscale(self.Feature2ScaleCount[Feature]["count"])
+                ax.set_xscale(self.Feature2ScaleBins[Feature])
+                ax.set_yscale(self.Feature2ScaleCount[Feature])
                 ax.set_xlabel(self.Column2Label[Feature])
                 ax.set_ylabel("Count")
                 ax.set_xlabel(self.Column2Label[Feature])
@@ -293,8 +293,8 @@ class NetworkAllDays:
                         ax.hist(NetDay.Fcm[Feature], bins = bins)   
                         ax.set_xlim(right = self.MinMaxPlot[Feature]["bins"])
                         ax.set_ylim(left = self.MinMaxPlot[Feature]["count"])
-                        ax.set_xscale(self.Feature2ScaleCount[Feature]["bins"])
-                        ax.set_yscale(self.Feature2ScaleCount[Feature]["count"])
+                        ax.set_xscale(self.Feature2ScaleBins[Feature])
+                        ax.set_yscale(self.Feature2ScaleCount[Feature])
                         ax.set_xlabel(self.Column2Label[Feature])
                         ax.set_ylabel("Count")
                         legend_.append(NetDay.StrDate)
