@@ -9,5 +9,59 @@
         "lon_max":"11.367472"
         },
     "geojson": "/home/aamad/Desktop/phd/codice/city-pro/bologna-provincia.geojson",
-    "verbose": false
+    "verbose": true,
+    "shift_bin":{
+        "av_speed": 3,
+        "av_speed_kmh": 0.5,
+        "lenght": 40,
+        "lenght_km": 0.5,
+        "time": 30,
+        "time_hours": 0.5,
+        "av_accel": 0.1},
+    "shift_count":{
+        "av_speed": 50,
+        "speed_kmh": 50,
+        "lenght": 50,
+        "lenght_km": 50,
+        "time": 50,
+        "time_hours": 50,
+        "av_accel": 50
+    },
+    "interval_bin":{
+        "av_speed": 10,
+        "speed_kmh": 10,
+        "lenght": 10,
+        "lenght_km": 10,
+        "time": 10,
+        "time_hours": 10,
+        "av_accel": 0.1
+    },
+    "interval_count":{
+        "av_speed": 300,
+        "speed_kmh": 300,
+        "lenght": 300,
+        "lenght_km": 300,
+        "time": 300,
+        "time_hours": 300,
+        "av_accel": 500
+    },
+    "scale_count":{
+        "av_speed": "linear",
+        "speed_kmh": "linear",
+        "lenght": "log",
+        "lenght_km": "log",
+        "time": "log",
+        "time_hours": "log",
+        "av_accel": "linear"
+    },
+    "scale_bins":{
+        "av_speed": "linear",
+        "speed_kmh": "linear",
+        "lenght": "linear",
+        "lenght_km": "linear",
+        "time": "linar",
+        "time_hours": "linear",
+        "av_accel": "linear"
     }
+
+}

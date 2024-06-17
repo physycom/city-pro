@@ -2,7 +2,56 @@
     This project is a C++,python project whose goal is to analyze mobile phone data in a format that is compatible with Telecom format.
     It is split in a first Cpp part responsible of the computation of the quantities of interest about trajectories and road network and a second part in python responsible for the plotting and analysis of the computed quantities. 
     
-        
+# Build & Launch
+The project works basing itself on powershell. If you use Linux or Mac make sure to install the powershell.
+
+## Linux
+```
+# Update the list of packages
+sudo apt-get update
+
+# Install pre-requisite packages.
+sudo apt-get install -y wget apt-transport-https software-properties-common
+
+# Get the version of Ubuntu
+source /etc/os-release
+
+# Download the Microsoft repository keys
+wget -q https://packages.microsoft.com/config/ubuntu/$VERSION_ID/packages-microsoft-prod.deb
+
+# Register the Microsoft repository keys
+sudo dpkg -i packages-microsoft-prod.deb
+
+# Delete the Microsoft repository keys file
+rm packages-microsoft-prod.deb
+
+# Update the list of packages after we added packages.microsoft.com
+sudo apt-get update
+
+###################################
+# Install PowerShell
+sudo apt-get install -y powershell
+
+# Start PowerShell
+pwsh
+git clone https://github.com/microsoft/vcpkg
+```
+
+#### Build
+```cd WORKSPACE/city-pro```  
+```git submodule update```  
+```./ccm/build.ps1 -UseVCPKG -DisableInteractive -DoNotUpdateTOOL -DoNotDeleteBuildFolder```
+#### Launch
+```/city-pro/bin/city-pro /path/to/configfile/configfile.json```
+
+## MacOs
+```brew install powershell/tap/powershell```  
+```git submodule update```
+#### Build
+
+```./ccm/build.ps1 -UseVCPKG -DisableInteractive -DoNotUpdateTOOL -DoNotDeleteBuildFolder```
+#### Launch
+```/city-pro/bin/city-pro /path/to/configfile/configfile.json```
 # Input:     
 REQUIRED:  
     
@@ -188,13 +237,15 @@ Telecom gives initial dataset day by day with a lot of fields and zipped. I have
 ##### COMMENT ON FUZZY ALGORITHM:
 Needs to be tuned, try different `num_tm` (3 or 4 for Bologna depending on the day). Increasing the number does not uncover the slow mobility (walkers,bikers), but it finds subgroups on higher velocity group.
 This bias is probably due to the sensitivity of the algorithm to the speed, giving more weight in for the separation for classes that have higher velocity.  
-# DEPRECATED
-3a.
-    ./python/config_subnet_create.py (README in the file)
-Output:
-    all_subnets.sh
-    work_geo/bologna_mdt_detailed/date/plot_subnet
-3b. analysis.ipynb (non è il top affatto)
+# LAUNCH ANALYSIS (WORK IN PROGRESS)
+
+   ``` ./python/config_subnet_create.py ```
+(README in the file)  
+Output:    
+    all_subnets.sh  
+    work_geo/bologna_mdt_detailed/date/plot_subnet  
+
+AnalysisPaper.ipynb (non è il top affatto)  
 Bisogna inserire manualmente gli indirizzi dove è salvata la roba nella prima cella. Fatto questo si possono runnare le altre celle.
 Poi lanciare cella per cella:
 Input:
@@ -206,7 +257,7 @@ Output:
     distribuzione lunghezze e tempi per ogni classe
     fondamental diagram per ogni classe
 
-4-------------------------------------------------- POSTPROCESSING AGGREGATION PYTHON
+#### POSTPROCESSING AGGREGATION PYTHON
 COMMAND:
     python3 fondamental_diagram_aggregated.py -c config_fundamental_diagram_aggregated.json
 Input:

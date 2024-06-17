@@ -1,0 +1,3 @@
+PyMC3 not installed
+Args:  Namespace(config_file='/home/aamad/Desktop/phd/codice/city-pro/config/')
+Base directory:  /home/aamad/Desktop/phd/codice/city-pro/config/
