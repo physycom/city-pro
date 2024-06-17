@@ -14,6 +14,7 @@ for StrDate in StrDates:
     config["cartout_basename"] = os.path.join(WORKSPACE,"city-pro","output","bologna_mdt_detailed") + "/"
     config["file_subnet"] = os.path.join(WORKSPACE,"city-pro","output","bologna_mdt_detailed","weights",BaseName + "_" + StrDate + "_" + StrDate + ".fluxes.sub") 
     config["enable_subnet"] = True
+    config["jump2subnet_analysis"] = True
     with open(os.path.join(WORKSPACE,"city-pro","bologna_mdt_detailed",StrDate,"config_bologna.json"),"w") as f:
         config = json.dump(config,f,indent=2)
 

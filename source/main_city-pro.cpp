@@ -140,46 +140,33 @@ int main(int argc, char **argv) {
 //vector <polygon_base> polygon;
 //map <unsigned long long int, int> poly_cid2lid;(questo è per avere un grafo più portatile probabilmente)
 
-// vado su carto.cpp
+// CARTOGRAPHY
     make_node(analysis_container.poly,analysis_container.node_cid2id,analysis_container.node);
-
-//
     make_mapping(analysis_container.poly,analysis_container.node);
     load_polygon(analysis_container.polygon,analysis_container.config_);
+// LOADING GPS DATA
     load_data(analysis_container.activity,analysis_container.config_);
-    sort_activity(analysis_container.activity); //for auto a:activity PROPERTIES: 1) a.itime<a++.itime, 2) measure a.length,.speed  3) measure a.record.speed,.acc
-//posso salvarmi in sort_activity le informazioni che mi servono per descrivere le traiettorie, le velocità. (l'inizializzazione di indx per activity and record è un'opzione per la funzione sotto.)
+    sort_activity(analysis_container.activity); 
+// BINNING ACTIVITIES
     if(config_.enable_bin_act)
       bin_activity(analysis_container.activity);
 
+//  ACTIVITY -> TRAJECTORY
     make_traj(analysis_container.activity,analysis_container.dataloss,analysis_container.traj,analysis_container.data_notoncarto,analysis_container.presence);//for t in traj_temp 1) activity->traj_temp 2) t.record -> t.stop_point 3)t.stop_point = sp_on_carto (vector clster_base)
-    if (config_.enable_multimodality)
-      {
-//        cout << "make multimodality" << endl;
-        make_multimodality(analysis_container.traj,analysis_container.config_,analysis_container.centers_fcm);}
+// FUZZY ALGORITHM -> fcm
+    if (config_.enable_multimodality) make_multimodality(analysis_container.traj,analysis_container.config_,analysis_container.centers_fcm);
+// PROJECT TRAJECTORIES on Cartography
     make_polygons_analysis(analysis_container.config_,analysis_container.centers_fcm,analysis_container.traj,analysis_container.polygon);
-//    cout << "make best path trajectories" << endl;
     make_bp_traj(analysis_container.traj,analysis_container.config_,analysis_container.sigma,analysis_container.dataloss,analysis_container.poly,analysis_container.centers_fcm,analysis_container.node,analysis_container.classes_flux);
-    //dump_longest_traj(analysis_container.traj);
-//    cout <<"make fluxes" <<endl;
     make_fluxes(analysis_container.traj,analysis_container.sigma,analysis_container.poly,analysis_container.centers_fcm,analysis_container.classes_flux);
 // OBSOLETO ora utilizzo dump_fluxes_file
-    if (config_.jump2subnet_analysis == false){
-        if (0==1)//(config_.enable_fluxes_print)
-          {
-            cout << "dump fluxes" << endl;
-            dump_fluxes(analysis_container.traj,analysis_container.config_,analysis_container.centers_fcm,analysis_container.poly,analysis_container.classes_flux);};
-//OBSOLETO
+    if (config_.jump2subnet_analysis){
+//  dump_fluxes(analysis_container.traj,analysis_container.config_,analysis_container.centers_fcm,analysis_container.poly,analysis_container.classes_flux);
+// FUNDAMENTAL DIAGRAM -> Error in Them. Managed in Python
         if (config_.enable_FD) dump_FD(poly);
-        if (config_.enable_MFD)
-        {
-          cout << "make MFD" << endl;
-          make_MFD(jconf,analysis_container.traj,analysis_container.centers_fcm);};
-        if (config_.enable_subnet)
-        {
-          analysis_container.subnets = make_subnet(analysis_container.config_);
-        };
-        cout << "dump poly geojson" << endl;
+        if (config_.enable_MFD) make_MFD(jconf,analysis_container.traj,analysis_container.centers_fcm);
+// SUBNET ANALYSIS
+        analysis_container.subnets = make_subnet(analysis_container.config_);
         dump_poly_geojson("bologna-provincia",analysis_container.poly); //"city-pro-carto"
       }
     cout << "load subnet" << endl;
