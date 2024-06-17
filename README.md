@@ -237,6 +237,10 @@ Telecom gives initial dataset day by day with a lot of fields and zipped. I have
 ##### COMMENT ON FUZZY ALGORITHM:
 Needs to be tuned, try different `num_tm` (3 or 4 for Bologna depending on the day). Increasing the number does not uncover the slow mobility (walkers,bikers), but it finds subgroups on higher velocity group.
 This bias is probably due to the sensitivity of the algorithm to the speed, giving more weight in for the separation for classes that have higher velocity.  
+# FOR DEVELOPERS
+```std::vector<poly_base> poly``` is initialized with a null element in the position 0. Pay attention to that.
+Or modify.
+
 # LAUNCH ANALYSIS (WORK IN PROGRESS)
 
    ``` ./python/config_subnet_create.py ```
@@ -256,6 +260,7 @@ Output:
     distribuzione velocità per ogni classe
     distribuzione lunghezze e tempi per ogni classe
     fondamental diagram per ogni classe
+
 
 #### POSTPROCESSING AGGREGATION PYTHON
 COMMAND:

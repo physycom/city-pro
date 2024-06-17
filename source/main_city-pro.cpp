@@ -53,6 +53,7 @@ std::map<string, vector<int>> subnets;
 std::map<int,std::map<int,double>> classes_flux;
 // FCM
 
+// NOTE: The first poly is an invalid one, pay attention
 //-------------------------------------------------------------------------------------------------
 void idle_cb(void*)
 {
