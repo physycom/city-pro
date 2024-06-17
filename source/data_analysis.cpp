@@ -650,6 +650,9 @@ std::vector<int> unique_vector(std::vector<int> classes){
         else unique.push_back(c);
     }
     std::sort(unique.begin(),unique.end());
+    for(auto &u:unique){
+        std::cout<<"unique: "<<u<<std::endl;
+    }
     return unique;
 }
 
@@ -1752,7 +1755,6 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
             }
 //ADDED ALBI ORDERING CENTERS_FCM
 */
-/*
             out_fcm2<< " trajectory number: "<< n <<std::endl;
             for(auto &p:traj[n].p_cluster){
                 out_fcm2 << p << ";";
@@ -1761,7 +1763,6 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
             out_fcm2 << " velocity: " << centers_fcm[traj[n].means_class].feat_vector[0] << " class: "<< traj[n].means_class << " average speed: " << traj[n].average_inst_speed<<std::endl;        
         }
         out_fcm2.close();
-*/        
         for (auto &c : centers_fcm)
         c.cnt = 0;
             // update centers_fcm: feat vector
