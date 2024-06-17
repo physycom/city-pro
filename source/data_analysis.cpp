@@ -2547,8 +2547,13 @@ map<string, vector<int>> make_subnet(config &config_)
         std::cout << "subtype size" << sub_types.size() << endl;
         int total_crossings = 0;
         for (const auto &n : poly)
-         {if (n.flux.at(t)>0)
-            total_crossings += n.flux.at(t) * n.length;
+         {int LocalIter = 0;
+            if (n.flux.at(t)>0 && n.length>0)
+            {
+                total_crossings += n.flux.at(t) * n.length;
+                LocalIter++;
+                if (total_crossings < 0){std::cerr <<"total crossings < 0 at Iter: " << std::to_string(LocalIter); exit(1);}
+            }
             }
         std::cout << "Total crossings per meters: " << total_crossings << std::endl; // totale di metri percorsi dai flussi.
         for (const auto &f : sub_fractions)
