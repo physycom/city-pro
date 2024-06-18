@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 import os
 import argparse
 import sys
-sys.path.append(os.path.join(os.environ['TRAFFIC_DIR'],'scripts'))
 from FittingProcedures import *
 import json
 from multiprocessing import Pool
