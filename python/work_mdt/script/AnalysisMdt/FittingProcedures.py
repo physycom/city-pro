@@ -24,7 +24,7 @@ def multilinear4variables(x, a,b,c,log_d):
     '''
         N is the couples of Origin and Destination
         Fitting like Vespignani:
-            Vectors\Data:
+            Vectors \ Data:
                 1) log Ni -> 1 Dimensional vector of length N being the mass of the grid i.
                 2) log Nj -> 1 Dimensional vector of length N being the mass of the grid j.
                 3) log dij -> 1 Dimensional vector of length N being the distance between centroids of grid i and j.
