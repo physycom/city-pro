@@ -28,7 +28,7 @@ def multilinear4variables(x, a,b,c,log_d):
                 1) log Ni -> 1 Dimensional vector of length N being the mass of the grid i.
                 2) log Nj -> 1 Dimensional vector of length N being the mass of the grid j.
                 3) log dij -> 1 Dimensional vector of length N being the distance between centroids of grid i and j.
-            Scalar\Parameters:
+            Scalar - Parameters:
                 1) log_d: -> k in Ramasco Paper
                 2) a: exponent mass i
                 3) b: exponent mass j
