@@ -9,8 +9,6 @@ from scipy.optimize import curve_fit,minimize
 from scipy import stats
 from scipy.stats import powerlaw as pl
 import numpy as np
-import sys
-sys.path.append('~/berkeley/traffic_phase_transition/scripts/GeometrySphere')
 
 # FUCNTIONS FOR FITTING
 def powerlaw(x, amp, index):
