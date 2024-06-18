@@ -52,6 +52,7 @@ utils*/
 citations/
 Model/
 outputlastrun.txt
+outputverbose.txt
 z_config_analysis/
 html/
 latex/
