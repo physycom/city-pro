@@ -95,7 +95,12 @@ if __name__ == "__main__":
     parallel = True
     if parallel:
         args = [(config,StrDate) for StrDate in StrDates]
-        with Pool(6) as p:
+        Ncpu = len(args)
+        if Ncpu < os.cpu_count():
+            pass
+        else:
+            Ncpu = os.cpu_count() - 1
+        with Pool(Ncpu) as p:
             ListNetworkDays = p.starmap(Main,args)
     else:
         for StrDate in StrDates:
@@ -174,5 +179,10 @@ if __name__ == "__main__":
     NetAllDays.PlotDistributionComparisonAllDays()
     NetAllDays.PlotDistributionComparisonAllDaysPerClass()
     # All Days Plot Distribution Velocity Comparison
-
+    NetAllDays.CreateClass2SubNetAllDays()
+    NetAllDays.PlotClass2SubNetAllDays()
+    NetAllDays.PlotClass2SubnetsComparisonAllDays()
+    # MFD All Days
+    NetAllDays.ComputeAggregatedMFDVariablesObj()
+    NetAllDays.PlotMFDAggreagated()
 

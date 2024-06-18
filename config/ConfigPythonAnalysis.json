@@ -1,14 +1,14 @@
 {
     "StrDates": ["2022-12-30","2022-12-31","2023-01-01","2022-05-12","2022-11-11","2022-07-01","2022-08-05","2022-01-31","2023-03-18"],
     "base_name": "bologna_mdt",
-    "InputBaseDir":"/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed",
+    "InputBaseDir":"/home/aamad/codice/city-pro/output/bologna_mdt_detailed",
     "bounding_box":{
         "lat_min":"44.463121",
         "lat_max":"44.518165",
         "lon_min":"11.287085",
         "lon_max":"11.367472"
         },
-    "geojson": "/home/aamad/Desktop/phd/codice/city-pro/bologna-provincia.geojson",
+    "geojson": "/home/aamad/codice/city-pro/bologna-provincia.geojson",
     "verbose": true,
     "shift_bin":{
         "av_speed": 3,

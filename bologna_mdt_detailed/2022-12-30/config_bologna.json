@@ -1,10 +1,12 @@
 {
   "city_tag": "Bologna",
-  "file_pro": "/home/aamad/Desktop/phd/codice/city-pro/bologna_mdt_detailed/carto/bologna_mdt_cleaned.pro",
-  "file_pnt": "/home/aamad/Desktop/phd/codice/city-pro/bologna_mdt_detailed/carto/bologna_mdt_cleaned.pnt",
-  "file_data": "/home/aamad/Desktop/phd/codice/city-pro/bologna_mdt_detailed/2022-12-30/bologna_mdt_2022-12-30_2022-12-30.csv",
+  "file_pro": "/home/aamad/codice/city-pro/bologna_mdt_detailed/carto/bologna_mdt_cleaned.pro",
+  "file_pnt": "/home/aamad/codice/city-pro/bologna_mdt_detailed/carto/bologna_mdt_cleaned.pnt",
+  "file_data": [
+    "/home/aamad/codice/city-pro/bologna_mdt_detailed/2022-12-30/bologna_mdt_2022-12-30_2022-12-30.csv"
+  ],
   "_file_polygons": "C:/Users/Chiara/Desktop/Code/city-pro/input/extra/viasat/polygons_2points.geojson",
-  "cartout_basename": "/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/",
+  "cartout_basename": "/home/aamad/codice/city-pro/output/bologna_mdt_detailed/",
   "start_time": "2022-12-30 00:00:00",
   "end_time": "2022-12-30 23:59:59",
   "_start_time": "2022-11-11 00:00:00",
@@ -48,7 +50,7 @@
   "enable_fluxes_print": true,
   "enable_subnet": true,
   "show_subnet": true,
-  "file_subnet": "/home/aamad/Desktop/phd/codice/city-pro/output/bologna_mdt_detailed/weights/bologna_mdt_2022-12-30_2022-12-30.fluxes.sub",
+  "file_subnet": "/home/aamad/codice/city-pro/output/bologna_mdt_detailed/weights/bologna_mdt_2022-12-30_2022-12-30.fluxes.sub",
   "multimodality_subnet": true,
   "num_tm_subnet": 3,
   "_enable_bin_act": false,

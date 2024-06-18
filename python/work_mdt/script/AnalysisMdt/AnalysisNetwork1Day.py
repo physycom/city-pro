@@ -331,13 +331,13 @@ class DailyNetworkStats:
         self.ReadStatsBool = False
         self.ReadFluxesSubIncreasinglyIncludedIntersectionBool = False
         # SETTINGS INFO
-        self.colors = ['red','blue','green','orange','purple','yellow','cyan','magenta','lime','pink','teal','lavender','brown','beige','maroon','mint','coral','navy','olive','grey']
+        self.ListColors = ['red','blue','green','orange','purple','yellow','cyan','magenta','lime','pink','teal','lavender','brown','beige','maroon','mint','coral','navy','olive','grey']
 #        self.Name = BaseName
         self.StrDate = StrDate
         # CLASSES INFO
         self.Class2Color = {"1 slowest": "blue","2 slowest":"green","middle velocity class": "yellow","2 quickest": "orange", "1 quickest":"red"}
-        self.IntClass2StrClass = defaultdict(dict) # {0,slowest,...}
-        self.StrClass2IntClass = defaultdict(dict) # {slowest: 0,...}
+        self.IntClass2StrClass = defaultdict() # {0,slowest,...}
+        self.StrClass2IntClass = defaultdict() # {slowest: 0,...}
         self.RoadInClass2VelocityDir = defaultdict() # {0: ../.._0velocity_subnet.csv}
         self.VelTimePercorrenceClass = defaultdict() # {0: [start_bin,end_bin,id,time_percorrence,av_speed]}
         # INPUT FIT INFO
@@ -419,11 +419,15 @@ class DailyNetworkStats:
             {"av_speed": "linear","speed_kmh": "linear","lenght": "linear","lenght_km": "linear","time": "linar","time_hours": "linear","av_accel": "linear"}
         # FUNDAMENTAL DIAGRAM
         self.MFD = Dict2PolarsDF({"time":[],"population":[],"speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed":pl.Float64})
+        self.MFDNew = Dict2PolarsDF({"time":[],"population":[],"speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed":pl.Float64})
         self.MFD2Plot = {"binned_av_speed":[],"binned_sqrt_err_speed":[],"bins_population":[]}
+        self.MFDNew2Plot = {"binned_av_speed":[],"binned_sqrt_err_speed":[],"bins_population":[]}
         if self.BoolStrClass2IntClass:
             self.Class2MFD = {class_:Dict2PolarsDF({"time":[],"population":[],"speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed":pl.Float64}) for class_ in self.IntClass2StrClass.keys()}
+            self.Class2MFDNew = {class_:Dict2PolarsDF({"time":[],"population":[],"speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed":pl.Float64}) for class_ in self.IntClass2StrClass.keys()}
         else:
             self.Class2MFD = defaultdict(dict)
+            self.Class2MFDNew = defaultdict(dict)
             print("Warning: Not Initialized Class2MFD")
         # MINIMUM VALUES FOR (velocity,population,lenght,time) for trajectories of the day
         self.MinMaxPlot = defaultdict()
@@ -767,24 +771,25 @@ class DailyNetworkStats:
             if self.verbose:
                 for class_ in self.IntClass2RoadsIncreasinglyIncludedIntersection.keys(): 
                     print(self.IntClass2RoadsIncreasinglyIncludedIntersection[class_][:10])
-            for class_, index_list in self.IntClass2RoadsIncreasinglyIncludedIntersection.items():
-                if self.verbose:
-                    print("Plotting Class ",class_)
-                    print("Number of Roads: ",len(index_list))
-                # Filter GeoDataFrame for roads with indices in the current list
-                filtered_gdf = self.GeoJson[self.GeoJson['poly_lid'].isin(index_list)]
-                # Create a feature group for the current layer
-                layer_group = folium.FeatureGroup(name="Layer {}".format(class_)).add_to(m)
-                # Add roads to the feature group with a unique color
-                if self.verbose:
-                    print("Class: ",class_," Number of Roads: ",len(filtered_gdf),"Color: ",self.Class2Color[self.IntClass2StrClass[class_]])
-                for _, road in filtered_gdf.iterrows():
-                    folium.GeoJson(road.geometry, style_function=lambda x: {'color': self.Class2Color[self.IntClass2StrClass[class_]]}).add_to(layer_group)
-                
-                # Add the feature group to the map
-                layer_group.add_to(m)
-                # Add layer control to the map
-                folium.LayerControl().add_to(m)
+            for IntClass in self.IntClasse2StrClass.keys():
+                for index_list in self.IntClass2RoadsIncreasinglyIncludedIntersection[IntClass]:
+                    if self.verbose:
+                        print("Plotting Class ",IntClass)
+                        print("Number of Roads: ",len(index_list))
+                    # Filter GeoDataFrame for roads with indices in the current list
+                    filtered_gdf = self.GeoJson[self.GeoJson['poly_lid'].isin(index_list)]
+                    # Create a feature group for the current layer
+                    layer_group = folium.FeatureGroup(name="Layer {}".format(IntClass)).add_to(m)
+                    # Add roads to the feature group with a unique color
+                    if self.verbose:
+                        print("Class: ",IntClass," Number of Roads: ",len(filtered_gdf),"Color: ",self.Class2Color[self.IntClass2StrClass[IntClass]])
+                    for _, road in filtered_gdf.iterrows():
+                        folium.GeoJson(road.geometry, style_function=lambda x: {'color': self.Class2Color[self.IntClass2StrClass[IntClass]]}).add_to(layer_group)
+                    
+                    # Add the feature group to the map
+                    layer_group.add_to(m)
+                    # Add layer control to the map
+                    folium.LayerControl().add_to(m)
 
             # Save or display the map
             m.save(os.path.join(self.PlotDir,"SubnetsIncrementalInclusion_{}.html".format(self.StrDate)))
@@ -805,22 +810,25 @@ class DailyNetworkStats:
             # Create a base map
             m = folium.Map(location=[self.centroid.x, self.centroid.y], zoom_start=12)
             # Iterate through the Dictionary of list of poly_lid
-            for class_, index_list in self.IntClass2Roads.items():
-                # Filter GeoDataFrame for roads with indices in the current list
-                filtered_gdf = self.GeoJson[self.GeoJson['poly_lid'].isin(index_list)]
-                # Create a feature group for the current layer
-                layer_group = folium.FeatureGroup(name=f"Layer {class_}").add_to(m)
-                
-                # Add roads to the feature group with a unique color
-                for _, road in filtered_gdf.iterrows():
-                    color = 'blue'  # Choose a color for the road based on index or any other criterion
-                    folium.GeoJson(road.geometry, style_function=lambda x: {'color': self.Class2Color[self.IntClass2StrClass[class_]]}).add_to(layer_group)
-                
-                # Add the feature group to the map
-                layer_group.add_to(m)
+            for IntClass in self.IntClass2StrClass.keys():
+                for index_list in self.IntClass2Roads[IntClass]:
+                    if isinstance(index_list,int):
+                        index_list = [index_list]
+                    # Filter GeoDataFrame for roads with indices in the current list
+                    filtered_gdf = self.GeoJson[self.GeoJson['poly_lid'].isin(index_list)]
+                    # Create a feature group for the current layer
+                    layer_group = folium.FeatureGroup(name=f"Layer {IntClass}").add_to(m)
+                    
+                    # Add roads to the feature group with a unique color
+                    for _, road in filtered_gdf.iterrows():
+                        color = 'blue'  # Choose a color for the road based on index or any other criterion
+                        folium.GeoJson(road.geometry, style_function=lambda x: {'color': self.Class2Color[self.IntClass2StrClass[IntClass]]}).add_to(layer_group)
+                    
+                    # Add the feature group to the map
+                    layer_group.add_to(m)
 
-                # Add layer control to the map
-                folium.LayerControl().add_to(m)
+                    # Add layer control to the map
+                    folium.LayerControl().add_to(m)
 
             # Save or display the map
             m.save(os.path.join(self.PlotDir,"Subnets_{}.html".format(self.StrDate)))
@@ -951,13 +959,17 @@ class DailyNetworkStats:
 #                    PrintMFDDictInfo(self.MFD,StartingString = "MFD: ")            
                 # PER CLASS
                 self.Class2MFD = {class_:Dict2PolarsDF({"time":[],"population":[],"speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed":pl.Float64}) for class_ in self.IntClass2StrClass.keys()}
+                self.Class2MFDNew = {class_:Dict2PolarsDF({"time":[],"population":[],"speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed":pl.Float64}) for class_ in self.IntClass2StrClass.keys()}
                 if self.verbose:
                     print(self.Class2MFD.keys())
                 for Class in self.Class2MFD.keys():
                     Fcm2Class = self.Fcm.filter(pl.col("class") == Class)
                     self.Class2MFD[Class],Fcm2Class = ComputeMFDVariables(Fcm2Class,self.Class2MFD[Class],self.TimeStampDate,self.dt,self.iterations)
+                    FcmNew2Class = self.Fcm.filter(pl.col("class_new") == Class)
+                    self.Class2MFDNew[Class],FcmNew2Class = ComputeMFDVariables(FcmNew2Class,self.Class2MFDNew[Class],self.TimeStampDate,self.dt,self.iterations)
                     if self.verbose:
                         PrintMFDDictInfo(self.Class2MFD[Class],StartingString = "Class 2 MFD: ")
+                        PrintMFDDictInfo(self.Class2MFDNew[Class],StartingString = "Class 2 MFD New: ")
                 self.ComputedMFD = True    
             else:
                 pass
@@ -976,11 +988,14 @@ class DailyNetworkStats:
                     if self.verbose:
                         print("Class: ",class_)
                     self.Class2MFD[class_] = Dict2PolarsDF({"time":[],"population":[],"speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed":pl.Float64})
+                    self.Class2MFDNew[class_] = Dict2PolarsDF({"time":[],"population":[],"speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed":pl.Float64})
             else:
                 print("Warning: No Plotting MFD due to not Definition of StrInt2Class")
             for Class in self.Class2MFD.keys():
                 Stats2Class = self.Stats.filter(pl.col("class") == Class)
                 self.Class2MFD[Class],Stats2Class = ComputeMFDVariables(Stats2Class,self.Class2MFD[Class],self.TimeStampDate,self.dt,self.iterations,self.verbose)
+                StatsNew2Class = self.Stats.filter(pl.col("class_new") == Class)
+                self.Class2MFDNew[Class],StatsNew2Class = ComputeMFDVariables(StatsNew2Class,self.Class2MFDNew[Class],self.TimeStampDate,self.dt,self.iterations,self.verbose)
 #                if self.verbose:
 #                    PrintMFDDictInfo(self.Class2MFD[Class],StartingString = "Class 2 MFD: ")
             self.ComputedMFD = True
@@ -1009,7 +1024,7 @@ class DailyNetworkStats:
             None
         """
         if self.ComputedMFD: 
-            # AGGREGATED
+            # AGGREGATED 
             self.MFD2Plot, self.MinMaxPlot,RelativeChange = GetMFDForPlot(MFD = self.MFD,
                                                                         MFD2Plot = self.MFD2Plot,
                                                                         MinMaxPlot = self.MinMaxPlot,
@@ -1017,6 +1032,7 @@ class DailyNetworkStats:
                                                                         case = "no-classes",
                                                                         verbose = self.verbose,
                                                                         bins_ = 20)
+            
             PlotHysteresis(MFD = self.MFD,
                            Title = "Hysteresis Cycle Aggregated",
                            SaveDir = self.PlotDir,
@@ -1032,16 +1048,15 @@ class DailyNetworkStats:
                         RelativeChange,
                         self.PlotDir,
                         NameFile = "MFD.png")            
-            # PER CLASS
-            if self.Class2MFD.keys():
-                self.MinMaxPlotPerClass = {int(Class): defaultdict() for Class in self.Class2MFD.keys()}
-            else:
-                self.MinMaxPlotPerClass = defaultdict(dict)
-            self.Class2MFD2Plot = defaultdict(dict)   
+            # PER CLASS 
+            self.MinMaxPlotPerClass = {int(Class): defaultdict() for Class in self.Class2MFD.keys()}
+            self.MinMaxPlotPerClassNew = {int(Class): defaultdict() for Class in self.Class2MFDNew.keys()}
             for Class in self.Class2MFD.keys():
                 self.Class2MFD2Plot[int(Class)] = {"binned_av_speed": [], "binned_sqrt_err_speed": [], "bins_population": []}
+                self.Class2MFDNew2Plot[int(Class)] = {"binned_av_speed": [], "binned_sqrt_err_speed": [], "bins_population": []}
             for Class in self.Class2MFD.keys():
                 # Fill Average/Std Speed (to plot)
+                # OLD CLASSIFICATION
                 self.Class2MFD2Plot[Class], self.MinMaxPlotPerClass,RelativeChange = GetMFDForPlot(MFD = self.Class2MFD[Class],
                                                                                                      MFD2Plot = self.Class2MFD2Plot[Class],
                                                                                                     MinMaxPlot = self.MinMaxPlotPerClass,
@@ -1049,10 +1064,24 @@ class DailyNetworkStats:
                                                                                                     case = None,
                                                                                                     verbose = self.verbose,
                                                                                                     bins_ = 20)
+                # NEW CLASSIFICATION
+                self.Class2MFDNew2Plot[Class], self.MinMaxPlotPerClassNew,RelativeChangeNew = GetMFDForPlot(MFD = self.Class2MFDNew[Class],
+                                                                                                     MFD2Plot = self.Class2MFDNew2Plot[Class],
+                                                                                                    MinMaxPlot = self.MinMaxPlotPerClassNew,
+                                                                                                    Class = Class,
+                                                                                                    case = None,
+                                                                                                    verbose = self.verbose,
+                                                                                                    bins_ = 20)
+                
                 PlotHysteresis(MFD = self.Class2MFD[Class],
                             Title = "Hysteresis Cycle Class {}".format(self.IntClass2StrClass[Class]),
                             SaveDir = self.PlotDir,
                             NameFile = "HysteresysClass_{}.png".format(self.IntClass2StrClass[Class]))
+                
+                PlotHysteresis(MFD = self.Class2MFDNew[Class],
+                            Title = "Hysteresis Cycle Class New {}".format(self.IntClass2StrClass[Class]),
+                            SaveDir = self.PlotDir,
+                            NameFile = "HysteresysClassNew_{}.png".format(self.IntClass2StrClass[Class]))
                 
                 if self.verbose:
                     print("After GetMFDForPlot Class {}:\n".format(Class))
@@ -1061,6 +1090,7 @@ class DailyNetworkStats:
 
                 if self.BoolStrClass2IntClass:
                     # Plotting and Save Per Class
+                    # OLD CLASSIFICATION
                     SaveMFDPlot(self.Class2MFD2Plot[Class]["bins_population"],
                                 self.Class2MFD2Plot[Class]["binned_av_speed"],
                                 self.Class2MFD2Plot[Class]["binned_sqrt_err_speed"],
@@ -1068,6 +1098,14 @@ class DailyNetworkStats:
                                 SaveDir = self.PlotDir,
                                 Title = "Fondamental Diagram {}".format(self.IntClass2StrClass[Class]),
                                 NameFile = "MFD_{}.png".format(Class))
+                    # NEW CLASSIFICATION
+                    SaveMFDPlot(self.Class2MFDNew2Plot[Class]["bins_population"],
+                                self.Class2MFDNew2Plot[Class]["binned_av_speed"],
+                                self.Class2MFDNew2Plot[Class]["binned_sqrt_err_speed"],
+                                RelativeChange = RelativeChangeNew,
+                                SaveDir = self.PlotDir,
+                                Title = "Fondamental Diagram New {}".format(self.IntClass2StrClass[Class]),
+                                NameFile = "MFDNew_{}.png".format(Class))
                 else:
                     print("Warning: Fondamental Diagram Not Computed for Class Since IntClass2Str is Not Initialized")
 ##--------------- Dictionaries --------------##
@@ -1243,7 +1281,7 @@ class DailyNetworkStats:
                     if "speed" in Label:
                         ax.hist(df[Label].to_list(),bins = 50,alpha = 0.5)
                     else:
-                        ax.plot(y[1:],x)
+                        ax.scatter(y[1:],x)
                     av_speed = np.mean(df[Label].to_list())
                     legend.append(str(self.IntClass2StrClass[cl]) + " " + self.Column2Legend[Label] + " " + str(round(av_speed,3)))
                     self.Class2MaxCountSpeed[cl] = max(x)
