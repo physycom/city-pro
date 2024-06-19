@@ -3,38 +3,20 @@
     It is split in a first Cpp part responsible of the computation of the quantities of interest about trajectories and road network and a second part in python responsible for the plotting and analysis of the computed quantities. 
     
 # Build & Launch
-The project works basing itself on powershell. If you use Linux or Mac make sure to install the powershell.
+The project works basing itself on powershell for mantainance and portability pourposes. If you use Linux or Mac make sure to install the powershell.
 
 ## Linux
 ```
-# Update the list of packages
-sudo apt-get update
-
-# Install pre-requisite packages.
-sudo apt-get install -y wget apt-transport-https software-properties-common
-
-# Get the version of Ubuntu
-source /etc/os-release
-
-# Download the Microsoft repository keys
-wget -q https://packages.microsoft.com/config/ubuntu/$VERSION_ID/packages-microsoft-prod.deb
-
-# Register the Microsoft repository keys
-sudo dpkg -i packages-microsoft-prod.deb
-
-# Delete the Microsoft repository keys file
-rm packages-microsoft-prod.deb
-
-# Update the list of packages after we added packages.microsoft.com
-sudo apt-get update
-
-###################################
-# Install PowerShell
-sudo apt-get install -y powershell
-
-# Start PowerShell
-pwsh
-git clone https://github.com/microsoft/vcpkg
+sudo apt-get update   
+sudo apt-get install -y wget apt-transport-https software-properties-common    
+source /etc/os-release    
+wget -q https://packages.microsoft.com/config/ubuntu/$VERSION_ID/packages-microsoft-prod.deb    
+sudo dpkg -i packages-microsoft-prod.deb   
+rm packages-microsoft-prod.deb   
+sudo apt-get update   
+sudo apt-get install -y powershell   
+pwsh   
+git clone https://github.com/microsoft/vcpkg   
 ```
 
 #### Build
@@ -207,6 +189,14 @@ Description:
     For each trajectory have the informations about the features of the classes
 Columns:  
     `id_act;average_speed;v_max;v_min;sinuosity`
+# PostProcessing
+```cd $WORKSPACE/city-pro```  
+
+```python3 ./python/work_mdt/script/AnalysisMdt/AnalysisPaper.py -c ./config```  
+
+Required the configuration file in `./config`: `ConfigPythonAnalysis.json`:
+Description at the top of AnalysisPaper.py
+
 # Structure Program:
     1. READING:  
         1a.   
@@ -220,12 +210,13 @@ Columns:
             It creates a graph of the city from cartography.pnt and .pro. Essentially these are used to create objects that are contained
             in carto.h. Whose attributes and functions are initialized in carto.cpp
     2. EXTRACT TRAJECTORIES:
+
 ### SUMMARY 
     This script in particular is able to:
     1. generate trajectories from single records, discarding GPS errors by thresholding on the maximum velocity.
     2. Associate the roads they pass by
     3. Cluster them according to a FuzzyKMean
-    4.
+    4. 
 
 
 NOTA:
@@ -243,7 +234,16 @@ Or modify.
 
 In ```make_subnet``` is put by hand the maximum length for a poly extracted from the geojson via geopandas (5762 m).
 For own cartography the parameter needs to be changed. 
+##### COMMENT ON CPU USAGE
+`city-pro` utilizes for input file of around 1 GB around 20 GB of RAM.
+`Analysis_Paper.py` utilizes for the analysis in parallel of 6 days around 16 GB of RAM.
 
+# GUIDLINES CONTRIBUTORS
+#### Cpp
+To be specified ...
+
+#### Python
+To be specified ...
 # LAUNCH ANALYSIS (WORK IN PROGRESS)
 
    ``` ./python/config_subnet_create.py ```

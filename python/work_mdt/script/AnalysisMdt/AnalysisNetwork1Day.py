@@ -22,6 +22,8 @@ else:
     except Exception as e:
         print("No Plot Settings File Found")
 
+        
+
 def Dict2PolarsDF(Dict,schema):
     return pl.DataFrame(Dict,schema=schema)
 
@@ -31,7 +33,7 @@ def ComputeMFDVariables(Df,MFD,TimeStampDate,dt,iterations,verbose = False):
         NOTE: Speed in MFD in km/h
     """
     print("Compute MFD Variables:")
-    TmpDict = {"time":[],"population":[],"speed":[]}
+    TmpDict = {"time":[],"population":[],"speed_kmh":[],"av_speed":[]}
     for t in range(int(iterations)):
         StartInterval = datetime.datetime.fromtimestamp(int(TimeStampDate)+t*dt)
         EndInterval = datetime.datetime.fromtimestamp(int(TimeStampDate)+(t+1)*dt)                    
@@ -43,11 +45,13 @@ def ComputeMFDVariables(Df,MFD,TimeStampDate,dt,iterations,verbose = False):
         TmpDict["time"].append(Hstr)
         TmpDict["population"].append(len(TmpFcm))
         if len(TmpFcm) > 0:
+            AvSpeed = TmpFcm.select(pl.col("speed_kmh").mean()).to_pandas().iloc[0]["speed_kmh"]
+            TmpDict["speed_kmh"].append(AvSpeed)
             AvSpeed = TmpFcm.select(pl.col("av_speed").mean()).to_pandas().iloc[0]["av_speed"]
-            TmpDict["speed"].append(AvSpeed)
+            TmpDict["av_speed"].append(AvSpeed)
             MoreThan0Traj = True
         else:
-            TmpDict["speed"].append(0)
+            TmpDict["speed_kmh"].append(0)
             MoreThan0Traj = False
 #        if verbose:
 #            print("Iteration: ",t)
@@ -58,7 +62,7 @@ def ComputeMFDVariables(Df,MFD,TimeStampDate,dt,iterations,verbose = False):
 #                print("Speed: ",AvSpeed)
 #    if verbose:
 #        print("Dict: ",TmpDict)
-    MFD = Dict2PolarsDF(TmpDict,schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed":pl.Float64})
+    MFD = Dict2PolarsDF(TmpDict,schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64})
     return MFD,Df
 
 def GetAverageConditional(Df,ConditioningLabel,ConditionedLabel,binsi,binsi1):
@@ -112,13 +116,13 @@ def GetLowerBoundsFromBins(bins,label,MinMaxPlot,Class,case):
 def GetMFDForPlot(MFD,MFD2Plot,MinMaxPlot,Class,case,verbose = False,bins_ = 20):
     """
         Input:
-            MFD: {"population":[],"time":[],"speed":[]} or {Class:pl.DataFrame{"population":[],"time":[],"speed":[]}}
+            MFD: {"population":[],"time":[],"speed_kmh":[]} or {Class:pl.DataFrame{"population":[],"time":[],"speed_kmh":[]}}
         NOTE: Used in self.PlotMFD()
         NOTE: Modifies MDF2Plot = {"bins_population":[p0,..,p19],"binned_av_speed":[v0,..,v19],"binned_sqrt_err_speed":[e0,..,e19]}
-        NOTE: Modifies MinMaxPlot = {"speed":{"min":v0,"max":v19},"population":{"min":p0,"max":p19}}    
+        NOTE: Modifies MinMaxPlot = {"speed_kmh":{"min":v0,"max":v19},"population":{"min":p0,"max":p19}}    
     """
     assert "population" in MFD.columns, "population not in MFD"
-    assert "speed" in MFD.columns, "speed not in MFD"
+    assert "speed_kmh" in MFD.columns, "speed not in MFD"
 #    assert "bins_population" in MFD2Plot.columns, "bins_population not in MFD2Plot"
 #    assert "binned_av_speed" in MFD2Plot.columns, "binned_av_speed not in MFD2Plot"
 #    assert "binned_sqrt_err_speed" in MFD2Plot.columns, "binned_sqrt_err_speed not in MFD2Plot"
@@ -127,9 +131,9 @@ def GetMFDForPlot(MFD,MFD2Plot,MinMaxPlot,Class,case,verbose = False,bins_ = 20)
     labels = range(len(bins) - 1)
     for i in range(len(labels)):
         # Fill Average/Std Speed (to plot)
-        BinnedAvSpeed = GetAverageConditional(MFD,"population","speed",bins[i],bins[i+1])
+        BinnedAvSpeed = GetAverageConditional(MFD,"population","speed_kmh",bins[i],bins[i+1])
         MFD2Plot['binned_av_speed'].append(BinnedAvSpeed)
-        BinnedSqrtSpeed = GetStdErrorConditional(MFD,"population","speed",bins[i],bins[i+1])
+        BinnedSqrtSpeed = GetStdErrorConditional(MFD,"population","speed_kmh",bins[i],bins[i+1])
         MFD2Plot['binned_sqrt_err_speed'].append(BinnedSqrtSpeed)
 #        if verbose:
 #            print("Bin [",bins[i],',',bins[i+1],']')
@@ -142,7 +146,7 @@ def GetMFDForPlot(MFD,MFD2Plot,MinMaxPlot,Class,case,verbose = False,bins_ = 20)
 #        print("\nBins Average Speed:\n",MFD2Plot['binned_av_speed'])
 #        print("\nBins Standard Deviation:\n",MFD2Plot['binned_sqrt_err_speed'])
     MinMaxPlot = GetLowerBoundsFromBins(bins = bins,label = "population",MinMaxPlot = MinMaxPlot,Class = Class,case = case)
-    MinMaxPlot = GetLowerBoundsFromBins(bins = MFD2Plot['binned_av_speed'],label = "speed",MinMaxPlot = MinMaxPlot, Class = Class,case = case)
+    MinMaxPlot = GetLowerBoundsFromBins(bins = MFD2Plot['binned_av_speed'],label = "speed_kmh",MinMaxPlot = MinMaxPlot, Class = Class,case = case)
     Y_Interval = max(MFD2Plot['binned_av_speed']) - min(MFD2Plot['binned_av_speed'])
     RelativeChange = Y_Interval/max(MFD2Plot['binned_av_speed'])/100
     if verbose:
@@ -171,6 +175,7 @@ def SaveMFDPlot(binsPop,binsAvSpeed,binsSqrt,RelativeChange,SaveDir,Title = "Fon
     ax.set_xlabel("number people")
     ax.set_ylabel("speed (km/h)")
     plt.savefig(os.path.join(SaveDir,NameFile),dpi = 200)
+    plt.close()
 
 def PlotHysteresis(MFD,Title,SaveDir,NameFile):
     fig,ax = plt.subplots(1,1,figsize = (10,10))
@@ -185,6 +190,7 @@ def PlotHysteresis(MFD,Title,SaveDir,NameFile):
     plt.ylabel('Speed (km/h)')
     plt.title(Title)
     plt.savefig(os.path.join(SaveDir,NameFile),dpi = 200)
+    plt.close()
 
 def NormalizeWidthForPlot(arr,min_val,max_val,min_width = 1, max_width = 10):
     '''
@@ -358,10 +364,17 @@ class DailyNetworkStats:
         # FEATURES
         self.Features = ["av_speed","lenght","time","av_accel"]
         # OUTPUT DICTIONARIES
-        self.Column2Label = {"av_speed":'average speed (km/h)',"av_accel":"average acceleration (m/s^2)","lenght":'lenght (km)',"time_hours":'time (h)',"time":'time (s)'}
-        self.Column2SaveName = {"av_speed":"average_speed","av_accel":"average_acceleration","lenght":"lenght","time_hours":"time_hours","time":"time"}
-        self.Column2Legend = {"av_speed":"speed (km/h)","av_accel":"acceleration (m/s^2)","lenght":"lenght (km)","time_hours":"time (h)","time":"time (s)"} 
-        self.Feature2MaxBins = {"av_speed":{"bins":0,"count":0},"av_accel":{"bins":0,"count":0},"lenght":{"bins":0,"count":0},"time_hours":{"bins":0,"count":0},"time":{"bins":0,"count":0}}
+        self.Column2Label = {"av_speed":'average speed (m/s)',"speed_kmh":'average speed (km/h)',"av_accel":"average acceleration (m/s^2)","lenght":'lenght (m)',"lenght_km": 'lenght (km)',"time_hours":'time (h)',"time":'time (s)'}
+        self.Column2SaveName = {"av_speed":"average_speed","speed_kmh":'average_speed_kmh',"av_accel":"average_acceleration","lenght":"lenght","lenght_km": 'lenght_km',"time_hours":"time_hours","time":"time"}
+        self.Column2Legend = {"av_speed":"speed (m/s)","speed_kmh":'speed (km/h)',"av_accel":"acceleration (m/s^2)","lenght":"lenght (m)","lenght_km": 'lenght (km)',"time_hours":"time (h)","time":"time (s)"} 
+        self.Feature2MaxBins = {"av_speed":{"bins":0,"count":0},"speed_kmh":{"bins":0,"count":0},"av_accel":{"bins":0,"count":0},"lenght":{"bins":0,"count":0},"lenght_km": {"bins":0,"count":0},"time_hours":{"bins":0,"count":0},"time":{"bins":0,"count":0}}
+        self.DictInitialGuess = {"av_speed":{"initial_guess":[0,0],"interval":[]},
+                                "speed_kmh":{"initial_guess":[0,0],"interval":[]},
+                                "av_accel":{"initial_guess":[0,0],"interval":[]},
+                                "lenght":{"initial_guess":[0,0],"interval":[]},
+                                "lenght_km":{"initial_guess":[0,0],"interval":[]},
+                                "time_hours":{"initial_guess":[0,0],"interval":[]},
+                                "time":{"initial_guess":[0,0],"interval":[]}}
         ## BIN SETTINGS
         if "shift_count" in config.keys():
             self.Feature2ShiftCount = config["shift_count"]
@@ -371,7 +384,7 @@ class DailyNetworkStats:
                 else:
                     raise KeyError(feat + " not in shift_count")
         else:
-            {"av_speed": 50,"speed_kmh": 50,"lenght": 50,"lenght_km": 50,"time": 50,"time_hours": 50,"av_accel": 50},
+            self.Feature2ShiftCount = {"av_speed": 50,"speed_kmh": 50,"lenght": 50,"lenght_km": 50,"time": 50,"time_hours": 50,"av_accel": 50},
         if "shift_bin" in config.keys():
             self.Feature2ShiftBin = config["shift_bin"]
             for feat in self.Features:
@@ -380,7 +393,7 @@ class DailyNetworkStats:
                 else:
                     raise KeyError(feat + " not in shift_bin")
         else:
-            {"av_speed": 3,"av_speed_kmh": 0.5,"lenght": 40,"lenght_km": 0.5,"time": 30,"time_hours": 0.5,"av_accel": 0.1}
+            self.Feature2ShiftBin = {"av_speed": 3,"speed_kmh": 0.5,"lenght": 40,"lenght_km": 0.5,"time": 30,"time_hours": 0.5,"av_accel": 0.1}
         if "interval_bin" in config.keys():
             self.Feature2IntervalBin = config["interval_bin"]
             for feat in self.Features:
@@ -389,7 +402,7 @@ class DailyNetworkStats:
                 else:
                     raise KeyError(feat + " not in interval_bin")
         else:
-            {"av_speed": 10,"speed_kmh": 10,"lenght": 10,"lenght_km": 10,"time": 10,"time_hours": 10,"av_accel": 0.1}
+            self.Feature2IntervalBin = {"av_speed": 10,"speed_kmh": 10,"lenght": 10,"lenght_km": 10,"time": 10,"time_hours": 10,"av_accel": 0.1}
         if "interval_count" in config.keys():
             self.Feature2IntervalCount = config["interval_count"]
             for feat in self.Features:
@@ -398,7 +411,7 @@ class DailyNetworkStats:
                 else:
                     raise KeyError(feat + " not in interval_count")
         else:
-            {"av_speed": 300,"speed_kmh": 300,"lenght": 300,"lenght_km": 300,"time": 300,"time_hours": 300,"av_accel": 500}
+            self.Feature2IntervalCount = {"av_speed": 300,"speed_kmh": 300,"lenght": 300,"lenght_km": 300,"time": 300,"time_hours": 300,"av_accel": 500}
         if "scale_count" in config.keys():
             self.Feature2ScaleCount = config["scale_count"]
             for feat in self.Features:
@@ -407,7 +420,7 @@ class DailyNetworkStats:
                 else:
                     raise KeyError(feat + " not in scale_count")
         else:
-            {"av_speed": "linear","speed_kmh": "linear","lenght": "log","lenght_km": "log","time": "log","time_hours": "log","av_accel": "linear"}
+            self.Feature2ScaleCount = {"av_speed": "linear","speed_kmh": "linear","lenght": "log","lenght_km": "log","time": "log","time_hours": "log","av_accel": "linear"}
         if "scale_bins" in config.keys():
             self.Feature2ScaleBins = config["scale_bins"]
             for feat in self.Features:
@@ -416,15 +429,16 @@ class DailyNetworkStats:
                 else:
                     raise KeyError(feat + " not in scale_bins")
         else:
-            {"av_speed": "linear","speed_kmh": "linear","lenght": "linear","lenght_km": "linear","time": "linar","time_hours": "linear","av_accel": "linear"}
+            self.Feature2ScaleBins = {"av_speed": "linear","speed_kmh": "linear","lenght": "linear","lenght_km": "linear","time": "linear","time_hours": "linear","av_accel": "linear"}
+        assert self.Feature2ScaleBins.keys() == self.Feature2ScaleCount.keys() == self.Feature2IntervalCount.keys() == self.Feature2IntervalBin.keys() == self.Feature2ShiftBin.keys() == self.Feature2ShiftCount.keys() == self.Column2Label.keys() == self.Column2SaveName.keys() == self.Column2Legend.keys(), "Error: Features not consistent"
         # FUNDAMENTAL DIAGRAM
-        self.MFD = Dict2PolarsDF({"time":[],"population":[],"speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed":pl.Float64})
-        self.MFDNew = Dict2PolarsDF({"time":[],"population":[],"speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed":pl.Float64})
+        self.MFD = Dict2PolarsDF({"time":[],"population":[],"speed_kmh":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64})
+        self.MFDNew = Dict2PolarsDF({"time":[],"population":[],"speed_kmh":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64})
         self.MFD2Plot = {"binned_av_speed":[],"binned_sqrt_err_speed":[],"bins_population":[]}
         self.MFDNew2Plot = {"binned_av_speed":[],"binned_sqrt_err_speed":[],"bins_population":[]}
         if self.BoolStrClass2IntClass:
-            self.Class2MFD = {class_:Dict2PolarsDF({"time":[],"population":[],"speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed":pl.Float64}) for class_ in self.IntClass2StrClass.keys()}
-            self.Class2MFDNew = {class_:Dict2PolarsDF({"time":[],"population":[],"speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed":pl.Float64}) for class_ in self.IntClass2StrClass.keys()}
+            self.Class2MFD = {class_:Dict2PolarsDF({"time":[],"population":[],"speed_kmh":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64}) for class_ in self.IntClass2StrClass.keys()}
+            self.Class2MFDNew = {class_:Dict2PolarsDF({"time":[],"population":[],"speed_kmh":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64}) for class_ in self.IntClass2StrClass.keys()}
         else:
             self.Class2MFD = defaultdict(dict)
             self.Class2MFDNew = defaultdict(dict)
@@ -445,6 +459,7 @@ class DailyNetworkStats:
             self.ReadTime2FluxesBool = True
         else:   
             print("No timed_fluxes")    
+
     def ReadFluxes(self):
         if self.verbose:
             print("Reading fluxes")
@@ -455,6 +470,7 @@ class DailyNetworkStats:
             self.ReadFluxesBool = True        
         else:
             print("No fluxes")    
+
     def ReadFcm(self):
         if self.verbose:
             print("Reading fcm")
@@ -463,13 +479,14 @@ class DailyNetworkStats:
             self.Fcm = pd.read_csv(self.DictDirInput["fcm"],delimiter = ';')
             self.Fcm = pl.from_pandas(self.Fcm)
             self.Fcm = self.Fcm.filter(pl.col("av_speed")<43.0)
-            self.Fcm = self.Fcm.with_columns(pl.col("av_speed").apply(lambda x: ms2kmh(x), return_dtype=pl.Float64))
-            self.Fcm = self.Fcm.with_columns(pl.col("lenght").apply(lambda x: m2km(x), return_dtype=pl.Float64))
+            self.Fcm = self.Fcm.with_columns(pl.col("av_speed").apply(lambda x: ms2kmh(x), return_dtype=pl.Float64).alias("speed_kmh"))
+            self.Fcm = self.Fcm.with_columns(pl.col("lenght").apply(lambda x: m2km(x), return_dtype=pl.Float64).alias("lenght_km"))
             self.Fcm = self.Fcm.with_columns(pl.col("time").apply(lambda x: s2h(x), return_dtype=pl.Float64).alias("time_hours"))
 
             self.ReadFcmBool = True
         else:
             print("No fcm")
+
     def ReadStats(self):
         if self.verbose:
             print("Reading stats")
@@ -478,12 +495,13 @@ class DailyNetworkStats:
             self.Stats = pd.read_csv(self.DictDirInput["stats"],delimiter = ';')
             self.Stats = pl.from_pandas(self.Stats)
             self.Stats = self.Stats.filter(pl.col("av_speed")<43.0)
-            self.Stats = self.Stats.with_columns(pl.col("av_speed").apply(lambda x: ms2kmh(x), return_dtype=pl.Float64))
-            self.Stats = self.Stats.with_columns(pl.col("lenght").apply(lambda x: m2km(x), return_dtype=pl.Float64))
+            self.Stats = self.Stats.with_columns(pl.col("av_speed").apply(lambda x: ms2kmh(x), return_dtype=pl.Float64).alias("speed_kmh"))
+            self.Stats = self.Stats.with_columns(pl.col("lenght").apply(lambda x: m2km(x), return_dtype=pl.Float64).alias("lenght_km"))
             self.Stats = self.Stats.with_columns(pl.col("time").apply(lambda x: s2h(x), return_dtype=pl.Float64).alias("time_hours"))
             self.ReadStatsBool = True
         else:
             print("No stats")    
+
     def ReadFcmNew(self):
         if self.verbose:
             print("Reading fcm_new")
@@ -494,6 +512,7 @@ class DailyNetworkStats:
             self.ReadFcmNewBool = True
         else:
             print("No fcm_new")    
+
     def ReadFcmCenters(self,verbose=False):
         """
             Description:
@@ -623,6 +642,7 @@ class DailyNetworkStats:
             
         self.FcmCenters = pl.DataFrame(Features)
         self.ReadFcmCentersBool = True    
+
     def ReadFluxesSub(self):
         '''
             Input:
@@ -664,14 +684,15 @@ class DailyNetworkStats:
             self.ReadFluxesSubBool = True
         else:
             print("FluxesSubFile not found")
+
     def ReadGeoJson(self):
         if self.verbose:
             print("Reading GeoJson")
-#            print(self.GeoJsonFile)
         if not os.path.isfile(self.GeoJsonFile):
             exit("GeoJsonFile not found")
         self.GeoJson = gpd.read_file(self.GeoJsonFile)
         self.ReadGeoJsonBool = True
+
     def GetIncreasinglyIncludedSubnets(self):
         self.DictSubnetsTxtDir = defaultdict(dict)
         if self.BoolStrClass2IntClass:
@@ -684,6 +705,7 @@ class DailyNetworkStats:
                     print(self.DictSubnetsTxtDir[class_])
         else:
             print("Warning: Not Initialized DictSubnetsTxtDir -> Will not have Increasingly Included SubNetworks")
+
     def ReadFluxesSubIncreasinglyIncludedIntersection(self):
         '''
             Input:
@@ -694,7 +716,6 @@ class DailyNetworkStats:
         '''
         DoNothing = False
         self.IntClass2RoadsIncreasinglyIncludedIntersection = defaultdict(list)
-        # Read Fluxes.sub
         try:
             for Class in self.DictSubnetsTxtDir.keys():
                 with open(self.DictSubnetsTxtDir[Class],'r') as f:
@@ -709,6 +730,7 @@ class DailyNetworkStats:
             self.ReadFluxesSubIncreasinglyIncludedIntersectionBool = True
         except:
             print("FluxesSubFile not found")
+
 #--------- COMPLETE GEOJSON ------- ##
     def CompleteGeoJsonWithClassInfo(self):
         """
@@ -736,7 +758,13 @@ class DailyNetworkStats:
                 print("VelTimePercorrenceFile not found")
         else:
             print("Warning: No Initialization of VelTimePercorrenceClass due to lack of definition of IntClass2Str")
+
     def AddFcmNew2Fcm(self,verbose = True):
+        """
+            Description:
+                Convert the class column of the FcmNew to class_new and join it to the Fcm.
+                In this way we have in Fcm for each trajectory a new column with the class of the trajectory after having intersected the subnetworks..
+        """
         if self.ReadFcmBool and self.ReadFcmNewBool:
             FcmNew = self.FcmNew.with_columns([self.FcmNew['class'].alias('class_new')])
             self.Fcm = self.Fcm.join(FcmNew[['id_act', 'class_new']], on='id_act', how='left')
@@ -755,6 +783,7 @@ class DailyNetworkStats:
             self.Stats =self.Stats.with_columns([self.Stats['class'].alias('class_new')])
             if verbose:
                 print("renamed: ",self.Stats.columns)
+
 ##--------------- Plot Network --------------## 
     def PlotIncrementSubnetHTML(self):
         """
@@ -860,10 +889,7 @@ class DailyNetworkStats:
             TF = TF.with_columns(pl.col("n_traj_TF").apply(lambda x: NormalizeWidthForPlot(x,min_val,max_val), return_dtype=pl.Int64).alias("width_n_traj_TF"))
             CopyGdf = self.GeoJson
             CopyGdf = CopyGdf.merge(TF.to_pandas(),how = 'left',left_on = 'poly_lid',right_on = 'id_local')
-#            CopyGdf["width_n_traj_FT"] = TF["width_n_traj_FT"]
-#            CopyGdf["width_n_traj_TF"] = TF["width_n_traj_TF"]
-            # Iterate through the Dictionary of list of poly_lid
-            
+            # Iterate through the Dictionary of list of poly_lid            
             for t,tdf in TF.group_by("time"):
                 # Filter GeoDataFrame for roads with indices in the current list
                 # Create a feature group for the current layer
@@ -948,7 +974,7 @@ class DailyNetworkStats:
                     2) Conditional to class
             Save them in two dictionaries 
                 1) self.MFD = {time:[],population:[],speed:[]}
-                2) self.Class2MFD = {Class:pl.DataFrame{"time":[],"population":[],"speed":[]}}
+                2) self.Class2MFD = {Class:pl.DataFrame{"time":[],"population":[],"speed_kmh":[]}}
         '''
         if self.ReadFcmBool:
             print("Computing MFD Variables from Fcm")
@@ -958,8 +984,8 @@ class DailyNetworkStats:
 #                if self.verbose:
 #                    PrintMFDDictInfo(self.MFD,StartingString = "MFD: ")            
                 # PER CLASS
-                self.Class2MFD = {class_:Dict2PolarsDF({"time":[],"population":[],"speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed":pl.Float64}) for class_ in self.IntClass2StrClass.keys()}
-                self.Class2MFDNew = {class_:Dict2PolarsDF({"time":[],"population":[],"speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed":pl.Float64}) for class_ in self.IntClass2StrClass.keys()}
+                self.Class2MFD = {class_:Dict2PolarsDF({"time":[],"population":[],"speed_kmh":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64}) for class_ in self.IntClass2StrClass.keys()}
+                self.Class2MFDNew = {class_:Dict2PolarsDF({"time":[],"population":[],"speed_kmh":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64}) for class_ in self.IntClass2StrClass.keys()}
                 if self.verbose:
                     print(self.Class2MFD.keys())
                 for Class in self.Class2MFD.keys():
@@ -987,8 +1013,8 @@ class DailyNetworkStats:
                 for class_ in self.IntClass2StrClass.keys():
                     if self.verbose:
                         print("Class: ",class_)
-                    self.Class2MFD[class_] = Dict2PolarsDF({"time":[],"population":[],"speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed":pl.Float64})
-                    self.Class2MFDNew[class_] = Dict2PolarsDF({"time":[],"population":[],"speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed":pl.Float64})
+                    self.Class2MFD[class_] = Dict2PolarsDF({"time":[],"population":[],"speed_kmh":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64})
+                    self.Class2MFDNew[class_] = Dict2PolarsDF({"time":[],"population":[],"speed_kmh":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64})
             else:
                 print("Warning: No Plotting MFD due to not Definition of StrInt2Class")
             for Class in self.Class2MFD.keys():
@@ -1015,10 +1041,10 @@ class DailyNetworkStats:
         Returns:
             NOTE: Aggregated Important Variables Initialized
             self.MFD2Plot (dict): {"binned_av_speed": [], "binned_sqrt_err_speed": [], "bins_population": []}
-            self.MinMaxPlot (dict): {"aggregated": {"population": {"min": int, "max": int}, "speed": {"min": int, "max": int}}}
+            self.MinMaxPlot (dict): {"aggregated": {"population": {"min": int, "max": int}, "speed_kmh": {"min": int, "max": int}}}
             NOTE: Per Class Important Variables Initialized
             self.Class2MFD2Plot (dict): {Class: {"binned_av_speed": [], "binned_sqrt_err_speed": [], "bins_population": []}}
-            self.MinMaxPlotPerClass (dict): {Class: {"population": {"min": int, "max": int}, "speed": {"min": int, "max": int}}}
+            self.MinMaxPlotPerClass (dict): {Class: {"population": {"min": int, "max": int}, "speed_kmh": {"min": int, "max": int}}}
         
         Raises:
             None
@@ -1049,11 +1075,10 @@ class DailyNetworkStats:
                         self.PlotDir,
                         NameFile = "MFD.png")            
             # PER CLASS 
-            self.MinMaxPlotPerClass = {int(Class): defaultdict() for Class in self.Class2MFD.keys()}
-            self.MinMaxPlotPerClassNew = {int(Class): defaultdict() for Class in self.Class2MFDNew.keys()}
-            for Class in self.Class2MFD.keys():
-                self.Class2MFD2Plot[int(Class)] = {"binned_av_speed": [], "binned_sqrt_err_speed": [], "bins_population": []}
-                self.Class2MFDNew2Plot[int(Class)] = {"binned_av_speed": [], "binned_sqrt_err_speed": [], "bins_population": []}
+            self.MinMaxPlotPerClass = {Class: defaultdict() for Class in self.Class2MFD.keys()}
+            self.MinMaxPlotPerClassNew = {Class: defaultdict() for Class in self.Class2MFDNew.keys()}       
+            self.Class2MFD2Plot = {Class:{"binned_av_speed": [], "binned_sqrt_err_speed": [], "bins_population": []} for Class in self.Class2MFD.keys()}
+            self.Class2MFDNew2Plot = {Class:{"binned_av_speed": [], "binned_sqrt_err_speed": [], "bins_population": []} for Class in self.Class2MFD.keys()}
             for Class in self.Class2MFD.keys():
                 # Fill Average/Std Speed (to plot)
                 # OLD CLASSIFICATION
@@ -1136,24 +1161,109 @@ class DailyNetworkStats:
         """
             Output: dict: {'velocity class in words': {function: {lenght: {xmin,xmax},time: {tmin,tmax}}}}
         """
+        
         if self.BoolStrClass2IntClass:
-            for Strclass_ in self.StrClass2IntClass.keys():
-                self.DictConstraintClassLabel[Strclass_] = defaultdict(dict)
-                for label in self.labels2FitNames2Try.keys():
-                    self.DictConstraintClassLabel[Strclass_][label] = defaultdict(dict)
+            self.Class2InitialGuess = {IntClass: self.DictInitialGuess for IntClass in self.StrClass2IntClass.keys()}
+            for IntClass in self.IntClass2StrClass.keys():
+                StrClass = self.IntClass2StrClass[IntClass]
+                for Feature in self.DictInitialGuess: 
                     if label == "time":
-                            self.DictConstraintClassLabel[Strclass_]["time"] = {"tmin":6000,"tmax":10000}
+                            for Function2Test in ["exponential","powerlaw"]:            
+                                if StrClass == "1 slowest":
+                                    if Function2Test == "exponential":
+                                        self.Class2InitialGuess[IntClass][Function2Test]["time"]["initial_guess"] = [2700,-3500]
+                                        self.Class2InitialGuess[IntClass][Function2Test]["time_hours"]["initial_guess"] = [2700,-3.5]
+                                    else:
+                                        self.Class2InitialGuess[IntClass][Function2Test]["time"]["initial_guess"] = [2700,-1]
+                                        self.Class2InitialGuess[IntClass][Function2Test]["time_hours"]["initial_guess"] = [2700,-1]
+                                    self.Class2InitialGuess[IntClass][Function2Test]["time"]["interval"] = [500,10000]
+                                    self.Class2InitialGuess[IntClass][Function2Test]["time_hours"]["interval"] = [500/3600,10000/3600]
+                                elif StrClass == "2 slowest":
+                                    if Function2Test == "exponential":
+                                        self.Class2InitialGuess[IntClass][Function2Test]["time"]["initial_guess"] = [4000,-2400]
+                                        self.Class2InitialGuess[IntClass][Function2Test]["time_hours"]["initial_guess"] = [4000,-2.400]
+                                    else:
+                                        self.Class2InitialGuess[IntClass][Function2Test]["time"]["initial_guess"] = [4000,-1]
+                                        self.Class2InitialGuess[IntClass][Function2Test]["time_hours"]["initial_guess"] = [4000,-1]
+                                    self.Class2InitialGuess[IntClass][Function2Test]["time"]["interval"] = [500,8000]
+                                    self.Class2InitialGuess[IntClass][Function2Test]["time_hours"]["interval"] = [500/3600,8000/3600]
+                                elif StrClass == "middle velocity class":
+                                    if Function2Test == "exponential":
+                                        self.Class2InitialGuess[IntClass][Function2Test]["time"]["initial_guess"] = [5000,-2000]
+                                        self.Class2InitialGuess[IntClass][Function2Test]["time_hours"]["initial_guess"] = [5000,-2]
+                                    else:
+                                        self.Class2InitialGuess[IntClass][Function2Test]["time"]["initial_guess"] = [5000,-1]
+                                        self.Class2InitialGuess[IntClass][Function2Test]["time_hours"]["initial_guess"] = [5000,-1]
+                                    self.Class2InitialGuess[IntClass][Function2Test]["time"]["interval"] = [500,6000]
+                                    self.Class2InitialGuess[IntClass][Function2Test]["time_hours"]["interval"] = [500/3600,6000/3600]
+                                elif StrClass == "2 quickest":
+                                    if Function2Test == "exponential":
+                                        self.Class2InitialGuess[IntClass][Function2Test]["time"]["initial_guess"] = [5000,-2000]
+                                        self.Class2InitialGuess[IntClass][Function2Test]["time_hours"]["initial_guess"] = [5000,-2]
+                                    else:
+                                        self.Class2InitialGuess[IntClass][Function2Test]["time"]["initial_guess"] = [5000,-1]
+                                        self.Class2InitialGuess[IntClass][Function2Test]["time_hours"]["initial_guess"] = [5000,-1]
+                                    self.Class2InitialGuess[IntClass][Function2Test]["time"]["interval"] = [500,6000]
+                                    self.Class2InitialGuess[IntClass][Function2Test]["time_hours"]["interval"] = [500/3600,6000/3600]
+                                elif StrClass == "1 quickest":
+                                    if Function2Test == "exponential":
+                                        self.Class2InitialGuess[IntClass][Function2Test]["time"]["initial_guess"] = [1700,-1300]
+                                        self.Class2InitialGuess[IntClass][Function2Test]["time_hours"]["initial_guess"] = [1700,-1.300]
+                                    else:
+                                        self.Class2InitialGuess[IntClass][Function2Test]["time"]["initial_guess"] = [1700,-1]
+                                        self.Class2InitialGuess[IntClass][Function2Test]["time_hours"]["initial_guess"] = [1700,-1]
+                                    self.Class2InitialGuess[IntClass][Function2Test]["time"]["interval"] = [6000,10000]
+                                    self.Class2InitialGuess[IntClass][Function2Test]["time_hours"]["interval"] = [6000/3600,10000/3600]
                     elif label == "lenght":
-                        if Strclass_ == "1 slowest":
-                            self.DictConstraintClassLabel[Strclass_][label]["lenght"] = {"xmin":10,"xmax":500}
-                        elif Strclass_ == "2 slowest":
-                            self.DictConstraintClassLabel[Strclass_][label]["lenght"] = {"xmin":500,"xmax":5000}
-                        elif Strclass_ == "2 quickest":
-                            self.DictConstraintClassLabel[Strclass_][label]["lenght"] = {"xmin":2000,"xmax":9000}
-                        elif Strclass_ == "1 quickest":
-                            self.DictConstraintClassLabel[Strclass_][label]["lenght"] = {"xmin":1000,"xmax":25000}
-   
-   
+                        for Function2Test in ["exponential","powerlaw"]:
+                            if Strclass_ == "1 slowest":
+                                    if Function2Test == "exponential":
+                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght"]["initial_guess"] = []
+                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght_km"]["initial_guess"] = []
+                                    else:
+                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght"]["initial_guess"] = []
+                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght_km"]["initial_guess"] = []
+                                self.Class2InitialGuess[IntClass][Function2Test]["lenght"] = {"xmin":10,"xmax":500}
+                                self.Class2InitialGuess[IntClass][Function2Test]["lenght_km"] = {"xmin":10/1000,"xmax":500/1000}
+                            elif Strclass_ == "2 slowest":
+                                    if Function2Test == "exponential":
+                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght"]["initial_guess"] = []
+                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght_km"]["initial_guess"] = []
+                                    else:
+                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght"]["initial_guess"] = []
+                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght_km"]["initial_guess"] = []
+                                self.Class2InitialGuess[IntClass][Function2Test]["lenght"] = {"xmin":500,"xmax":5000}
+                                self.Class2InitialGuess[IntClass][Function2Test]["lenght_km"] = {"xmin":500/1000,"xmax":5000/1000}
+                            elif Strclass_ == "middle velocity class":
+                                    if Function2Test == "exponential":
+                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght"]["initial_guess"] = []
+                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght_km"]["initial_guess"] = []
+                                    else:
+                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght"]["initial_guess"] = []
+                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght_km"]["initial_guess"] = []                                
+                                self.Class2InitialGuess[IntClass][Function2Test]["lenght"] = {"xmin":500,"xmax":5000}
+                                self.Class2InitialGuess[IntClass][Function2Test]["lenght_km"] = {"xmin":500/1000,"xmax":5000/1000}
+                            elif Strclass_ == "2 quickest":
+                                    if Function2Test == "exponential":
+                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght"]["initial_guess"] = []
+                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght_km"]["initial_guess"] = []
+                                    else:
+                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght"]["initial_guess"] = []
+                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght_km"]["initial_guess"] = []
+
+                                self.Class2InitialGuess[IntClass][Function2Test]["lenght"] = {"xmin":2000,"xmax":9000}
+                                self.Class2InitialGuess[IntClass][Function2Test]["lenght_km"] = {"xmin":2000/1000,"xmax":9000/1000}
+                            elif Strclass_ == "1 quickest":
+                                    if Function2Test == "exponential":
+                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght"]["initial_guess"] = []
+                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght_km"]["initial_guess"] = []
+                                    else:
+                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght"]["initial_guess"] = []
+                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght_km"]["initial_guess"] = []
+                                self.Class2InitialGuess[IntClass][Function2Test]["lenght"] = {"xmin":1000,"xmax":25000}
+                                self.Class2InitialGuess[IntClass][Function2Test]["lenght_km"] = {"xmin":1000/1000,"xmax":25000/1000}
+                    elif label == "av_speed":
+                        
     def CreateDictConstraintsAll(self):
         pass
 
@@ -1219,6 +1329,7 @@ class DailyNetworkStats:
             Return:
                 InitialGuessPerClassAndLabel: dict -> {class:{label:{function:(A,b)}}}
         """
+        for Label in 
         if self.ReadFcmCentersBool:
             for class_ in self.FcmCenters["class"]:
                 self.InitialGuessPerClassAndLabel[class_] = defaultdict(dict)
@@ -1272,19 +1383,20 @@ class DailyNetworkStats:
             maxSpeed = bins[-1]
             self.Feature2MaxBins[Label]["bins"] = maxSpeed
             self.Feature2MaxBins[Label]["count"] = maxCount
-            for cl,df in self.Fcm.group_by('class'):
+            for cl in self.IntClass2StrClass:
+                df = self.Fcm.filter(pl.col("class") == cl)
             #    fig,ax = plt.subplots(1,1,figsize= (15,12))
-                x,y = np.histogram(df[Label],bins = 50)
-                if max(x)>maxCount:
-                    maxCount = max(x)
+                y,x = np.histogram(df[Label],bins = 50)
+                if max(y)>maxCount:
+                    maxCount = max(y)
                 if cl!=10 and cl!=11:
                     if "speed" in Label:
                         ax.hist(df[Label].to_list(),bins = 50,alpha = 0.5)
                     else:
-                        ax.scatter(y[1:],x)
+                        ax.scatter(x[1:],y)
                     av_speed = np.mean(df[Label].to_list())
                     legend.append(str(self.IntClass2StrClass[cl]) + " " + self.Column2Legend[Label] + " " + str(round(av_speed,3)))
-                    self.Class2MaxCountSpeed[cl] = max(x)
+                    self.Class2MaxCountSpeed[cl] = max(y)
             ax.set_xticks(np.arange(bins[0],bins[-1],self.Feature2IntervalBin[Label]))
             ax.set_yticks(np.arange(min(n),max(n),self.Feature2IntervalCount[Label]))
             ax.set_xlabel(self.Column2Label[Label])
@@ -1297,7 +1409,43 @@ class DailyNetworkStats:
             frame = legend_.get_frame()
             frame.set_facecolor('white')
             plt.savefig(os.path.join(self.PlotDir,'{0}_{1}.png'.format(LableSave,self.Column2SaveName[Label])),dpi = 200)
+            plt.close()
 
+
+    def PlotDistrPerClass(self):
+        """
+            Description:
+                For each Label of ColumnLabel: ['time','lenght','av_speed','p','a_max']
+                Plot the distribution of the feature for each class. 
+                With a set of guesses for the fitting functions.
+            Return:
+                InfoDayFit: dict -> {IntClass: {Label: {Function: [A,b]}}}
+
+        """
+        self.InfoDayFit = {IntClass: {} for IntClass in self.IntClass2StrClass.keys()}
+        for Label in self.Column2Label.keys():
+            for cl in self.IntClass2StrClass:
+                fig,ax = plt.subplots(1,1,figsize= (15,12))
+                df = self.Fcm.filter(pl.col("class") == cl)
+                y,x = np.histogram(df[Label],bins = 50)
+                InfoFit,FittedData,BestLabel = FitAndPlot(x,y,self.DictInitialGuess[Label])                
+                if cl!=10 and cl!=11:
+                    if "speed" in Label:
+                        ax.hist(df[Label].to_list(),bins = 50,alpha = 0.5)
+                    else:
+                        ax.scatter(x[1:],y)
+                    av_speed = np.mean(df[Label].to_list())
+                    ax.set_xticks(np.arange(x[0],x[-1],self.Feature2IntervalBin[Label]))
+                    ax.set_yticks(np.arange(min(y),max(y),self.Feature2IntervalCount[Label]))
+                    ax.set_xlabel(self.Column2Label[Label])
+                    ax.set_ylabel('Count')
+                    ax.set_xlim(right = max(x) + self.Feature2ShiftBin[Label])
+                    ax.set_ylim(top = max(y) + self.Feature2ShiftCount[Label])
+                    ax.set_xscale(self.Feature2ScaleBins[Label])
+                    ax.set_yscale(self.Feature2ScaleCount[Label])
+                    plt.savefig(os.path.join(self.PlotDir,'{0}_Class_{1}_{2}.png'.format(BestLabel,cl,self.Column2SaveName[Label])),dpi = 200)
+                    plt.close()
+        
 
 ## ------------------- PRINT UTILITIES ---------------- #
     def PrintTimeInfo(self):

@@ -57,3 +57,4 @@ z_config_analysis/
 html/
 latex/
 screen_logs/
+vcpkg/

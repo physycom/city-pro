@@ -44,6 +44,13 @@ def gamma_(x, shape, scale):
 
 def weibull(x, shape, scale):
     return (shape / scale) * (x / scale)**(shape - 1) * np.exp(-(x / scale)**shape)
+
+def maxwellian(x,sigma,mu):
+    return (x/sigma)**2 * np.exp(-(x - mu)**2 / (2 * sigma**2))
+def gaussian(x,sigma,mu):
+    return 1/(sigma*np.sqrt(2*np.pi))*np.exp(-(x-mu)**2/(2*sigma**2))
+
+
 # LOSS FUNCTIONS
 def quadratic_loss_function(y_predict, y_measured):
     return np.sum((y_predict-y_measured)**2)
@@ -78,21 +85,86 @@ def objective_function_multilinear4variables(params,x,y_measured):
         raise ValueError('The log of the fluxes must be of the same length as the masses')
     y_guessed = multilinear4variables(x, params[0],params[1],params[2],params[3])
     return quadratic_loss_function(y_guessed,y_measured)
+
+def objective_function_lognormal(params,x,y_measured):
+    if len(params)!=2:
+        raise ValueError('The parameters must be an array of length 2')
+    if len(x)!=len(y_measured):
+        raise ValueError('The x and y must have the same shape')
+    y_guessed = lognormal(x, params[0], params[1])
+    return quadratic_loss_function(y_guessed,y_measured)
+
+def objective_function_gamma(params,x,y_measured):
+    if len(params)!=2:
+        raise ValueError('The parameters must be an array of length 2')
+    if len(x)!=len(y_measured):
+        raise ValueError('The x and y must have the same shape')
+    y_guessed = gamma_(x, params[0], params[1])
+    return quadratic_loss_function(y_guessed,y_measured)
+
+def objective_function_weibull(params,x,y_measured):
+    if len(params)!=2:
+        raise ValueError('The parameters must be an array of length 2')
+    if len(x)!=len(y_measured):
+        raise ValueError('The x and y must have the same shape')
+    y_guessed = weibull(x, params[0], params[1])
+    return quadratic_loss_function(y_guessed,y_measured)
+
+def objective_function_maxwellian(params,x,y_measured):
+    if len(params)!=2:
+        raise ValueError('The parameters must be an array of length 2')
+    if len(x)!=len(y_measured):
+        raise ValueError('The x and y must have the same shape')
+    y_guessed = maxwellian(x, params[0], params[1])
+    return quadratic_loss_function(y_guessed,y_measured)
+
+def objective_function_gaussian(params,x,y_measured):
+    if len(params)!=2:
+        raise ValueError('The parameters must be an array of length 2')
+    if len(x)!=len(y_measured):
+        raise ValueError('The x and y must have the same shape')
+    y_guessed = gaussian(x, params[0], params[1])
+    return quadratic_loss_function(y_guessed,y_measured)
 ## DICTIONARY FOR LOSS FUNCTIONS
-Name2Function = {'powerlaw':powerlaw,'exponential':exponential,'linear':linear,'vespignani':multilinear4variables}
-Name2LossFunction = {'powerlaw':objective_function_powerlaw,'exponential':objective_function_exponential,'linear':objective_function_linear,'vespignani':objective_function_multilinear4variables}
+Name2Function = {'powerlaw':powerlaw,
+                'exponential':exponential,
+                'linear':linear,
+                'vespignani':multilinear4variables,
+                'lognormal':lognormal,
+                'gamma':gamma_,
+                'weibull':weibull,
+                'maxwellian':maxwellian,
+                'gaussian':gaussian}
+Name2LossFunction = {'powerlaw':objective_function_powerlaw,
+                    'exponential':objective_function_exponential,
+                    'linear':objective_function_linear,
+                    'vespignani':objective_function_multilinear4variables,
+                    'lognormal':objective_function_lognormal,
+                    'gamma':objective_function_gamma,
+                    'weibull':objective_function_weibull,
+                    'maxwellian':objective_function_maxwellian,
+                    'gaussian':objective_function_gaussian}
     
 
-def Fitting(x,y_measured,label = 'powerlaw',initial_guess = (6000,0.3),maxfev = 10000):
+def Fitting(x,y_measured,label = 'powerlaw',initial_guess = (6000,0.3),maxfev = 10000,interval = []):
     '''
         Input:
             label: 'powerlaw' or 'exponential' or 'linear'
             x: (np.array 1D) x-axis
             y_measured: (np.array 1D) y-axis
             initial_guess: (tuple 2D) parameters for fitting
+            maxfev: (int) maximum number of iterations
+            interval: (tuple 2D) interval on x for fitting
         USAGE:
 
     '''
+    if len(interval)==0:
+        x = np.array([x[i] for i in range(len(x)) if x[i] >= interval[0] and x[i] <= interval[1]])
+        y_measured = np.array([y_measured[i] for i in range(len(x)) if x[i] >= interval[0] and x[i] <= interval[1]])
+    else:
+        x = np.array(x)
+        y_measured = np.array(y_measured)
+        assert len(x) == len(y_measured), "x and y_measured must have the same length"
     print('Fitting {}'.format(label))
     result_powerlaw = minimize(Name2LossFunction[label], initial_guess, args = (x, y_measured))#,maxfev = maxfev
     optimal_params_pl = result_powerlaw.x
@@ -103,6 +175,53 @@ def Fitting(x,y_measured,label = 'powerlaw',initial_guess = (6000,0.3),maxfev = 
     print('Optimal parameters: ',result_powerlaw.x)
     print('Message: ',result_powerlaw.message)
     return fit
+
+def FitAndStdError(x,y_measured,label,initial_guess,maxfev = 10000,interval = []):
+    fit = Fitting(x,y_measured,label,initial_guess = (6000,0.3),maxfev = 10000)
+    if len(fit[0]) == 2:
+        A = fit[0][0]
+        b = fit[0][1]
+    else:
+        raise ValueError("Fit Of more than 2 parameters need to be handled separately")
+    FittedData = Name2Function[label](x,A,b)
+    SqrtN = np.sqrt(len(y_measured))
+    StdError = np.sqrt(np.sum((np.array(y_measured) - np.array(FittedData))**2))/SqrtN
+    return fit,StdError
+
+def FitAndPlot(x,y_measured,DictInitialGuess):
+    """
+        Return: 
+            InfoFit: {label:{"fit":None,"StdError":None} for label in DictInitialGuess.keys()}
+            FittedData: np.array -> Fitted Data
+            BestFit: str -> Best Fit Label
+        Usage:
+            Prepare the Dictionary of the Fit you want to try:
+                Example:
+                    DictInitialGuess = {"powerlaw":
+                                            {"initial_guess":[6000,0.3],"interval":[0,100]},
+                                        "exponential":
+                                            {"initial_guess":[6000,0.3],"interval":[0,100]},
+                                        "linear":
+                                            {"initial_guess":[6000,0.3],"interval":[0,100]}}
+    """
+    assert  len(ListLabel) == len(ListInitialGuess) == len(ListMaxFev), "Lists must have the same length"
+    InfoFit =  {label:{"fit":None,"StdError":None} for label in DictInitialGuess.keys()}
+    for label in DictInitialGuess.keys():
+        InfoFit[label]['fit'],InfoFit[label]['StdError'] = FitAndStdError(x,y_measured,label,tuple(DictInitialGuess[label]["initial_guess"]),10000,DictInitialGuess[label]["interval"])
+        if len(fit[0]) == 2:
+            A = fit[0][0]
+            b = fit[0][1]
+        else:
+            raise ValueError("Fit Of more than 2 parameters need to be handled separately")
+    InfError = 10000000000
+    BestFit = None
+    for label in DictInitialGuess.keys():
+        if InfoFit[label]['StdError'] < InfError:
+            InfError = InfoFit[label]['StdError']
+            BestFit = label
+    FittedData = Name2Function[BestFit](x,A,b)
+    return InfoFit,FittedData,BestFit
+
 
 if FoundPyMC3:
     def FitWithPymc(x,y,label):

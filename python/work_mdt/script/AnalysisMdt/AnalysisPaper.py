@@ -1,3 +1,74 @@
+'''
+Example of Configuration File:
+{
+    "StrDates": ["2022-12-30","2022-12-31","2023-01-01","2022-05-12","2022-11-11","2022-07-01","2022-08-05","2022-01-31","2023-03-18"], # Dates to Analyze
+    "base_name": "bologna_mdt",
+    "InputBaseDir":"/home/aamad/codice/city-pro/output/bologna_mdt_detailed",   # Useless: Directory where the output of all the main_city-pro is stored
+    "bounding_box":{
+        "lat_min":"44.463121",      # Same Bounding Box of the city, or of the zone of interest
+        "lat_max":"44.518165",
+        "lon_min":"11.287085",
+        "lon_max":"11.367472"
+        },
+    "geojson": "/home/aamad/codice/city-pro/bologna-provincia.geojson", # Useless
+    "verbose": true,        # Debugging
+    "shift_bin":{
+        "av_speed": 3,
+        "av_speed_kmh": 0.5,
+        "lenght": 40,
+        "lenght_km": 0.5,               # Parameter For set_xlim for the plot of the distribution 
+        "time": 30,
+        "time_hours": 0.5,
+        "av_accel": 0.1},
+    "shift_count":{
+        "av_speed": 50,
+        "speed_kmh": 50,
+        "lenght": 50,           # Parameter For set_ylim for the plot of the distribution
+        "lenght_km": 50,
+        "time": 50,
+        "time_hours": 50,
+        "av_accel": 50
+    },
+    "interval_bin":{
+        "av_speed": 10,
+        "speed_kmh": 10,
+        "lenght": 10,
+        "lenght_km": 10,
+        "time": 10,                 # Parameter For set_xticks for the plot of the distribution
+        "time_hours": 10,
+        "av_accel": 0.2
+    },
+    "interval_count":{
+        "av_speed": 300,
+        "speed_kmh": 300,               # Parameter For set_yticks for the plot of the distribution
+        "lenght": 300,
+        "lenght_km": 300,
+        "time": 300,
+        "time_hours": 300,
+        "av_accel": 500
+    },
+    "scale_count":{
+        "av_speed": "linear",
+        "speed_kmh": "linear",
+        "lenght": "log",
+        "lenght_km": "log",             # Parameter For set_yscale for the plot of the distribution
+        "time": "log",
+        "time_hours": "log",
+        "av_accel": "linear"
+    },
+    "scale_bins":{
+        "av_speed": "linear",
+        "speed_kmh": "linear",
+        "lenght": "linear",
+        "lenght_km": "linear",              # Parameter For set_xscale for the plot of the distribution
+        "time": "linear",
+        "time_hours": "linear",
+        "av_accel": "linear"
+    }
+
+}
+'''
+
 from AnalysisNetwork1Day import *
 from AnalysisNetworkAllDays import *
 #from AnalysisNetworkAllDays import *
@@ -48,7 +119,7 @@ def Main(config,StrDate):
     Network.ReadFluxes()
 ## +++++++++++++++++ PLOT TRAJECTORIES STATS +++++++++++++++++++++++++++
     Network.PlotDailySpeedDistr("Aggregated")
-
+    Network.PlotDistrPerClass()
 ## +++++++++++++++ FITTING PROCEDURES +++++++++++++++++++++++++++++
     if FittingAnalysis:
         # ALL CLASSES
@@ -95,12 +166,12 @@ if __name__ == "__main__":
     parallel = True
     if parallel:
         args = [(config,StrDate) for StrDate in StrDates]
-        Ncpu = len(args)
+        Ncpu = len(StrDates)
         if Ncpu < os.cpu_count():
             pass
         else:
             Ncpu = os.cpu_count() - 1
-        with Pool(Ncpu) as p:
+        with Pool(len(StrDates)) as p:
             ListNetworkDays = p.starmap(Main,args)
     else:
         for StrDate in StrDates:
@@ -138,7 +209,7 @@ if __name__ == "__main__":
             Network.ReadFluxes()
     ## +++++++++++++++++ PLOT TRAJECTORIES STATS +++++++++++++++++++++++++++
             Network.PlotDailySpeedDistr("Aggregated")
-
+            Network.PlotDistrPerClass()
     ## +++++++++++++++ FITTING PROCEDURES +++++++++++++++++++++++++++++
             if FittingAnalysis:
                 # ALL CLASSES
