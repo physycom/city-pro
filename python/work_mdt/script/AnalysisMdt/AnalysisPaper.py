@@ -112,7 +112,7 @@ def Main(config,StrDate):
     # TIMED FLUXES
     Network.ReadTimedFluxes()
     # PLOT SUBNETS
-    Network.PlotSubnetHTML()
+#    Network.PlotSubnetHTML()
     Network.PlotIncrementSubnetHTML()   
 #        Network.PlotFluxesHTML()
 #        Network.PlotTimePercorrenceHTML()     
@@ -155,14 +155,17 @@ if __name__ == "__main__":
     
     ListNetworkDays = []
     parallel = True
+    print("Dates to Analyze:\n",StrDates)
     if parallel:
         args = [(config,StrDate) for StrDate in StrDates]
         Ncpu = len(StrDates)
         if Ncpu < os.cpu_count():
+            print("Number of CPU: ",Ncpu)
             pass
         else:
             Ncpu = os.cpu_count() - 1
-        with Pool(len(StrDates)) as p:
+            print("Number of CPU: ",Ncpu)
+        with Pool(Ncpu) as p:
             ListNetworkDays = p.starmap(Main,args)
     else:
         for StrDate in StrDates:
@@ -191,8 +194,8 @@ if __name__ == "__main__":
             # PLOT SUBNETS
             Network.PlotSubnetHTML()
             Network.PlotIncrementSubnetHTML()   
-            Network.PlotFluxesHTML()
-            Network.PlotTimePercorrenceHTML()     
+#            Network.PlotFluxesHTML()
+#            Network.PlotTimePercorrenceHTML()     
             # FUNDAMENTAL DIAGRAM
             Network.ReadVelocitySubnet()
             Network.PlotMFD()

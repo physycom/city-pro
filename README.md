@@ -236,7 +236,7 @@ In ```make_subnet``` is put by hand the maximum length for a poly extracted from
 For own cartography the parameter needs to be changed. 
 ##### COMMENT ON CPU USAGE
 `city-pro` utilizes for input file of around 1 GB around 20 GB of RAM.
-`Analysis_Paper.py` utilizes for the analysis in parallel of 6 days around 16 GB of RAM.
+`Analysis_Paper.py` utilizes for the analysis in parallel of 9 days around 31 GB of RAM.
 
 # GUIDLINES CONTRIBUTORS
 #### Cpp
@@ -272,4 +272,12 @@ Input:
     class_i_velocity_subnet.csv
     _fcm.csv
 
+
+# EXPERIMENTAL PYBIND11
+Add in ./vcpkg.json if not there, as values of `dependencies`:
+`pybind11`,  
+`jsoncons`  
+Then:
+`cd $WORKSPACE/vcpkg`   
+`./vcpkg install`   
 

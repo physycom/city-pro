@@ -5,6 +5,9 @@ if(DEFINED ENV{VCPKG_DEFAULT_TRIPLET})
   set(VCPKG_TARGET_TRIPLET $ENV{VCPKG_DEFAULT_TRIPLET})
 endif()
 
+# If you are in windows environment (initial configuration for the project)
+# If it is not installed, install vcpkg and set the important paths about it. (vpkg.cmake)
+
 if(DEFINED ENV{VCPKG_ROOT} AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
   set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
   set(X_VCPKG_APPLOCAL_DEPS_INSTALL ON)
@@ -14,6 +17,7 @@ if(DEFINED ENV{VCPKG_ROOT} AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
   if(VCPKG_MANIFEST_FEATURES)
     message(STATUS "VCPKG_MANIFEST_FEATURES: ${VCPKG_MANIFEST_FEATURES}")
   endif()
+# Use the vcpkg toolchain file if it is defined
 elseif(DEFINED CMAKE_TOOLCHAIN_FILE)
   message(STATUS "Using toolchain: ${CMAKE_TOOLCHAIN_FILE}")
   if(CMAKE_TOOLCHAIN_FILE MATCHES "vcpkg.cmake")
@@ -74,12 +78,22 @@ if(UNIX AND NOT APPLE)
 endif()
 find_library(LIBRT rt)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
+# JSONCONS with ./vcpkg install jsoncons
+set(CMAKE_PREFIX_PATH  "$ENV{VCPKG_ROOT}/installed/")
+
 find_package(Threads REQUIRED)
 find_package(FLTK CONFIG REQUIRED)
 find_package(Boost COMPONENTS filesystem REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(OpenGL REQUIRED)
 find_package(physycom-utils REQUIRED)
+# JSONCONS with ./vcpkg install jsoncons
+find_package(jsoncons CONFIG REQUIRED)
+# PYBIND INSTALLATION VIA VCPKG
+find_package(Python COMPONENTS Interpreter Development)
+find_package(pybind11 CONFIG REQUIRED)
+#add_subdirectory($ENV{WORKSPACE}/pybind11 pybind11)
+
 
 include_directories(${CMAKE_SOURCE_DIR}/source
                     ${CMAKE_SOURCE_DIR}/source/ale)
@@ -104,6 +118,7 @@ add_library(city-pro_lib ${CMAKE_SOURCE_DIR}/source/carto.cpp
 )
 
 target_link_libraries(city-pro_lib
+  jsoncons::jsoncons
   OpenGL::GL
   OpenGL::GLU
   fltk fltk_gl fltk_forms fltk_images
@@ -113,12 +128,12 @@ target_link_libraries(city-pro_lib
   Eigen3::Eigen
   Physycom::utils
 )
-
 add_executable(city-pro             ${CMAKE_SOURCE_DIR}/source/main_city-pro.cpp)
 target_link_libraries(city-pro      city-pro_lib)
 
 add_executable(city-pro_subnet           ${CMAKE_SOURCE_DIR}/source/main_city-pro_subnet.cpp)
-target_link_libraries(city-pro_subnet    city-pro_lib)
+target_link_libraries(city-pro_subnet    
+                      city-pro_lib)
 
 set_property(TARGET city-pro_lib PROPERTY CXX_STANDARD 14)
 set_property(TARGET city-pro PROPERTY CXX_STANDARD 14)
@@ -131,6 +146,9 @@ set_property(TARGET city-pro_subnet PROPERTY CXX_STANDARD 14)
 #         --build-config $<CONFIGURATION>
 #         --start-with-test city-pro)
 #set_tests_properties(my_app_valgrind_test PROPERTIES LABELS valgrind)# Add linking dependencies
+
+
+pybind11_add_module(pycitypro ${CMAKE_CURRENT_LIST_DIR}/source/python_interface.cpp)
 
 if(LIBRT)
   target_link_libraries(city-pro ${LIBRT})

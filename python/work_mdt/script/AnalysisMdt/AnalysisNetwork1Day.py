@@ -49,6 +49,7 @@ def ComputeMFDVariables(Df,MFD,TimeStampDate,dt,iterations,verbose = False):
         Hstr = StartInterval.strftime("%Y-%m-%d %H:%M:%S").split(" ")[1]
         TmpDict["time"].append(Hstr)
         TmpDict["population"].append(len(TmpFcm))
+
         if len(TmpFcm) > 0:
             AvSpeed = TmpFcm.select(pl.col("speed_kmh").mean()).to_pandas().iloc[0]["speed_kmh"]
             TmpDict["speed_kmh"].append(AvSpeed)
@@ -57,6 +58,7 @@ def ComputeMFDVariables(Df,MFD,TimeStampDate,dt,iterations,verbose = False):
             MoreThan0Traj = True
         else:
             TmpDict["speed_kmh"].append(0)
+            TmpDict["av_speed"].append(0)
             MoreThan0Traj = False
 #        if verbose:
 #            print("Iteration: ",t)
@@ -185,7 +187,7 @@ def SaveMFDPlot(binsPop,binsAvSpeed,binsSqrt,RelativeChange,SaveDir,Title = "Fon
 def PlotHysteresis(MFD,Title,SaveDir,NameFile):
     fig,ax = plt.subplots(1,1,figsize = (10,10))
     x = MFD['population'].to_list()
-    y = MFD['speed'].to_list()
+    y = MFD['speed_kmh'].to_list()
     u = [x[i+1]-x[i] for i in range(len(x)-1)]
     v = [y[i+1]-y[i] for i in range(len(y)-1)]
     u.append(x[len(x)-1] -x[0])
@@ -907,11 +909,15 @@ class DailyNetworkStats:
             if self.verbose:
                 for class_ in self.IntClass2RoadsIncreasinglyIncludedIntersection.keys(): 
                     print(self.IntClass2RoadsIncreasinglyIncludedIntersection[class_][:10])
-            for IntClass in self.IntClasse2StrClass.keys():
+            for IntClass in self.IntClass2StrClass.keys():
                 for index_list in self.IntClass2RoadsIncreasinglyIncludedIntersection[IntClass]:
                     if self.verbose:
                         print("Plotting Class ",IntClass)
+                        if isinstance(index_list,int):
+                            index_list = [index_list]                        
                         print("Number of Roads: ",len(index_list))
+                    if isinstance(index_list,int):
+                        index_list = [index_list]                        
                     # Filter GeoDataFrame for roads with indices in the current list
                     filtered_gdf = self.GeoJson[self.GeoJson['poly_lid'].isin(index_list)]
                     # Create a feature group for the current layer
@@ -1415,7 +1421,7 @@ class DailyNetworkStats:
         """
         print('all different groups colored differently')
         # Inititialize Fit for all different classes
-        self.CreateDictConstraintsClass()
+        self.CreateDictClass2FitInit()
         self.FittedData = {IntClass: {} for IntClass in self.IntClass2StrClass.keys()}
         self.InfoFittedParameters = {IntClass: {} for IntClass in self.IntClass2StrClass.keys()}
         self.InfoFittedParameters,self.DictFittedData = ReturnFitInfoFromDict(Fcm = self.Fcm,
