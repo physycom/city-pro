@@ -14,6 +14,11 @@ from shapely.geometry import box
 import folium
 import datetime
 import matplotlib.pyplot as plt
+import json
+import warnings
+
+# Ignore all warnings
+warnings.filterwarnings("ignore")
 if os.path.isfile(os.path.join(os.environ["WORKSPACE"],"city-pro","custom_style.mplstyle")):
     plt.style.use(os.path.join(os.environ["WORKSPACE"],"city-pro","custom_style.mplstyle"))
 else:
@@ -258,6 +263,94 @@ def PrintMFDDictInfo(MFD,StartingString = "Class 2 MFD: "):
     print(StartingString)
     print(MFD)
 
+# FIT AND DICT
+
+def FillInitGuessIntervalPlExp(DictInitGuessInterval,MaxCount,Avg,StartWindow,EndWindow,Function2Test):
+    """
+        Input:
+            - DictInitGuessInterval: dict -> Dictionary with initial_guess and interval
+                NOTE: Usage In Program:
+                    1) Class2InitialGuess[IntClass][Function2Test][Feature]
+                    2) DictInitialGuess[Function2Test][Feature]
+            - MaxCount: int -> Maximum Count of the Class
+            - Avg: float -> Average of the Class
+            - StartWindow: int -> Start Window in Seconds
+            - EndWindow: int -> End Window in Seconds
+                NOTE: Usage in Program:
+                    For (time,lenght):
+                        1) LocalDict2Params[StrClass]["MaxCount"]
+                        2) LocalDict2Params[StrClass]["Avg"]
+                        3) LocalDict2Params[StrClass]["StartWindowS"]
+                        4) LocalDict2Params[StrClass]["EndWindowS"]
+                    For (time_hours,lenght_km):
+                        1) LocalDict2Params[StrClass]["MaxCount"]
+                        2) LocalDict2Params[StrClass]["Avg"]/(SecondsInHour-MetersInKm)
+                        3) LocalDict2Params[StrClass]["StartWindowS"]/(SecondsInHour-MetersInKm)
+                        4) LocalDict2Params[StrClass]["EndWindowS"]/(SecondsInHour-MetersInKm)
+            - Function2Test: str -> Function to Test (exponential,powerlaw)
+
+            LocalDict2Params: dict -> Dictionary with parameters for the class
+
+    """
+    if Function2Test == "exponential":
+        DictInitGuessInterval["initial_guess"] = [MaxCount,Avg]
+        DictInitGuessInterval["interval"] = [StartWindowS,EndWindowS]        
+    elif Function2Test == "powerlaw":
+        DictInitGuessInterval["initial_guess"] = [MaxCount*StartWindowS,-1]
+        DictInitGuessInterval["interval"] = [StartWindowS,EndWindowS]    
+    return DictInitGuessInterval
+
+def FillInitGuessIntervalMxGs(DictInitGuessInterval,Fcm,Feature):
+    """
+        Input:
+            - DictInitGuessInterval: dict -> Dictionary with initial_guess and interval
+                NOTE: Usage In Program:
+                    1) Class2InitialGuess[IntClass][Function2Test][Feature]
+                    2) DictInitialGuess[Function2Test][Feature]
+            - Fcm: pl.DataFrame -> DataFrame with the FCM
+            - Feature: str -> Feature to Test
+    """
+    if Feature is None:
+        LocalMeanMs = np.mean(Fcm[Feature].to_list())
+        LocalStdMs = np.std(Fcm[Feature].to_list())
+    else:
+        LocalMeanMs = Fcm.filter(pl.col("class") == IntClass)[Feature].mean()
+        LocalStdMs = Fcm.filter(pl.col("class") == IntClass)[Feature].std()
+    DictInitGuessInterval["initial_guess"] = [LocalMeanMs,LocalStdMs]
+
+def ReturnFitInfoFromDict(Fcm,DictFittedData,InitialGuess,Feature2Label,FitFile,FittedDataFile):
+    """
+        Input:
+            Fcm: pl.DataFrame -> Fcm Dataframe
+            InfoFittedParameters: dict -> {Feature: {Function: [A,b]}}
+            DictFittedData: dict -> {Feature: {"fitted_data": [],"best_fit": str}}
+            InitialGuess: dict -> {"exponential":{"time":{"initial_guess":[],"interval":[]},"time_hours":{"initial_guess":[],"interval":[]}},
+            Feature2Label: dict -> {Feature: Label}
+            FitFile: str -> Path to the Fit File
+            FittedDataFile: str -> Path to the Fitted Data File
+        Description:
+            For each Feature of ColumnLabel: ['time','lenght','av_speed','time_hours','lenght_km','speed_kmh']
+            Fit the distribution of the feature and plot the distribution.
+        Output:
+            InfoFittedParameters: dict -> {Feature: {Function: [A,b]}}
+            DictFittedData: dict -> {Feature: {"fitted_data": [],"best_fit": str}}
+    """
+    if os.path.isfile(FitFile) and os.path.isfile(FittedDataFile):
+        with open(FitFile,'r') as f:
+            InfoFittedParameters = json.load(f)
+        with open(FittedDataFile,'r') as f:
+            DictFittedData = json.load(f)
+    else:
+        for Feature in Feature2Label.keys():
+            y,x = np.histogram(Fcm[Feature].to_list(),bins = 50)
+            InfoFittedParameters, DictFittedData = FitAndPlot(x,y,InitialGuess,Feature)
+        with open(FitFile,'w') as f:
+            json.dump(InfoFittedParameters,f)
+        with open(FittedDataFile,'w') as f:
+            json.dump(DictFittedData,f)
+
+    return InfoFittedParameters,DictFittedData
+
 class DailyNetworkStats:
     '''
         This Class is Used to Contain Informations about The Daily info About the Network.
@@ -364,17 +457,31 @@ class DailyNetworkStats:
         # FEATURES
         self.Features = ["av_speed","lenght","time","av_accel"]
         # OUTPUT DICTIONARIES
-        self.Column2Label = {"av_speed":'average speed (m/s)',"speed_kmh":'average speed (km/h)',"av_accel":"average acceleration (m/s^2)","lenght":'lenght (m)',"lenght_km": 'lenght (km)',"time_hours":'time (h)',"time":'time (s)'}
+        self.Feature2Label = {"av_speed":'average speed (m/s)',"speed_kmh":'average speed (km/h)',"av_accel":"average acceleration (m/s^2)","lenght":'lenght (m)',"lenght_km": 'lenght (km)',"time_hours":'time (h)',"time":'time (s)'}
         self.Column2SaveName = {"av_speed":"average_speed","speed_kmh":'average_speed_kmh',"av_accel":"average_acceleration","lenght":"lenght","lenght_km": 'lenght_km',"time_hours":"time_hours","time":"time"}
         self.Column2Legend = {"av_speed":"speed (m/s)","speed_kmh":'speed (km/h)',"av_accel":"acceleration (m/s^2)","lenght":"lenght (m)","lenght_km": 'lenght (km)',"time_hours":"time (h)","time":"time (s)"} 
         self.Feature2MaxBins = {"av_speed":{"bins":0,"count":0},"speed_kmh":{"bins":0,"count":0},"av_accel":{"bins":0,"count":0},"lenght":{"bins":0,"count":0},"lenght_km": {"bins":0,"count":0},"time_hours":{"bins":0,"count":0},"time":{"bins":0,"count":0}}
-        self.DictInitialGuess = {"av_speed":{"initial_guess":[0,0],"interval":[]},
-                                "speed_kmh":{"initial_guess":[0,0],"interval":[]},
-                                "av_accel":{"initial_guess":[0,0],"interval":[]},
-                                "lenght":{"initial_guess":[0,0],"interval":[]},
-                                "lenght_km":{"initial_guess":[0,0],"interval":[]},
-                                "time_hours":{"initial_guess":[0,0],"interval":[]},
-                                "time":{"initial_guess":[0,0],"interval":[]}}
+        self.DictInitialGuess = {"maxwellian":{
+                                    "av_speed":{"initial_guess":[0,0],"interval":[]},
+                                    "speed_kmh":{"initial_guess":[0,0],"interval":[]}},
+                                "gaussian":{
+                                    "av_speed":{"initial_guess":[0,0],"interval":[]},
+                                    "speed_kmh":{"initial_guess":[0,0],"interval":[]}
+                                    },      
+                                "powerlaw":{                          
+                                    "lenght":{"initial_guess":[0,0],"interval":[]},
+                                    "lenght_km":{"initial_guess":[0,0],"interval":[]},
+                                    "time_hours":{"initial_guess":[0,0],"interval":[]},
+                                    "time":{"initial_guess":[0,0],"interval":[]}
+                                    },
+                                "exponential":{
+                                    "lenght":{"initial_guess":[0,0],"interval":[]},
+                                    "lenght_km":{"initial_guess":[0,0],"interval":[]},
+                                    "time_hours":{"initial_guess":[0,0],"interval":[]},
+                                    "time":{"initial_guess":[0,0],"interval":[]}
+                                    }
+                                }
+        self.InfoFit = config["info_fit"]
         ## BIN SETTINGS
         if "shift_count" in config.keys():
             self.Feature2ShiftCount = config["shift_count"]
@@ -430,15 +537,15 @@ class DailyNetworkStats:
                     raise KeyError(feat + " not in scale_bins")
         else:
             self.Feature2ScaleBins = {"av_speed": "linear","speed_kmh": "linear","lenght": "linear","lenght_km": "linear","time": "linear","time_hours": "linear","av_accel": "linear"}
-        assert self.Feature2ScaleBins.keys() == self.Feature2ScaleCount.keys() == self.Feature2IntervalCount.keys() == self.Feature2IntervalBin.keys() == self.Feature2ShiftBin.keys() == self.Feature2ShiftCount.keys() == self.Column2Label.keys() == self.Column2SaveName.keys() == self.Column2Legend.keys(), "Error: Features not consistent"
+        assert self.Feature2ScaleBins.keys() == self.Feature2ScaleCount.keys() == self.Feature2IntervalCount.keys() == self.Feature2IntervalBin.keys() == self.Feature2ShiftBin.keys() == self.Feature2ShiftCount.keys() == self.Feature2Label.keys() == self.Column2SaveName.keys() == self.Column2Legend.keys(), "Error: Features not consistent"
         # FUNDAMENTAL DIAGRAM
-        self.MFD = Dict2PolarsDF({"time":[],"population":[],"speed_kmh":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64})
-        self.MFDNew = Dict2PolarsDF({"time":[],"population":[],"speed_kmh":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64})
+        self.MFD = Dict2PolarsDF({"time":[],"population":[],"speed_kmh":[],"av_speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64})
+        self.MFDNew = Dict2PolarsDF({"time":[],"population":[],"speed_kmh":[],"av_speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64})
         self.MFD2Plot = {"binned_av_speed":[],"binned_sqrt_err_speed":[],"bins_population":[]}
         self.MFDNew2Plot = {"binned_av_speed":[],"binned_sqrt_err_speed":[],"bins_population":[]}
         if self.BoolStrClass2IntClass:
-            self.Class2MFD = {class_:Dict2PolarsDF({"time":[],"population":[],"speed_kmh":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64}) for class_ in self.IntClass2StrClass.keys()}
-            self.Class2MFDNew = {class_:Dict2PolarsDF({"time":[],"population":[],"speed_kmh":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64}) for class_ in self.IntClass2StrClass.keys()}
+            self.Class2MFD = {class_:Dict2PolarsDF({"time":[],"population":[],"speed_kmh":[],"av_speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64}) for class_ in self.IntClass2StrClass.keys()}
+            self.Class2MFDNew = {class_:Dict2PolarsDF({"time":[],"population":[],"speed_kmh":[],"av_speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64}) for class_ in self.IntClass2StrClass.keys()}
         else:
             self.Class2MFD = defaultdict(dict)
             self.Class2MFDNew = defaultdict(dict)
@@ -984,8 +1091,8 @@ class DailyNetworkStats:
 #                if self.verbose:
 #                    PrintMFDDictInfo(self.MFD,StartingString = "MFD: ")            
                 # PER CLASS
-                self.Class2MFD = {class_:Dict2PolarsDF({"time":[],"population":[],"speed_kmh":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64}) for class_ in self.IntClass2StrClass.keys()}
-                self.Class2MFDNew = {class_:Dict2PolarsDF({"time":[],"population":[],"speed_kmh":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64}) for class_ in self.IntClass2StrClass.keys()}
+                self.Class2MFD = {class_:Dict2PolarsDF({"time":[],"population":[],"speed_kmh":[],"av_speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64}) for class_ in self.IntClass2StrClass.keys()}
+                self.Class2MFDNew = {class_:Dict2PolarsDF({"time":[],"population":[],"speed_kmh":[],"av_speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64}) for class_ in self.IntClass2StrClass.keys()}
                 if self.verbose:
                     print(self.Class2MFD.keys())
                 for Class in self.Class2MFD.keys():
@@ -1157,212 +1264,145 @@ class DailyNetworkStats:
                         self.IntClass2StrClass[list(self.FcmCenters["class"])[i]] = '{} quickest'.format(number_classes - i)             
                         self.StrClass2IntClass['{} quickest'.format(number_classes - i)] = list(self.FcmCenters["class"])[i]
         self.BoolStrClass2IntClass = True
-    def CreateDictConstraintsClass(self):
+    
+    def CreateDictClass2FitInit(self):
         """
-            Output: dict: {'velocity class in words': {function: {lenght: {xmin,xmax},time: {tmin,tmax}}}}
+            NOTE: DictInitialGuess Must Be Initialized and Have the Form Specified Below
+            Output: 
+                Class2InitialGuess: {IntClass:DictInitialGuess}
+                DictInitialGuess: {"exponential":{"time":{"initial_guess":[],"interval":[]},"time_hours":{"initial_guess":[],"interval":[]}},
+            Rule for Initial Guess:
+                1) time: 
+                    - exponential: [MaxCount,-Avg]
+                    - powerlaw: [MaxCount*StartWindowS,-1]
+                2) time_hours:
+                    - exponential: [MaxCount,-Avg/SecondsInHour]
+                    - powerlaw: [MaxCount*StartWindowS,-1]
+                3) lenght:
+                    - exponential: [MaxCount,-Avg]
+                    - powerlaw: [MaxCount*StartWindowS,-1]
+            Rule for Interval:
+                1) time: [StartWindowS,EndWindowS] (From Experience)
+                2) time_hours: [StartWindowS/SecondsInHour,EndWindowS/SecondsInHour] (From Experience)
+                3) lenght: [StartWindowS,EndWindowS] (From Experience)
+                
+            NOTE: 
+                The Window for time is more homogeneous among different classes rather then length.
+                This suggests that time is better as a perceived cost for people.
+                Depending on the velocity we will have distribution of length that are exponential too as the 
+                length depend linearly on time via velocity distribution that within a class is homogeneous.
+                (Maxwellian -> delta Dirac like distribution)
         """
-        
         if self.BoolStrClass2IntClass:
+            print("Initialize The Fitting Parameters Initial Guess And Windows")
             self.Class2InitialGuess = {IntClass: self.DictInitialGuess for IntClass in self.StrClass2IntClass.keys()}
             for IntClass in self.IntClass2StrClass.keys():
                 StrClass = self.IntClass2StrClass[IntClass]
-                for Feature in self.DictInitialGuess: 
-                    if label == "time":
-                            for Function2Test in ["exponential","powerlaw"]:            
-                                if StrClass == "1 slowest":
-                                    if Function2Test == "exponential":
-                                        self.Class2InitialGuess[IntClass][Function2Test]["time"]["initial_guess"] = [2700,-3500]
-                                        self.Class2InitialGuess[IntClass][Function2Test]["time_hours"]["initial_guess"] = [2700,-3.5]
-                                    else:
-                                        self.Class2InitialGuess[IntClass][Function2Test]["time"]["initial_guess"] = [2700,-1]
-                                        self.Class2InitialGuess[IntClass][Function2Test]["time_hours"]["initial_guess"] = [2700,-1]
-                                    self.Class2InitialGuess[IntClass][Function2Test]["time"]["interval"] = [500,10000]
-                                    self.Class2InitialGuess[IntClass][Function2Test]["time_hours"]["interval"] = [500/3600,10000/3600]
-                                elif StrClass == "2 slowest":
-                                    if Function2Test == "exponential":
-                                        self.Class2InitialGuess[IntClass][Function2Test]["time"]["initial_guess"] = [4000,-2400]
-                                        self.Class2InitialGuess[IntClass][Function2Test]["time_hours"]["initial_guess"] = [4000,-2.400]
-                                    else:
-                                        self.Class2InitialGuess[IntClass][Function2Test]["time"]["initial_guess"] = [4000,-1]
-                                        self.Class2InitialGuess[IntClass][Function2Test]["time_hours"]["initial_guess"] = [4000,-1]
-                                    self.Class2InitialGuess[IntClass][Function2Test]["time"]["interval"] = [500,8000]
-                                    self.Class2InitialGuess[IntClass][Function2Test]["time_hours"]["interval"] = [500/3600,8000/3600]
-                                elif StrClass == "middle velocity class":
-                                    if Function2Test == "exponential":
-                                        self.Class2InitialGuess[IntClass][Function2Test]["time"]["initial_guess"] = [5000,-2000]
-                                        self.Class2InitialGuess[IntClass][Function2Test]["time_hours"]["initial_guess"] = [5000,-2]
-                                    else:
-                                        self.Class2InitialGuess[IntClass][Function2Test]["time"]["initial_guess"] = [5000,-1]
-                                        self.Class2InitialGuess[IntClass][Function2Test]["time_hours"]["initial_guess"] = [5000,-1]
-                                    self.Class2InitialGuess[IntClass][Function2Test]["time"]["interval"] = [500,6000]
-                                    self.Class2InitialGuess[IntClass][Function2Test]["time_hours"]["interval"] = [500/3600,6000/3600]
-                                elif StrClass == "2 quickest":
-                                    if Function2Test == "exponential":
-                                        self.Class2InitialGuess[IntClass][Function2Test]["time"]["initial_guess"] = [5000,-2000]
-                                        self.Class2InitialGuess[IntClass][Function2Test]["time_hours"]["initial_guess"] = [5000,-2]
-                                    else:
-                                        self.Class2InitialGuess[IntClass][Function2Test]["time"]["initial_guess"] = [5000,-1]
-                                        self.Class2InitialGuess[IntClass][Function2Test]["time_hours"]["initial_guess"] = [5000,-1]
-                                    self.Class2InitialGuess[IntClass][Function2Test]["time"]["interval"] = [500,6000]
-                                    self.Class2InitialGuess[IntClass][Function2Test]["time_hours"]["interval"] = [500/3600,6000/3600]
-                                elif StrClass == "1 quickest":
-                                    if Function2Test == "exponential":
-                                        self.Class2InitialGuess[IntClass][Function2Test]["time"]["initial_guess"] = [1700,-1300]
-                                        self.Class2InitialGuess[IntClass][Function2Test]["time_hours"]["initial_guess"] = [1700,-1.300]
-                                    else:
-                                        self.Class2InitialGuess[IntClass][Function2Test]["time"]["initial_guess"] = [1700,-1]
-                                        self.Class2InitialGuess[IntClass][Function2Test]["time_hours"]["initial_guess"] = [1700,-1]
-                                    self.Class2InitialGuess[IntClass][Function2Test]["time"]["interval"] = [6000,10000]
-                                    self.Class2InitialGuess[IntClass][Function2Test]["time_hours"]["interval"] = [6000/3600,10000/3600]
-                    elif label == "lenght":
-                        for Function2Test in ["exponential","powerlaw"]:
-                            if Strclass_ == "1 slowest":
-                                    if Function2Test == "exponential":
-                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght"]["initial_guess"] = []
-                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght_km"]["initial_guess"] = []
-                                    else:
-                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght"]["initial_guess"] = []
-                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght_km"]["initial_guess"] = []
-                                self.Class2InitialGuess[IntClass][Function2Test]["lenght"] = {"xmin":10,"xmax":500}
-                                self.Class2InitialGuess[IntClass][Function2Test]["lenght_km"] = {"xmin":10/1000,"xmax":500/1000}
-                            elif Strclass_ == "2 slowest":
-                                    if Function2Test == "exponential":
-                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght"]["initial_guess"] = []
-                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght_km"]["initial_guess"] = []
-                                    else:
-                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght"]["initial_guess"] = []
-                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght_km"]["initial_guess"] = []
-                                self.Class2InitialGuess[IntClass][Function2Test]["lenght"] = {"xmin":500,"xmax":5000}
-                                self.Class2InitialGuess[IntClass][Function2Test]["lenght_km"] = {"xmin":500/1000,"xmax":5000/1000}
-                            elif Strclass_ == "middle velocity class":
-                                    if Function2Test == "exponential":
-                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght"]["initial_guess"] = []
-                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght_km"]["initial_guess"] = []
-                                    else:
-                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght"]["initial_guess"] = []
-                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght_km"]["initial_guess"] = []                                
-                                self.Class2InitialGuess[IntClass][Function2Test]["lenght"] = {"xmin":500,"xmax":5000}
-                                self.Class2InitialGuess[IntClass][Function2Test]["lenght_km"] = {"xmin":500/1000,"xmax":5000/1000}
-                            elif Strclass_ == "2 quickest":
-                                    if Function2Test == "exponential":
-                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght"]["initial_guess"] = []
-                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght_km"]["initial_guess"] = []
-                                    else:
-                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght"]["initial_guess"] = []
-                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght_km"]["initial_guess"] = []
-
-                                self.Class2InitialGuess[IntClass][Function2Test]["lenght"] = {"xmin":2000,"xmax":9000}
-                                self.Class2InitialGuess[IntClass][Function2Test]["lenght_km"] = {"xmin":2000/1000,"xmax":9000/1000}
-                            elif Strclass_ == "1 quickest":
-                                    if Function2Test == "exponential":
-                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght"]["initial_guess"] = []
-                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght_km"]["initial_guess"] = []
-                                    else:
-                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght"]["initial_guess"] = []
-                                        self.Class2InitialGuess[IntClass][Function2Test]["lenght_km"]["initial_guess"] = []
-                                self.Class2InitialGuess[IntClass][Function2Test]["lenght"] = {"xmin":1000,"xmax":25000}
-                                self.Class2InitialGuess[IntClass][Function2Test]["lenght_km"] = {"xmin":1000/1000,"xmax":25000/1000}
-                    elif label == "av_speed":
-                        
-    def CreateDictConstraintsAll(self):
-        pass
-
-
-
-# --------------- FITTING  ---------------- #   
-# --------------- ALAGGREGATED CLASSES  ---------------- #
-    def RetrieveGuessParametersPerLabel(self):
-        """
-            Output: dict: {'velocity class in words': {function: {lenght: {xmin,xmax},time: {tmin,tmax}}}}
-        """
-        if self.BoolStrClass2IntClass:
-            for Strclass_ in self.StrClass2IntClass.keys():
-                self.DictConstraintClassLabel[Strclass_] = defaultdict(dict)
-                for label in self.labels2FitNames2Try.keys():
-                    self.DictConstraintClassLabel[Strclass_][label] = defaultdict(dict)
-                    if label == "time":
-                            self.DictConstraintClassLabel[Strclass_]["time"] = {"tmin":6000,"tmax":10000}
-                    elif label == "lenght":
-                        if Strclass_ == "1 slowest":
-                            self.DictConstraintClassLabel[Strclass_][label]["lenght"] = {"xmin":10,"xmax":500}
-                        elif Strclass_ == "2 slowest":
-                            self.DictConstraintClassLabel[Strclass_][label]["lenght"] = {"xmin":500,"xmax":5000}
-                        elif Strclass_ == "2 quickest":
-                            self.DictConstraintClassLabel[Strclass_][label]["lenght"] = {"xmin":2000,"xmax":9000}
-                        elif Strclass_ == "1 quickest":
-                            self.DictConstraintClassLabel[Strclass_][label]["lenght"] = {"xmin":1000,"xmax":25000}
-    def FittingFunctionAllClasses(self,label,FunctionName,initial_guess,bins = 100):
-        
-        n, bins = np.histogram(self.Fcm[label],bins = bins)
-        fit = Fitting(bins[1:],n,label = FunctionName,initial_guess = (6000,0.3),maxfev = 10000)
-        ErrorFittedCurve = L2Error2ParamsFunctions(Bins[1:],n,FunctionName)
-        self.Function2FitInfo[FunctionName] = {"A":fit[0][0],"b":fit[0][1],"Error":ErrorFittedCurve} 
-        self.Fitting = True
-    def GetBestFitsAndParameters(self):
-        """
-            Description:
-                Compares all the fitting procedures and selects the one with the lowest L2 error.
-        """
-        if self.Fitting:
-            Min_Error = 100000
-            for FunctionName in self.Function2FitInfo.keys():      
-                if self.Function2FitInfo[FunctionName]["Error"] is not None:
-                    if self.Function2FitInfo[FunctionName]["Error"] < Min_Error:
-                        Min_Error = self.Function2FitInfo[FunctionName]["Error"]
-                        self.FunctionName = FunctionName
-                        self.A = self.Function2FitInfo[FunctionName]["A"]
-                        self.b = self.Function2FitInfo[FunctionName]["b"]
-                    else:
-                        pass
-                else:
-                    pass            
-
-# --------------- PER EACH CLASS  ---------------- #
-    def RetrieveGuessParametersPerClassLabel(self):
-        """
-            TODO
-            Description:
-                Retrieves the initial guess parameters for each
-                label: (time,lenght,av_speed) 
-                    Class: (0,1,2,3)
-                        corresponnding functions to try.
-            Return:
-                InitialGuessPerClassAndLabel: dict -> {class:{label:{function:(A,b)}}}
-        """
-        for Label in 
-        if self.ReadFcmCentersBool:
-            for class_ in self.FcmCenters["class"]:
-                self.InitialGuessPerClassAndLabel[class_] = defaultdict(dict)
-                for label in self.labels2FitNames2Try.keys():
-                    self.InitialGuessPerClassAndLabel[class_][label] = defaultdict(dict)
-                    for function in self.labels2FitNames2Try[label]:
-                        if "powerlaw" in function:
-                            self.InitialGuessPerClassAndLabel[class_][label][function] = (6000,-1)
-                        elif "exponential" in function:
-                            self.InitialGuessPerClassAndLabel[class_][label][function] = (6000,np.mean(self.Fcm.filter(pl.col("class") == class_)[label]))
-                        elif "gaussian" in function:
-                            self.InitialGuessPerClassAndLabel[class_][label][function] = (6000,self.Fcm.filter(pl.col("class") == class_)[label])
-                        else:
-                            self.InitialGuessPerClassAndLabel[class_][label][function] = (6000,self.Fcm.filter(pl.col("class") == class_)[label])
-        else:
-            print("FcmCenters not read Not retrieving parameters")
-
+                for Function2Test in self.DictInitialGuess: 
+                    for Feature in self.DictInitialGuess[Function2Test]:
+                        MaxCount = self.InfoFit[Feature][StrClass]["MaxCount"]
+                        Avg = self.InfoFit[Feature][StrClass]["Avg"]
+                        StartWindow = LocalDict2Params[StrClass]["StartWindowS"]
+                        EndWindow = LocalDict2Params[StrClass]["EndWindowS"]
+                        # Normalization
+                        SecondsInHour = 3600
+                        MetersinKm = 1000
+                        if Feature == "time":
+                            self.Class2InitialGuess[IntClass][Function2Test][Feature] = FillInitGuessIntervalPlExp(self.Class2InitialGuess[IntClass][Function2Test][Feature],
+                                                                                                                    MaxCount,
+                                                                                                                    Avg,
+                                                                                                                    StartWindow,
+                                                                                                                    EndWindow,
+                                                                                                                    Function2Test)
+                        elif Feature == "time_hours":
+                            Avg = Avg/SecondsInHour 
+                            StartWindow = StartWindow/SecondsInHour
+                            EndWindow = EndWindow/SecondsInHour 
+                            self.Class2InitialGuess[IntClass][Function2Test][Feature] = FillInitGuessIntervalPlExp(self.Class2InitialGuess[IntClass][Function2Test][Feature],
+                                                                                                                    MaxCount,
+                                                                                                                    Avg,
+                                                                                                                    StartWindow,
+                                                                                                                    EndWindow,
+                                                                                                                    Function2Test)
+                        elif Feature == "lenght":
+                            self.Class2InitialGuess[IntClass][Function2Test][Feature] = FillInitGuessIntervalPlExp(self.Class2InitialGuess[IntClass][Function2Test][Feature],
+                                                        MaxCount,
+                                                        Avg,
+                                                        StartWindow,
+                                                        EndWindow,
+                                                        Function2Test)
+                        elif Feature == "lenght_km":
+                            Avg = Avg/MetersinKm 
+                            StartWindow = StartWindow/MetersinKm
+                            EndWindow = EndWindow/MetersinKm
+                            self.Class2InitialGuess[IntClass][Function2Test][Feature] = FillInitGuessIntervalPlExp(self.Class2InitialGuess[IntClass][Function2Test][Feature],
+                                                                                                                MaxCount,
+                                                                                                                Avg,
+                                                                                                                StartWindow,
+                                                                                                                EndWindow,
+                                                                                                                Function2Test)
+                        elif Feature == "av_speed":
+                            self.Class2InitialGuess[IntClass][Function2Test][Feature] = FillInitGuessIntervalMxGs(self.Class2InitialGuess[IntClass][Function2Test][Feature],
+                                                                                                                self.Fcm,
+                                                                                                                Feature)
+                        elif Feature == "speed_kmh":
+                            self.Class2InitialGuess[IntClass][Function2Test][Feature] = FillInitGuessIntervalMxGs(self.Class2InitialGuess[IntClass][Function2Test][Feature],
+                                                                                                                self.Fcm,
+                                                                                                                Feature)
+            # Initialize The Guess Without Classes
+            for Function2Test in self.DictInitialGuess: 
+                for Feature in self.DictInitialGuess[Function2Test]:
+                    MaxCount = self.InfoFit[Feature]["aggregated"]["MaxCount"]
+                    Avg = self.InfoFit[Feature]["aggregated"]["Avg"]
+                    StartWindow = LocalDict2Params["aggregated"]["StartWindowS"]
+                    EndWindow = LocalDict2Params["aggregated"]["EndWindowS"]
+                    # Normalization
+                    SecondsInHour = 3600
+                    MetersinKm = 1000
+                    if Feature == "time":
+                        self.DictInitialGuess[Function2Test][Feature] = FillInitGuessIntervalPlExp(self.DictInitialGuess[Function2Test][Feature],
+                                                                                                    MaxCount,
+                                                                                                    Avg,
+                                                                                                    StartWindow,
+                                                                                                    EndWindow,
+                                                                                                    Function2Test)
+                    elif Feature == "time_hours":
+                        Avg = Avg/SecondsInHour 
+                        StartWindow = StartWindow/SecondsInHour
+                        EndWindow = EndWindow/SecondsInHour 
+                        self.DictInitialGuess[Function2Test][Feature] = FillInitGuessIntervalPlExp(self.DictInitialGuess[Function2Test][Feature],
+                                                                                                    MaxCount,
+                                                                                                    Avg,
+                                                                                                    StartWindow,
+                                                                                                    EndWindow,
+                                                                                                    Function2Test)
+                    elif Feature == "lenght":
+                        self.DictInitialGuess[Function2Test][Feature] = FillInitGuessIntervalPlExp(self.DictInitialGuess[Function2Test][Feature],
+                                                                                                    MaxCount,
+                                                                                                    Avg,
+                                                                                                    StartWindow,
+                                                                                                    EndWindow,
+                                                                                                    Function2Test)
+                    elif Feature == "lenght_km":
+                        Avg = Avg/MetersinKm 
+                        StartWindow = StartWindow/MetersinKm
+                        EndWindow = EndWindow/MetersinKm
+                        self.DictInitialGuess[Function2Test][Feature] = FillInitGuessIntervalPlExp(self.DictInitialGuess[Function2Test][Feature],
+                                                                                                    MaxCount,
+                                                                                                    Avg,
+                                                                                                    StartWindow,
+                                                                                                    EndWindow,
+                                                                                                    Function2Test)
+                    elif Feature == "av_speed":
+                        self.DictInitialGuess[Function2Test][Feature] = FillInitGuessIntervalMxGs(self.DictInitialGuess[Function2Test][Feature],
+                                                                                                self.Fcm,
+                                                                                                None)
+                    elif Feature == "speed_kmh":
+                        self.DictInitialGuess[Function2Test][Feature] = FillInitGuessIntervalMxGs(self.DictInitialGuess[Function2Test][Feature],
+                                                                                                    self.Fcm,
+                                                                                                    None)
+            
 ## DISTRIBUTIONS
-    def GetBestBinSpeedPlot(self):
-        max_ys = []
-        aggregated = []
-        for cl,df in self.Fcm.group_by('class'):
-        #    fig,ax = plt.subplots(1,1,figsize= (15,12))
-            if cl!=10:
-                n,bins =np.histogram(df['av_speed'].to_numpy(),bins = 50,range = [0,45])
-                max_ys.append(max(n))
-        for i in range(1000):
-            if (max(max_ys)+i)%1000==0:
-                max_ = max(max_ys)+i
-                break
-        y = np.arange(0,max_,max_/10) 
-        x = np.arange(9)*5
-        return x,y    
     def PlotDailySpeedDistr(self,LableSave = "Aggregated"):
         """
             Input:
@@ -1374,76 +1414,93 @@ class DailyNetworkStats:
                     "av_speed": {"bins": int, "count": int}} -> Contains informations about the feature of interest for trajectories
         """
         print('all different groups colored differently')
-        for Label in self.Column2Label.keys():
+        # Inititialize Fit for all different classes
+        self.CreateDictConstraintsClass()
+        self.FittedData = {IntClass: {} for IntClass in self.IntClass2StrClass.keys()}
+        self.InfoFittedParameters = {IntClass: {} for IntClass in self.IntClass2StrClass.keys()}
+        self.InfoFittedParameters,self.DictFittedData = ReturnFitInfoFromDict(Fcm = self.Fcm,
+                                                                            InitialGuess = self.InitialGuess,
+                                                                            DictFittedData = self.DictFittedData,
+                                                                            Feature2Label = self.Feature2Label,
+                                                                            FitFile = os.path.join(self.PlotDir,'Fit_Aggregated.json'.format(IntClass)),
+                                                                            FittedDataFile = os.path.join(self.PlotDir,'FittedData_Aggregated.json'.format(IntClass)))
+        for Feature in self.Feature2Label.keys():
+            # Plot each feature separately
             fig,ax = plt.subplots(1,1,figsize= (15,12))
             legend = []
             aggregation = False
-            n,bins = np.histogram(self.Fcm[Label],bins = 50)
+            n,bins = np.histogram(self.Fcm[Feature],bins = 50)
             maxCount = 0
             maxSpeed = bins[-1]
-            self.Feature2MaxBins[Label]["bins"] = maxSpeed
-            self.Feature2MaxBins[Label]["count"] = maxCount
-            for cl in self.IntClass2StrClass:
-                df = self.Fcm.filter(pl.col("class") == cl)
-            #    fig,ax = plt.subplots(1,1,figsize= (15,12))
-                y,x = np.histogram(df[Label],bins = 50)
-                if max(y)>maxCount:
-                    maxCount = max(y)
-                if cl!=10 and cl!=11:
-                    if "speed" in Label:
-                        ax.hist(df[Label].to_list(),bins = 50,alpha = 0.5)
-                    else:
-                        ax.scatter(x[1:],y)
-                    av_speed = np.mean(df[Label].to_list())
-                    legend.append(str(self.IntClass2StrClass[cl]) + " " + self.Column2Legend[Label] + " " + str(round(av_speed,3)))
-                    self.Class2MaxCountSpeed[cl] = max(y)
-            ax.set_xticks(np.arange(bins[0],bins[-1],self.Feature2IntervalBin[Label]))
-            ax.set_yticks(np.arange(min(n),max(n),self.Feature2IntervalCount[Label]))
-            ax.set_xlabel(self.Column2Label[Label])
+            self.Feature2MaxBins[Feature]["bins"] = maxSpeed
+            self.Feature2MaxBins[Feature]["count"] = maxCount
+            y,x = np.histogram(self.Fcm[Feature].to_list(),bins = 50)
+            if max(y)>maxCount:
+                maxCount = max(y)
+                # Data
+            ax.scatter(x[1:],y)
+            # Fit
+            ax.plot(x[1:],np.array(self.DictFittedData["fitted_data"]),label = self.DictFittedData[IntClass]["best_fit"])
+            av_speed = np.mean(self.Fcm[Feature].to_list())
+            legend.append(str(self.IntClass2StrClass[IntClass]) + " " + self.Column2Legend[Feature] + " " + str(round(av_speed,3)))
+            ax.set_xticks(np.arange(bins[0],bins[-1],self.Feature2IntervalBin[Feature]))
+            ax.set_yticks(np.arange(min(n),max(n),self.Feature2IntervalCount[Feature]))
+            ax.set_xlabel(self.Feature2Label[Feature])
             ax.set_ylabel('Count')
-            ax.set_xlim(right = maxSpeed + self.Feature2ShiftBin[Label])
-            ax.set_ylim(top = maxCount + self.Feature2ShiftCount[Label])
-            ax.set_xscale(self.Feature2ScaleBins[Label])
-            ax.set_yscale(self.Feature2ScaleCount[Label])
+            ax.set_xlim(right = maxSpeed + self.Feature2ShiftBin[Feature])
+            ax.set_ylim(top = maxCount + self.Feature2ShiftCount[Feature])
+            ax.set_xscale(self.Feature2ScaleBins[Feature])
+            ax.set_yscale(self.Feature2ScaleCount[Feature])
             legend_ = plt.legend(legend)
             frame = legend_.get_frame()
             frame.set_facecolor('white')
-            plt.savefig(os.path.join(self.PlotDir,'{0}_{1}.png'.format(LableSave,self.Column2SaveName[Label])),dpi = 200)
+            plt.savefig(os.path.join(self.PlotDir,'{0}_{1}.png'.format(LableSave,self.Column2SaveName[Feature])),dpi = 200)
             plt.close()
+
 
 
     def PlotDistrPerClass(self):
         """
             Description:
-                For each Label of ColumnLabel: ['time','lenght','av_speed','p','a_max']
+                For each Feature of ColumnLabel: ['time','lenght','av_speed','time_hours','lenght_km','speed_kmh']
                 Plot the distribution of the feature for each class. 
                 With a set of guesses for the fitting functions.
             Return:
-                InfoDayFit: dict -> {IntClass: {Label: {Function: [A,b]}}}
+                InfoDayFit: dict -> {IntClass: {Feature: {Function: [A,b]}}}
 
         """
         self.InfoDayFit = {IntClass: {} for IntClass in self.IntClass2StrClass.keys()}
-        for Label in self.Column2Label.keys():
-            for cl in self.IntClass2StrClass:
+        self.Class2FittedData = {IntClass: {} for IntClass in self.IntClass2StrClass.keys()}
+        self.Class2InfoFittedParameters = {IntClass: {} for IntClass in self.IntClass2StrClass.keys()}
+        for IntClass in self.IntClass2StrClass:
+            self.Class2InfoFittedParameters[IntClass],self.Class2DictFittedData[IntClass] = ReturnFitInfoFromDict(Fcm = self.Fcm.filter(pl.col("class") == IntClass),
+                                                                                                                InitialGuess = self.Class2InitialGuess[IntClass],
+                                                                                                                DictFittedData = self.Class2DictFittedData[IntClass],
+                                                                                                                Feature2Label = self.Feature2Label,
+                                                                                                                FitFile = os.path.join(self.PlotDir,'Fit_Class_{0}.json'.format(IntClass)),
+                                                                                                                FittedDataFile = os.path.join(self.PlotDir,'FittedData_Class_{0}.json'.format(IntClass)))
+
+        for Feature in self.Feature2Label.keys():
+            for IntClass in self.IntClass2StrClass:
                 fig,ax = plt.subplots(1,1,figsize= (15,12))
-                df = self.Fcm.filter(pl.col("class") == cl)
-                y,x = np.histogram(df[Label],bins = 50)
-                InfoFit,FittedData,BestLabel = FitAndPlot(x,y,self.DictInitialGuess[Label])                
-                if cl!=10 and cl!=11:
-                    if "speed" in Label:
-                        ax.hist(df[Label].to_list(),bins = 50,alpha = 0.5)
-                    else:
+                df = self.Fcm.filter(pl.col("class") == IntClass)
+                y,x = np.histogram(df[Feature].to_list(),bins = 50)
+                InfoFit,DictFittedData = FitAndPlot(x,y,self.DictInitialGuess)                
+                if IntClass!=10 and IntClass!=11:
+                    if "speed" in Feature:
                         ax.scatter(x[1:],y)
-                    av_speed = np.mean(df[Label].to_list())
-                    ax.set_xticks(np.arange(x[0],x[-1],self.Feature2IntervalBin[Label]))
-                    ax.set_yticks(np.arange(min(y),max(y),self.Feature2IntervalCount[Label]))
-                    ax.set_xlabel(self.Column2Label[Label])
+                        # Fit
+                        ax.plot(x[1:],np.array(self.Class2DictFittedData[IntClass]["fitted_data"]),label = self.Class2DictFittedData[IntClass]["best_fit"])
+                    av_speed = np.mean(df[Feature].to_list())
+                    ax.set_xticks(np.arange(x[0],x[-1],self.Feature2IntervalBin[Feature]))
+                    ax.set_yticks(np.arange(min(y),max(y),self.Feature2IntervalCount[Feature]))
+                    ax.set_xlabel(self.Feature2Label[Feature])
                     ax.set_ylabel('Count')
-                    ax.set_xlim(right = max(x) + self.Feature2ShiftBin[Label])
-                    ax.set_ylim(top = max(y) + self.Feature2ShiftCount[Label])
-                    ax.set_xscale(self.Feature2ScaleBins[Label])
-                    ax.set_yscale(self.Feature2ScaleCount[Label])
-                    plt.savefig(os.path.join(self.PlotDir,'{0}_Class_{1}_{2}.png'.format(BestLabel,cl,self.Column2SaveName[Label])),dpi = 200)
+                    ax.set_xlim(right = max(x) + self.Feature2ShiftBin[Feature])
+                    ax.set_ylim(top = max(y) + self.Feature2ShiftCount[Feature])
+                    ax.set_xscale(self.Feature2ScaleBins[Feature])
+                    ax.set_yscale(self.Feature2ScaleCount[Feature])
+                    plt.savefig(os.path.join(self.PlotDir,'{0}_Class_{1}_{2}.png'.format(BestLabel,IntClass,self.Column2SaveName[Feature])),dpi = 200)
                     plt.close()
         
 
@@ -1475,14 +1532,14 @@ class DailyNetworkStats:
         print("Incremental subnet: ",self.ReadFluxesSubIncreasinglyIncludedIntersectionBool)
 
 
-def GetDistributionPerClass(fcm,label,class_):
+def GetDistributionPerClass(fcm,Feature,class_):
     """
         Input:
-            label: str -> time, lenght, av_speed, p, a_max
+            Feature: str -> time, lenght, av_speed, p, a_max
         Returns:
             n, bins of velocity distribution
     """
-    n, bins = np.histogram(fcm.filter(pl.col("class") == class_)[label].to_list(), bins = bins)
+    n, bins = np.histogram(fcm.filter(pl.col("class") == class_)[Feature].to_list(), bins = bins)
 
 
 

@@ -81,6 +81,10 @@ import sys
 from FittingProcedures import *
 import json
 from multiprocessing import Pool
+import warnings
+
+# Ignore all warnings
+warnings.filterwarnings("ignore")
 WORKSPACE = os.environ['WORKSPACE']
 os.environ["DISPLAY"] = ":0.0"
 FittingAnalysis = False
@@ -121,21 +125,6 @@ def Main(config,StrDate):
     Network.PlotDailySpeedDistr("Aggregated")
     Network.PlotDistrPerClass()
 ## +++++++++++++++ FITTING PROCEDURES +++++++++++++++++++++++++++++
-    if FittingAnalysis:
-        # ALL CLASSES
-        StartingGuessParametersPerLabel = Network.RetrieveGuessParametersPerLabel()
-        for label in Network.labels2FitNames2Try.keys():
-            for FunctionName in Network.labels2FitNames2Try[label]:
-                print("====== FITTING FUNCTION: ",Network.labels2FitNames2Try[label] ," quantity: {} ======".format(label))
-                Network.FittingFunctionAllClasses(label,Network.labels2FitNames2Try[label],bins = 100)
-        # SUB CLASSES
-        StartingGuessParametersPerClassAndLabel = Network.RetrieveGuessParametersPerClassLabel()
-        for Class in Network.Classes:
-            for label in Network.labels2FitNames2Try.keys():
-                for FunctionName in Network.labels2FitNames2Try[label]:
-                    print("====== FITTING FUNCTION: " + label + " class {0} {1} ======".format(Class, label))
-                    Network.FittingFunctionSubClasses(Class,label,Network.labels2FitNames2Try[label],bins = 100)
-## ALL DAYS ANALYSIS
     return Network
 if __name__ == "__main__":
     try:
@@ -150,9 +139,11 @@ if __name__ == "__main__":
         base_dir = os.path.join(WORKSPACE,"city-pro","config")
         print("Second Directory: ",base_dir)
     try:
+        print("Config File:\n",os.path.join(base_dir,"ConfigPythonAnalysis.json"))
         with open(os.path.join(base_dir,"ConfigPythonAnalysis.json")) as f:
             config = json.load(f)
     except Exception as e:
+        print(e)
         print("No Configuration file provided")
         exit(1)
 
@@ -234,9 +225,6 @@ if __name__ == "__main__":
         Network = ListNetworkDays[0]
     # All Days Mobility Analysis
     NetAllDays = NetworkAllDays(ListNetworkDays,Network.PlotDirAggregated,Network.verbose)
-
-    # Map The Classes among different days according to the closest average speed
-    NetAllDays.AssociateAvSpeed2StrClass()
     
     # Create Fcm for All -> Distribution lenght and time (Power law )
     NetAllDays.ConcatenatePerClass()

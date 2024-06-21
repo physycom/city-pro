@@ -176,6 +176,8 @@ def Fitting(x,y_measured,label = 'powerlaw',initial_guess = (6000,0.3),maxfev = 
     print('Message: ',result_powerlaw.message)
     return fit
 
+# City - Pro Usage
+
 def FitAndStdError(x,y_measured,label,initial_guess,maxfev = 10000,interval = []):
     fit = Fitting(x,y_measured,label,initial_guess = (6000,0.3),maxfev = 10000)
     if len(fit[0]) == 2:
@@ -188,8 +190,14 @@ def FitAndStdError(x,y_measured,label,initial_guess,maxfev = 10000,interval = []
     StdError = np.sqrt(np.sum((np.array(y_measured) - np.array(FittedData))**2))/SqrtN
     return fit,StdError
 
-def FitAndPlot(x,y_measured,DictInitialGuess):
+def FitAndPlot(x,y_measured,DictInitialGuess,Feature):
     """
+        Input:
+            x: np.array -> x-axis
+            y_measured: np.array -> y-axis
+            DictInitialGuess: dict -> Dictionary of the initial guess for the fit
+            Feature: str -> Feature to fit from [lenght_km,lenght,time,time_hours,av_speed,speed_kmh]
+            Function2Fit: str -> Function to fit from [powerlaw,exponential,gaussian,maxwellian]
         Return: 
             InfoFit: {label:{"fit":None,"StdError":None} for label in DictInitialGuess.keys()}
             FittedData: np.array -> Fitted Data
@@ -205,22 +213,25 @@ def FitAndPlot(x,y_measured,DictInitialGuess):
                                             {"initial_guess":[6000,0.3],"interval":[0,100]}}
     """
     assert  len(ListLabel) == len(ListInitialGuess) == len(ListMaxFev), "Lists must have the same length"
-    InfoFit =  {label:{"fit":None,"StdError":None} for label in DictInitialGuess.keys()}
-    for label in DictInitialGuess.keys():
-        InfoFit[label]['fit'],InfoFit[label]['StdError'] = FitAndStdError(x,y_measured,label,tuple(DictInitialGuess[label]["initial_guess"]),10000,DictInitialGuess[label]["interval"])
+    InfoFit =  {Function2Fit: {Feature:{"fit":None,"StdError":None} for Feature in DictInitialGuess[Function2Fit].keys()} for Function2Fit in DictInitialGuess.keys()}
+    DictFittedData = {Feature: {"best_fit":[], "fitted_data":[]} for Feature in list(DictInitialGuess.keys())[0]}
+    for Function2Fit in DictInitialGuess.keys():
+        InfoFit[Function2Fit][Feature]['fit'],InfoFit[Function2Fit][Feature]['StdError'] = FitAndStdError(x,y_measured,label,tuple(DictInitialGuess[Function2Fit][Feature]["initial_guess"]),10000,DictInitialGuess[Function2Fit][Feature]["interval"])
         if len(fit[0]) == 2:
             A = fit[0][0]
             b = fit[0][1]
         else:
             raise ValueError("Fit Of more than 2 parameters need to be handled separately")
-    InfError = 10000000000
-    BestFit = None
-    for label in DictInitialGuess.keys():
-        if InfoFit[label]['StdError'] < InfError:
-            InfError = InfoFit[label]['StdError']
-            BestFit = label
-    FittedData = Name2Function[BestFit](x,A,b)
-    return InfoFit,FittedData,BestFit
+    for Function2Fit in DictInitialGuess.keys():
+        InfError = 10000000000
+        BestFit = None        
+        for Feature in DictInitialGuess[Function2Fit].keys():
+            if InfoFit[Feature]['StdError'] < InfError:
+                InfError = InfoFit[Feature]['StdError']
+                BestFit = Feature
+        DictFittedData[Feature]["best_fit"] = BestFit
+        DictFittedData[Feature]["fitted_data"] = Name2Function[BestFit](x,A,b)
+    return InfoFit,DictFittedData
 
 
 if FoundPyMC3:

@@ -1,4 +1,0 @@
-PyMC3 not installed
-Args:  Namespace(config_file='./config/ConfigPythonAnalysis.json')
-Base directory:  ./config/ConfigPythonAnalysis.json
-No Configuration file provided
