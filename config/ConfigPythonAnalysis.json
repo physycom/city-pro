@@ -57,29 +57,58 @@
     "scale_bins":{
         "av_speed": "linear",
         "speed_kmh": "linear",
-        "lenght": "linear",
-        "lenght_km": "linear",
-        "time": "linear",
-        "time_hours": "linear",
+        "lenght": "log",
+        "lenght_km": "log",
+        "time": "log",
+        "time_hours": "log",
         "av_accel": "linear"
     },
     "info_fit":{
         "time":{
-            "1 slowest":{"MaxCount":2700,"Avg":3500,"StartWindowS":500,"EndWindowS":10000},
-            "2 slowest":{"MaxCount":4000,"Avg":2400,"StartWindowS":500,"EndWindowS":8000},
-            "middle velocity class":{"MaxCount":5000,"Avg":2000,"StartWindowS":500,"EndWindowS":6000},
-            "2 quickest":{"MaxCount":5000,"Avg":2000,"StartWindowS":500,"EndWindowS":6000},
-            "1 quickest":{"MaxCount":1700,"Avg":1300,"StartWindowS":6000,"EndWindowS":10000},
+            "1 slowest":{"MaxCount":3003,"Avg":2180,"StartWindowS":500,"EndWindowS":10000},
+            "2 slowest":{"MaxCount":6836,"Avg":1110,"StartWindowS":500,"EndWindowS":8000},
+            "middle velocity class":{"MaxCount":7700,"Avg":1500,"StartWindowS":500,"EndWindowS":6000},
+            "2 quickest":{"MaxCount":7700,"Avg":1500,"StartWindowS":500,"EndWindowS":6000},
+            "1 quickest":{"MaxCount":2300,"Avg":1600,"StartWindowS":6000,"EndWindowS":10000},
+            "aggregated": {"MaxCount":8000,"Avg":1400,"StartWindowS":500,"EndWindowS":10000}
+            },
+        "time_hours":{
+            "1 slowest":{"MaxCount":3003,"Avg":2180,"StartWindowS":500,"EndWindowS":10000},
+            "2 slowest":{"MaxCount":6836,"Avg":1110,"StartWindowS":500,"EndWindowS":8000},
+            "middle velocity class":{"MaxCount":7700,"Avg":1500,"StartWindowS":500,"EndWindowS":6000},
+            "2 quickest":{"MaxCount":7700,"Avg":1500,"StartWindowS":500,"EndWindowS":6000},
+            "1 quickest":{"MaxCount":2300,"Avg":1600,"StartWindowS":6000,"EndWindowS":10000},
             "aggregated": {"MaxCount":8000,"Avg":1400,"StartWindowS":500,"EndWindowS":10000}
             },
         "lenght":{
-            "1 slowest":{"MaxCount":3500,"Avg":1800,"StartWindowS":500,"EndWindowS":4500},
-            "2 slowest":{"MaxCount":1500,"Avg":3900,"StartWindowS":500,"EndWindowS":10000},
+            "1 slowest":{"MaxCount":7384,"Avg":1100,"StartWindowS":500,"EndWindowS":4500},
+            "2 slowest":{"MaxCount":2200,"Avg":3900,"StartWindowS":500,"EndWindowS":10000},
             "middle velocity class":{"MaxCount":5500,"Avg":11000,"StartWindowS":500,"EndWindowS":6000},
-            "2 quickest":{"MaxCount":5500,"Avg":11000,"StartWindowS":500,"EndWindowS":6000},
+            "2 quickest":{"MaxCount":1000,"Avg":11900,"StartWindowS":500,"EndWindowS":6000},
             "1 quickest":{"MaxCount":150,"Avg":14000,"StartWindowS":2000,"EndWindowS":200000},
             "aggregated": {"MaxCount":6000,"Avg":4000,"StartWindowS":500,"EndWindowS":17000}
             },
-        "av_speed":{"mu": 0.5, "sigma": 0.5}
+        "lenght_km":{
+            "1 slowest":{"MaxCount":7384,"Avg":1100,"StartWindowS":500,"EndWindowS":4500},
+            "2 slowest":{"MaxCount":2200,"Avg":3900,"StartWindowS":500,"EndWindowS":10000},
+            "middle velocity class":{"MaxCount":5500,"Avg":11000,"StartWindowS":500,"EndWindowS":6000},
+            "2 quickest":{"MaxCount":1000,"Avg":11900,"StartWindowS":500,"EndWindowS":6000},
+            "1 quickest":{"MaxCount":150,"Avg":14000,"StartWindowS":2000,"EndWindowS":200000},
+            "aggregated": {"MaxCount":6000,"Avg":4000,"StartWindowS":500,"EndWindowS":17000}
+            },
+        "av_speed":{"1 slowest":{"mu": 0.5, "sigma": 0.5},
+                    "2 slowest":{"mu": 0.5, "sigma": 0.5},
+                    "middle velocity class":{"mu": 0.5, "sigma": 0.5},
+                    "2 quickest":{"mu": 0.5, "sigma": 0.5},
+                    "1 quickest":{"mu": 0.5, "sigma": 0.5},
+                    "aggregated": {"mu": 0.5, "sigma": 0.5}
+                    },
+        "speed_kmh":{"1 slowest":{"mu": 0.5, "sigma": 0.5},
+                    "2 slowest":{"mu": 0.5, "sigma": 0.5},
+                    "middle velocity class":{"mu": 0.5, "sigma": 0.5},
+                    "2 quickest":{"mu": 0.5, "sigma": 0.5},
+                    "1 quickest":{"mu": 0.5, "sigma": 0.5},
+                    "aggregated": {"mu": 0.5, "sigma": 0.5}
+                    }
         }
 }

@@ -16,6 +16,7 @@ import datetime
 import matplotlib.pyplot as plt
 import json
 import warnings
+from FittingProcedures import *
 
 # Ignore all warnings
 warnings.filterwarnings("ignore")
@@ -27,7 +28,13 @@ else:
     except Exception as e:
         print("No Plot Settings File Found")
 
-        
+class NumpyArrayEncoder(json.JSONEncoder):
+    """ Custom encoder for numpy data types """
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()  # Convert ndarray to list
+        # Let the base class default method raise the TypeError
+        return json.JSONEncoder.default(self, obj) 
 
 def Dict2PolarsDF(Dict,schema):
     return pl.DataFrame(Dict,schema=schema)
@@ -49,6 +56,7 @@ def ComputeMFDVariables(Df,MFD,TimeStampDate,dt,iterations,verbose = False):
         Hstr = StartInterval.strftime("%Y-%m-%d %H:%M:%S").split(" ")[1]
         TmpDict["time"].append(Hstr)
         TmpDict["population"].append(len(TmpFcm))
+
         if len(TmpFcm) > 0:
             AvSpeed = TmpFcm.select(pl.col("speed_kmh").mean()).to_pandas().iloc[0]["speed_kmh"]
             TmpDict["speed_kmh"].append(AvSpeed)
@@ -57,6 +65,7 @@ def ComputeMFDVariables(Df,MFD,TimeStampDate,dt,iterations,verbose = False):
             MoreThan0Traj = True
         else:
             TmpDict["speed_kmh"].append(0)
+            TmpDict["av_speed"].append(0)
             MoreThan0Traj = False
 #        if verbose:
 #            print("Iteration: ",t)
@@ -185,7 +194,7 @@ def SaveMFDPlot(binsPop,binsAvSpeed,binsSqrt,RelativeChange,SaveDir,Title = "Fon
 def PlotHysteresis(MFD,Title,SaveDir,NameFile):
     fig,ax = plt.subplots(1,1,figsize = (10,10))
     x = MFD['population'].to_list()
-    y = MFD['speed'].to_list()
+    y = MFD['speed_kmh'].to_list()
     u = [x[i+1]-x[i] for i in range(len(x)-1)]
     v = [y[i+1]-y[i] for i in range(len(y)-1)]
     u.append(x[len(x)-1] -x[0])
@@ -294,13 +303,13 @@ def FillInitGuessIntervalPlExp(DictInitGuessInterval,MaxCount,Avg,StartWindow,En
     """
     if Function2Test == "exponential":
         DictInitGuessInterval["initial_guess"] = [MaxCount,Avg]
-        DictInitGuessInterval["interval"] = [StartWindowS,EndWindowS]        
+        DictInitGuessInterval["interval"] = [StartWindow,EndWindow]        
     elif Function2Test == "powerlaw":
-        DictInitGuessInterval["initial_guess"] = [MaxCount*StartWindowS,-1]
-        DictInitGuessInterval["interval"] = [StartWindowS,EndWindowS]    
+        DictInitGuessInterval["initial_guess"] = [MaxCount*StartWindow,-1]
+        DictInitGuessInterval["interval"] = [StartWindow,EndWindow]    
     return DictInitGuessInterval
 
-def FillInitGuessIntervalMxGs(DictInitGuessInterval,Fcm,Feature):
+def FillInitGuessIntervalMxGs(DictInitGuessInterval,Fcm,Feature,IntClass):
     """
         Input:
             - DictInitGuessInterval: dict -> Dictionary with initial_guess and interval
@@ -310,15 +319,16 @@ def FillInitGuessIntervalMxGs(DictInitGuessInterval,Fcm,Feature):
             - Fcm: pl.DataFrame -> DataFrame with the FCM
             - Feature: str -> Feature to Test
     """
-    if Feature is None:
+    if IntClass is None:
         LocalMeanMs = np.mean(Fcm[Feature].to_list())
         LocalStdMs = np.std(Fcm[Feature].to_list())
     else:
         LocalMeanMs = Fcm.filter(pl.col("class") == IntClass)[Feature].mean()
         LocalStdMs = Fcm.filter(pl.col("class") == IntClass)[Feature].std()
     DictInitGuessInterval["initial_guess"] = [LocalMeanMs,LocalStdMs]
+    return DictInitGuessInterval
 
-def ReturnFitInfoFromDict(Fcm,DictFittedData,InitialGuess,Feature2Label,FitFile,FittedDataFile):
+def ReturnFitInfoFromDict(Fcm,InitialGuess,DictFittedData,InfoFittedParameters,Feature2Label,FitFile,FittedDataFile):
     """
         Input:
             Fcm: pl.DataFrame -> Fcm Dataframe
@@ -335,19 +345,20 @@ def ReturnFitInfoFromDict(Fcm,DictFittedData,InitialGuess,Feature2Label,FitFile,
             InfoFittedParameters: dict -> {Feature: {Function: [A,b]}}
             DictFittedData: dict -> {Feature: {"fitted_data": [],"best_fit": str}}
     """
-    if os.path.isfile(FitFile) and os.path.isfile(FittedDataFile):
-        with open(FitFile,'r') as f:
-            InfoFittedParameters = json.load(f)
-        with open(FittedDataFile,'r') as f:
-            DictFittedData = json.load(f)
-    else:
-        for Feature in Feature2Label.keys():
-            y,x = np.histogram(Fcm[Feature].to_list(),bins = 50)
-            InfoFittedParameters, DictFittedData = FitAndPlot(x,y,InitialGuess,Feature)
-        with open(FitFile,'w') as f:
-            json.dump(InfoFittedParameters,f)
-        with open(FittedDataFile,'w') as f:
-            json.dump(DictFittedData,f)
+    print("Return Fit Info From Dict:")
+#    if os.path.isfile(FitFile) and os.path.isfile(FittedDataFile):
+#        with open(FitFile,'r') as f:
+#            InfoFittedParameters = json.load(f)
+#        with open(FittedDataFile,'r') as f:
+#            DictFittedData = json.load(f)
+#    else:
+    for Feature in DictFittedData.keys():
+        y,x = np.histogram(Fcm[Feature].to_list(),bins = 50)
+        InfoFittedParameters, DictFittedData = FitAndPlot(x[1:],y,InitialGuess,Feature,InfoFittedParameters,DictFittedData)
+    with open(FitFile,'w') as f:
+        json.dump(InfoFittedParameters,f,cls=NumpyArrayEncoder,indent = 4)
+    with open(FittedDataFile,'w') as f:
+        json.dump(DictFittedData,f,cls=NumpyArrayEncoder,indent = 4)
 
     return InfoFittedParameters,DictFittedData
 
@@ -456,6 +467,7 @@ class DailyNetworkStats:
         self.InitialGuessPerClassAndLabel = defaultdict(dict) 
         # FEATURES
         self.Features = ["av_speed","lenght","time","av_accel"]
+        self.Features2Fit = ["av_speed","lenght","time","speed_kmh","lenght_km","time_hours"]
         # OUTPUT DICTIONARIES
         self.Feature2Label = {"av_speed":'average speed (m/s)',"speed_kmh":'average speed (km/h)',"av_accel":"average acceleration (m/s^2)","lenght":'lenght (m)',"lenght_km": 'lenght (km)',"time_hours":'time (h)',"time":'time (s)'}
         self.Column2SaveName = {"av_speed":"average_speed","speed_kmh":'average_speed_kmh',"av_accel":"average_acceleration","lenght":"lenght","lenght_km": 'lenght_km',"time_hours":"time_hours","time":"time"}
@@ -481,6 +493,9 @@ class DailyNetworkStats:
                                     "time":{"initial_guess":[0,0],"interval":[]}
                                     }
                                 }
+
+        self.DictFittedData = {Feature: {"best_fit":[], "fitted_data":[]} for Feature in list(self.Features2Fit)}
+        self.InfoFittedParameters =  {Function2Fit: {Feature:{"fit":None,"StdError":None} for Feature in self.DictInitialGuess[Function2Fit].keys()} for Function2Fit in self.DictInitialGuess.keys()}
         self.InfoFit = config["info_fit"]
         ## BIN SETTINGS
         if "shift_count" in config.keys():
@@ -900,36 +915,47 @@ class DailyNetworkStats:
         """
         if self.ReadFluxesSubIncreasinglyIncludedIntersectionBool and self.ReadGeoJsonBool and self.BoolStrClass2IntClass:
             print("Plotting Daily Incremental Subnetworks in HTML")
-            print("Save in: ",os.path.join(self.PlotDir,"SubnetsIncrementalInclusion_{}.html".format(self.StrDate)))
-            # Create a base map
-            m = folium.Map(location=[self.centroid.x, self.centroid.y], zoom_start=12)
-            # Iterate through the Dictionary of list of poly_lid
-            if self.verbose:
-                for class_ in self.IntClass2RoadsIncreasinglyIncludedIntersection.keys(): 
-                    print(self.IntClass2RoadsIncreasinglyIncludedIntersection[class_][:10])
-            for IntClass in self.IntClasse2StrClass.keys():
-                for index_list in self.IntClass2RoadsIncreasinglyIncludedIntersection[IntClass]:
-                    if self.verbose:
-                        print("Plotting Class ",IntClass)
-                        print("Number of Roads: ",len(index_list))
-                    # Filter GeoDataFrame for roads with indices in the current list
-                    filtered_gdf = self.GeoJson[self.GeoJson['poly_lid'].isin(index_list)]
-                    # Create a feature group for the current layer
-                    layer_group = folium.FeatureGroup(name="Layer {}".format(IntClass)).add_to(m)
-                    # Add roads to the feature group with a unique color
-                    if self.verbose:
-                        print("Class: ",IntClass," Number of Roads: ",len(filtered_gdf),"Color: ",self.Class2Color[self.IntClass2StrClass[IntClass]])
-                    for _, road in filtered_gdf.iterrows():
-                        folium.GeoJson(road.geometry, style_function=lambda x: {'color': self.Class2Color[self.IntClass2StrClass[IntClass]]}).add_to(layer_group)
-                    
-                    # Add the feature group to the map
-                    layer_group.add_to(m)
-                    # Add layer control to the map
-                    folium.LayerControl().add_to(m)
-
-            # Save or display the map
-            m.save(os.path.join(self.PlotDir,"SubnetsIncrementalInclusion_{}.html".format(self.StrDate)))
-
+            if not os.path.isfile(os.path.join(self.PlotDir,"Subnets_{}.html".format(self.StrDate))) or True:
+                print("Save in: ",os.path.join(self.PlotDir,"SubnetsIncrementalInclusion_{}.html".format(self.StrDate)))
+                # Create a base map
+                m = folium.Map(location=[self.centroid.x, self.centroid.y], zoom_start=12)
+                # Iterate through the Dictionary of list of poly_lid
+                if self.verbose:
+                    for class_ in self.IntClass2RoadsIncreasinglyIncludedIntersection.keys(): 
+                        print(self.IntClass2RoadsIncreasinglyIncludedIntersection[class_][:10])
+                for IntClass in self.IntClass2StrClass.keys():
+                    mclass = folium.Map(location=[self.centroid.x, self.centroid.y], zoom_start=12)
+                    for index_list in self.IntClass2RoadsIncreasinglyIncludedIntersection[IntClass]:
+                        if self.verbose:
+                            print("Plotting Class ",IntClass)
+                            if isinstance(index_list,int):
+                                index_list = [index_list]                        
+                            print("Number of Roads: ",len(index_list))
+                        if isinstance(index_list,int):
+                            index_list = [index_list]                        
+                        # Filter GeoDataFrame for roads with indices in the current list
+                        filtered_gdf = self.GeoJson[self.GeoJson['poly_lid'].isin(index_list)]
+                        # Create a feature group for the current layer
+                        layer_group = folium.FeatureGroup(name="Layer {}".format(IntClass)).add_to(m)
+                        layer_group_class = folium.FeatureGroup(name="Layer {}".format(IntClass)).add_to(mclass)
+                        # Add roads to the feature group with a unique color
+                        if self.verbose:
+                            print("Class: ",IntClass," Number of Roads: ",len(filtered_gdf),"Color: ",self.Class2Color[self.IntClass2StrClass[IntClass]])
+                        for _, road in filtered_gdf.iterrows():
+                            folium.GeoJson(road.geometry, style_function=lambda x: {'color': self.Class2Color[self.IntClass2StrClass[IntClass]]}).add_to(layer_group)
+                            folium.GeoJson(road.geometry, style_function=lambda x: {'color': self.Class2Color[self.IntClass2StrClass[IntClass]]}).add_to(layer_group_class)
+                        
+                        # Add the feature group to the map
+                        layer_group.add_to(m)
+                        layer_group_class.add_to(mclass)
+                        # Add layer control to the map
+                        folium.LayerControl().add_to(m)
+                        folium.LayerControl().add_to(mclass)
+                # Save or display the map
+                        mclass.save(os.path.join(self.PlotDir,"SubnetsIncrementalInclusion_{0}_{1}.html".format(self.StrDate,IntClass)))
+                m.save(os.path.join(self.PlotDir,"SubnetsIncrementalInclusion_{}.html".format(self.StrDate)))
+            else:
+                print("Subnets Increasingly already Plotted in HTML")
         else:
             print("No Subnetworks to Plot")
             return False
@@ -942,33 +968,38 @@ class DailyNetworkStats:
                     Does not consider the intersection
         """
         if self.ReadFluxesSubBool and self.ReadGeoJsonBool and self.BoolStrClass2IntClass:
+
             print("Plotting Daily Subnetworks in HTML")
-            # Create a base map
-            m = folium.Map(location=[self.centroid.x, self.centroid.y], zoom_start=12)
-            # Iterate through the Dictionary of list of poly_lid
-            for IntClass in self.IntClass2StrClass.keys():
-                for index_list in self.IntClass2Roads[IntClass]:
-                    if isinstance(index_list,int):
-                        index_list = [index_list]
-                    # Filter GeoDataFrame for roads with indices in the current list
-                    filtered_gdf = self.GeoJson[self.GeoJson['poly_lid'].isin(index_list)]
-                    # Create a feature group for the current layer
-                    layer_group = folium.FeatureGroup(name=f"Layer {IntClass}").add_to(m)
-                    
-                    # Add roads to the feature group with a unique color
-                    for _, road in filtered_gdf.iterrows():
-                        color = 'blue'  # Choose a color for the road based on index or any other criterion
-                        folium.GeoJson(road.geometry, style_function=lambda x: {'color': self.Class2Color[self.IntClass2StrClass[IntClass]]}).add_to(layer_group)
-                    
-                    # Add the feature group to the map
-                    layer_group.add_to(m)
-
-                    # Add layer control to the map
-                    folium.LayerControl().add_to(m)
-
-            # Save or display the map
-            m.save(os.path.join(self.PlotDir,"Subnets_{}.html".format(self.StrDate)))
-
+            if not os.path.isfile(os.path.join(self.PlotDir,"Subnets_{}.html".format(self.StrDate))) or True:
+                # Create a base map
+                m = folium.Map(location=[self.centroid.x, self.centroid.y], zoom_start=12)
+                # Iterate through the Dictionary of list of poly_lid
+                for IntClass in self.IntClass2StrClass.keys():
+                    mclass = folium.Map(location=[self.centroid.x, self.centroid.y], zoom_start=12)
+                    for index_list in self.IntClass2Roads[IntClass]:
+                        if isinstance(index_list,int):
+                            index_list = [index_list]
+                        # Filter GeoDataFrame for roads with indices in the current list
+                        filtered_gdf = self.GeoJson[self.GeoJson['poly_lid'].isin(index_list)]
+                        # Create a feature group for the current layer
+                        layer_group = folium.FeatureGroup(name=f"Layer {IntClass}").add_to(m)
+                        layer_group_class = folium.FeatureGroup(name=f"Layer {IntClass}").add_to(mclass)
+                        # Add roads to the feature group with a unique color
+                        for _, road in filtered_gdf.iterrows():
+                            color = 'blue'  # Choose a color for the road based on index or any other criterion
+                            folium.GeoJson(road.geometry, style_function=lambda x: {'color': self.Class2Color[self.IntClass2StrClass[IntClass]]}).add_to(layer_group)
+                        
+                        # Add the feature group to the map
+                        layer_group.add_to(m)
+                        layer_group_class.add_to(mclass)
+                        # Add layer control to the map
+                        folium.LayerControl().add_to(m)
+                        folium.LayerControl().add_to(mclass)
+                        mclass.save(os.path.join(self.PlotDir,"Subnets_{0}_{1}.html".format(self.StrDate,IntClass)))
+                # Save or display the map
+                m.save(os.path.join(self.PlotDir,"Subnets_{}.html".format(self.StrDate)))
+            else:
+                print("Subnets already Plotted in HTML")
         else:
             print("No Subnetworks to Plot")
             return False
@@ -984,93 +1015,98 @@ class DailyNetworkStats:
         '''
         if self.ReadTime2FluxesBool:
             print("Plotting Daily Fluxes in HTML")
-            # Create a base map
-            m = folium.Map(location=[self.centroid.x, self.centroid.y], zoom_start=12)
-            mFT = folium.Map(location=[self.centroid.x, self.centroid.y], zoom_start=12)
-            mTF = folium.Map(location=[self.centroid.x, self.centroid.y], zoom_start=12)
-            TF = self.TimedFluxes
-            min_val = min(TF["total_fluxes"])
-            max_val = max(TF["total_fluxes"])
-            TF = TF.with_columns(pl.col("total_fluxes").apply(lambda x: NormalizeWidthForPlot(x,min_val,max_val), return_dtype=pl.Int64).alias("width_total_fluxes"))
-            TF = TF.with_columns(pl.col("n_traj_FT").apply(lambda x: NormalizeWidthForPlot(x,min_val,max_val), return_dtype=pl.Int64).alias("width_n_traj_FT"))
-            TF = TF.with_columns(pl.col("n_traj_TF").apply(lambda x: NormalizeWidthForPlot(x,min_val,max_val), return_dtype=pl.Int64).alias("width_n_traj_TF"))
-            CopyGdf = self.GeoJson
-            CopyGdf = CopyGdf.merge(TF.to_pandas(),how = 'left',left_on = 'poly_lid',right_on = 'id_local')
-            # Iterate through the Dictionary of list of poly_lid            
-            for t,tdf in TF.group_by("time"):
-                # Filter GeoDataFrame for roads with indices in the current list
-                # Create a feature group for the current layer
-                layer_group = folium.FeatureGroup(name=f"Layer {t}").add_to(m)
-                layer_groupFT = folium.FeatureGroup(name=f"Layer {t}").add_to(m)
-                layer_groupTF = folium.FeatureGroup(name=f"Layer {t}").add_to(m)
-                # Add roads to the feature group with a unique color
-                color = 'blue'  # Choose a color for the road based on index or any other criterion
-                print(CopyGdf.columns)
-                for idx, row in CopyGdf.iterrows(): 
-                    folium.GeoJson(row.geometry, style_function=lambda x: {'color': color,"weight":row["width_total_fluxes"]}).add_to(layer_group)
-                    folium.GeoJson(row.geometry, style_function=lambda x: {'color': color,"weight":row["width_n_traj_TF"]}).add_to(layer_groupTF)
-                    folium.GeoJson(row.geometry, style_function=lambda x: {'color': color,"weight":row["width_n_traj_FT"]}).add_to(layer_groupFT)
-                
-                # Add the feature group to the map
-                layer_group.add_to(m)
-                layer_group.add_to(mTF)
-                layer_group.add_to(mFT)
-
-
-            # Add layer control to the map
-            folium.LayerControl().add_to(m)
-            folium.LayerControl().add_to(mTF)
-            folium.LayerControl().add_to(mFT)
-
-            # Save or display the map
-            m.save(os.path.join(self.PlotDir,"Fluxes_{}.html".format(self.StrDate)))
-            mTF.save(os.path.join(self.PlotDir,"TailFrontFluxes_{}.html".format(self.StrDate)))
-            mFT.save(os.path.join(self.PlotDir,"FrontTailFluxes_{}.html".format(self.StrDate)))
-
-    def PlotTimePercorrenceHTML(self):
-        if self.ReadGeojsonBool and self.ReadVelocitySubnetBool:
-            print("Plotting Daily Fluxes in HTML")
-            # Create a base map
-            m = folium.Map(location=[self.centroid.x, self.centroid.y], zoom_start=12)
-            m1 = folium.Map(location=[self.centroid.x, self.centroid.y], zoom_start=12)
-            for time,RTV in RoadsTimeVel.groupby("start_bin"):
-                layer_group = folium.FeatureGroup(name=f"Layer {time}").add_to(m)
-                layer_group1 = folium.FeatureGroup(name=f"Layer {time}").add_to(m)
-                for Class in self.IntClass2BestFit.keys():
-                    RoadsTimeVel = self.VelTimePercorrenceClass[Class]
-                    RoadsTimeVel["av_speed"] = [x if x!=-1 else 0 for x in RoadsTimeVel["av_speed"]]
-                    RoadsTimeVel["time_percorrence"] = [x if x!=-1 else 0 for x in RoadsTimeVel["time_percorrence"]]
-                    min_val = min(RoadsTimeVel["av_speed"])
-                    max_val = max(RoadsTimeVel["av_speed"])
-                    RoadsTimeVel = RoadsTimeVel.with_columns(pl.col("av_speed").apply(lambda x: NormalizeWidthForPlot(x,min_val,max_val), return_dtype=pl.Int64).alias("width_speed"))
-                    min_val = min(RoadsTimeVel["time_percorrence"])
-                    max_val = max(RoadsTimeVel["time_percorrence"])
-                    RoadsTimeVel = RoadsTimeVel.with_columns(pl.col("time_percorrence").apply(lambda x: NormalizeWidthForPlot(x,min_val,max_val), return_dtype=pl.Int64).alias("width_time"))
-                    # Hey, cool, I wrote this bug!
+            if not os.path.isfile(os.path.join(self.PlotDir,"Fluxes_{}.html".format(self.StrDate))):
+                # Create a base map
+                m = folium.Map(location=[self.centroid.x, self.centroid.y], zoom_start=12)
+                mFT = folium.Map(location=[self.centroid.x, self.centroid.y], zoom_start=12)
+                mTF = folium.Map(location=[self.centroid.x, self.centroid.y], zoom_start=12)
+                TF = self.TimedFluxes
+                min_val = min(TF["total_fluxes"])
+                max_val = max(TF["total_fluxes"])
+                TF = TF.with_columns(pl.col("total_fluxes").apply(lambda x: NormalizeWidthForPlot(x,min_val,max_val), return_dtype=pl.Int64).alias("width_total_fluxes"))
+                TF = TF.with_columns(pl.col("n_traj_FT").apply(lambda x: NormalizeWidthForPlot(x,min_val,max_val), return_dtype=pl.Int64).alias("width_n_traj_FT"))
+                TF = TF.with_columns(pl.col("n_traj_TF").apply(lambda x: NormalizeWidthForPlot(x,min_val,max_val), return_dtype=pl.Int64).alias("width_n_traj_TF"))
+                CopyGdf = self.GeoJson
+                CopyGdf = CopyGdf.merge(TF.to_pandas(),how = 'left',left_on = 'poly_lid',right_on = 'id_local')
+                # Iterate through the Dictionary of list of poly_lid            
+                for t,tdf in TF.group_by("time"):
+                    # Filter GeoDataFrame for roads with indices in the current list
+                    # Create a feature group for the current layer
+                    layer_group = folium.FeatureGroup(name=f"Layer {t}").add_to(m)
+                    layer_groupFT = folium.FeatureGroup(name=f"Layer {t}").add_to(m)
+                    layer_groupTF = folium.FeatureGroup(name=f"Layer {t}").add_to(m)
                     # Add roads to the feature group with a unique color
-                    list_colored_roads_speed = RTV.loc[RTV["av_speed"]!=0]["poly_id"]
-                    filtered_gdf = self.GeoJson[self.GeoJson['poly_lid'].isin(list_colored_roads_speed)]
-                    filtered_gdf["width_speed"] = RoadsTimeVel["width_speed"]
-                    filtered_gdf["width_time"] = RoadsTimeVel["width_time"]
-                    for idx, row in filtered_gdf.iterrows(): 
-                        folium.GeoJson(row.geometry,style_function=lambda x: {
-                                        'color': self.Class2Color[Class],
-                                        'weight': row['width_speed']}).add_to(layer_group)                    
-                        folium.GeoJson(row.geometry,style_function=lambda x: {
-                                        'color': self.Class2Color[Class],
-                                        'weight': row['width_time']}).add_to(layer_group1)                    
-
+                    color = 'blue'  # Choose a color for the road based on index or any other criterion
+                    print(CopyGdf.columns)
+                    for idx, row in CopyGdf.iterrows(): 
+                        folium.GeoJson(row.geometry, style_function=lambda x: {'color': color,"weight":row["width_total_fluxes"]}).add_to(layer_group)
+                        folium.GeoJson(row.geometry, style_function=lambda x: {'color': color,"weight":row["width_n_traj_TF"]}).add_to(layer_groupTF)
+                        folium.GeoJson(row.geometry, style_function=lambda x: {'color': color,"weight":row["width_n_traj_FT"]}).add_to(layer_groupFT)
+                    
                     # Add the feature group to the map
                     layer_group.add_to(m)
-                    layer_group.add_to(m1)
+                    layer_group.add_to(mTF)
+                    layer_group.add_to(mFT)
+
 
                 # Add layer control to the map
                 folium.LayerControl().add_to(m)
-                folium.LayerControl().add_to(m1)
+                folium.LayerControl().add_to(mTF)
+                folium.LayerControl().add_to(mFT)
 
-            # Save or display the map
-            m.save(os.path.join(self.PlotDir,"AvSpeed_{}.html".format(self.StrDate)))
-            m1.save(os.path.join(self.PlotDir,"TimePercorrence_{}.html".format(self.StrDate)))
+                # Save or display the map
+                m.save(os.path.join(self.PlotDir,"Fluxes_{}.html".format(self.StrDate)))
+                mTF.save(os.path.join(self.PlotDir,"TailFrontFluxes_{}.html".format(self.StrDate)))
+                mFT.save(os.path.join(self.PlotDir,"FrontTailFluxes_{}.html".format(self.StrDate)))
+            else:
+                print("Fluxes already Plotted in HTML")
+    def PlotTimePercorrenceHTML(self):
+        if self.ReadGeojsonBool and self.ReadVelocitySubnetBool:
+            print("Plotting Daily Fluxes in HTML")
+            if not os.path.isfile(os.path.join(self.PlotDir,"AvSpeed_{}.html".format(self.StrDate))):            
+                # Create a base map
+                m = folium.Map(location=[self.centroid.x, self.centroid.y], zoom_start=12)
+                m1 = folium.Map(location=[self.centroid.x, self.centroid.y], zoom_start=12)
+                for time,RTV in RoadsTimeVel.groupby("start_bin"):
+                    layer_group = folium.FeatureGroup(name=f"Layer {time}").add_to(m)
+                    layer_group1 = folium.FeatureGroup(name=f"Layer {time}").add_to(m)
+                    for Class in self.IntClass2BestFit.keys():
+                        RoadsTimeVel = self.VelTimePercorrenceClass[Class]
+                        RoadsTimeVel["av_speed"] = [x if x!=-1 else 0 for x in RoadsTimeVel["av_speed"]]
+                        RoadsTimeVel["time_percorrence"] = [x if x!=-1 else 0 for x in RoadsTimeVel["time_percorrence"]]
+                        min_val = min(RoadsTimeVel["av_speed"])
+                        max_val = max(RoadsTimeVel["av_speed"])
+                        RoadsTimeVel = RoadsTimeVel.with_columns(pl.col("av_speed").apply(lambda x: NormalizeWidthForPlot(x,min_val,max_val), return_dtype=pl.Int64).alias("width_speed"))
+                        min_val = min(RoadsTimeVel["time_percorrence"])
+                        max_val = max(RoadsTimeVel["time_percorrence"])
+                        RoadsTimeVel = RoadsTimeVel.with_columns(pl.col("time_percorrence").apply(lambda x: NormalizeWidthForPlot(x,min_val,max_val), return_dtype=pl.Int64).alias("width_time"))
+                        # Hey, cool, I wrote this bug!
+                        # Add roads to the feature group with a unique color
+                        list_colored_roads_speed = RTV.loc[RTV["av_speed"]!=0]["poly_id"]
+                        filtered_gdf = self.GeoJson[self.GeoJson['poly_lid'].isin(list_colored_roads_speed)]
+                        filtered_gdf["width_speed"] = RoadsTimeVel["width_speed"]
+                        filtered_gdf["width_time"] = RoadsTimeVel["width_time"]
+                        for idx, row in filtered_gdf.iterrows(): 
+                            folium.GeoJson(row.geometry,style_function=lambda x: {
+                                            'color': self.Class2Color[Class],
+                                            'weight': row['width_speed']}).add_to(layer_group)                    
+                            folium.GeoJson(row.geometry,style_function=lambda x: {
+                                            'color': self.Class2Color[Class],
+                                            'weight': row['width_time']}).add_to(layer_group1)                    
+
+                        # Add the feature group to the map
+                        layer_group.add_to(m)
+                        layer_group.add_to(m1)
+
+                    # Add layer control to the map
+                    folium.LayerControl().add_to(m)
+                    folium.LayerControl().add_to(m1)
+
+                # Save or display the map
+                m.save(os.path.join(self.PlotDir,"AvSpeed_{}.html".format(self.StrDate)))
+                m1.save(os.path.join(self.PlotDir,"TimePercorrence_{}.html".format(self.StrDate)))
+            else:
+                print("AvSpeed already Plotted in HTML")
 
 ## ------- FUNDAMENTAL DIAGRAM ------ ##
     def ComputeMFDVariablesClass(self):
@@ -1295,67 +1331,87 @@ class DailyNetworkStats:
         """
         if self.BoolStrClass2IntClass:
             print("Initialize The Fitting Parameters Initial Guess And Windows")
-            self.Class2InitialGuess = {IntClass: self.DictInitialGuess for IntClass in self.StrClass2IntClass.keys()}
+            self.Class2InitialGuess = {IntClass: self.DictInitialGuess for IntClass in self.IntClass2StrClass.keys()}
+            if self.verbose:
+                print(self.StrDate)
+                print("Class2InitialGuess:\n",self.Class2InitialGuess)
             for IntClass in self.IntClass2StrClass.keys():
                 StrClass = self.IntClass2StrClass[IntClass]
-                for Function2Test in self.DictInitialGuess: 
-                    for Feature in self.DictInitialGuess[Function2Test]:
-                        MaxCount = self.InfoFit[Feature][StrClass]["MaxCount"]
-                        Avg = self.InfoFit[Feature][StrClass]["Avg"]
-                        StartWindow = LocalDict2Params[StrClass]["StartWindowS"]
-                        EndWindow = LocalDict2Params[StrClass]["EndWindowS"]
+                for Function2Test in self.Class2InitialGuess[IntClass]: 
+                    for Feature in self.Class2InitialGuess[IntClass][Function2Test]:
+                        if Feature == "av_speed" or Feature == "speed_kmh":
+                            pass
+                        else:
+                            MaxCount = self.InfoFit[Feature][StrClass]["MaxCount"]
+                            Avg = self.InfoFit[Feature][StrClass]["Avg"]
+                            StartWindow = self.InfoFit[Feature][StrClass]["StartWindowS"]
+                            EndWindow = self.InfoFit[Feature][StrClass]["EndWindowS"]
                         # Normalization
                         SecondsInHour = 3600
                         MetersinKm = 1000
-                        if Feature == "time":
-                            self.Class2InitialGuess[IntClass][Function2Test][Feature] = FillInitGuessIntervalPlExp(self.Class2InitialGuess[IntClass][Function2Test][Feature],
+                        if self.verbose:
+                            print(self.StrDate)
+                            print("Feature: ",Feature)
+                            print("IntClass: ",IntClass)
+                            print("Function2Test: ",Function2Test)
+                            print("self.Class2InitialGuess[IntClass][Function2Test][Feature]:\n",self.Class2InitialGuess[IntClass][Function2Test][Feature])
+                        if self.Class2InitialGuess[IntClass][Function2Test][Feature] is not None:
+                            if Feature == "time":
+                                self.Class2InitialGuess[IntClass][Function2Test][Feature] = FillInitGuessIntervalPlExp(self.Class2InitialGuess[IntClass][Function2Test][Feature],
+                                                                                                                        MaxCount,
+                                                                                                                        Avg,
+                                                                                                                        StartWindow,
+                                                                                                                        EndWindow,
+                                                                                                                        Function2Test)
+                            elif Feature == "time_hours":
+                                Avg = Avg/SecondsInHour 
+                                StartWindow = StartWindow/SecondsInHour
+                                EndWindow = EndWindow/SecondsInHour 
+                                self.Class2InitialGuess[IntClass][Function2Test][Feature] = FillInitGuessIntervalPlExp(self.Class2InitialGuess[IntClass][Function2Test][Feature],
+                                                                                                                        MaxCount,
+                                                                                                                        Avg,
+                                                                                                                        StartWindow,
+                                                                                                                        EndWindow,
+                                                                                                                        Function2Test)
+                            elif Feature == "lenght":
+                                self.Class2InitialGuess[IntClass][Function2Test][Feature] = FillInitGuessIntervalPlExp(self.Class2InitialGuess[IntClass][Function2Test][Feature],
+                                                            MaxCount,
+                                                            Avg,
+                                                            StartWindow,
+                                                            EndWindow,
+                                                            Function2Test)
+                            elif Feature == "lenght_km":
+                                Avg = Avg/MetersinKm 
+                                StartWindow = StartWindow/MetersinKm
+                                EndWindow = EndWindow/MetersinKm
+                                self.Class2InitialGuess[IntClass][Function2Test][Feature] = FillInitGuessIntervalPlExp(self.Class2InitialGuess[IntClass][Function2Test][Feature],
                                                                                                                     MaxCount,
                                                                                                                     Avg,
                                                                                                                     StartWindow,
                                                                                                                     EndWindow,
                                                                                                                     Function2Test)
-                        elif Feature == "time_hours":
-                            Avg = Avg/SecondsInHour 
-                            StartWindow = StartWindow/SecondsInHour
-                            EndWindow = EndWindow/SecondsInHour 
-                            self.Class2InitialGuess[IntClass][Function2Test][Feature] = FillInitGuessIntervalPlExp(self.Class2InitialGuess[IntClass][Function2Test][Feature],
-                                                                                                                    MaxCount,
-                                                                                                                    Avg,
-                                                                                                                    StartWindow,
-                                                                                                                    EndWindow,
-                                                                                                                    Function2Test)
-                        elif Feature == "lenght":
-                            self.Class2InitialGuess[IntClass][Function2Test][Feature] = FillInitGuessIntervalPlExp(self.Class2InitialGuess[IntClass][Function2Test][Feature],
-                                                        MaxCount,
-                                                        Avg,
-                                                        StartWindow,
-                                                        EndWindow,
-                                                        Function2Test)
-                        elif Feature == "lenght_km":
-                            Avg = Avg/MetersinKm 
-                            StartWindow = StartWindow/MetersinKm
-                            EndWindow = EndWindow/MetersinKm
-                            self.Class2InitialGuess[IntClass][Function2Test][Feature] = FillInitGuessIntervalPlExp(self.Class2InitialGuess[IntClass][Function2Test][Feature],
-                                                                                                                MaxCount,
-                                                                                                                Avg,
-                                                                                                                StartWindow,
-                                                                                                                EndWindow,
-                                                                                                                Function2Test)
-                        elif Feature == "av_speed":
-                            self.Class2InitialGuess[IntClass][Function2Test][Feature] = FillInitGuessIntervalMxGs(self.Class2InitialGuess[IntClass][Function2Test][Feature],
-                                                                                                                self.Fcm,
-                                                                                                                Feature)
-                        elif Feature == "speed_kmh":
-                            self.Class2InitialGuess[IntClass][Function2Test][Feature] = FillInitGuessIntervalMxGs(self.Class2InitialGuess[IntClass][Function2Test][Feature],
-                                                                                                                self.Fcm,
-                                                                                                                Feature)
+                            elif Feature == "av_speed":
+                                self.Class2InitialGuess[IntClass][Function2Test][Feature] = FillInitGuessIntervalMxGs(self.Class2InitialGuess[IntClass][Function2Test][Feature],
+                                                                                                                    self.Fcm,
+                                                                                                                    Feature,
+                                                                                                                    IntClass)
+                            elif Feature == "speed_kmh":
+                                self.Class2InitialGuess[IntClass][Function2Test][Feature] = FillInitGuessIntervalMxGs(self.Class2InitialGuess[IntClass][Function2Test][Feature],
+                                                                                                                    self.Fcm,
+                                                                                                                    Feature,
+                                                                                                                    IntClass)
+                        else:
+                            print("Warning: Initial Guess Not Initialized for Class {0} and Feature {1} Day: {2}".format(IntClass,Feature,self.StrDate))
             # Initialize The Guess Without Classes
             for Function2Test in self.DictInitialGuess: 
                 for Feature in self.DictInitialGuess[Function2Test]:
-                    MaxCount = self.InfoFit[Feature]["aggregated"]["MaxCount"]
-                    Avg = self.InfoFit[Feature]["aggregated"]["Avg"]
-                    StartWindow = LocalDict2Params["aggregated"]["StartWindowS"]
-                    EndWindow = LocalDict2Params["aggregated"]["EndWindowS"]
+                    if Feature == "av_speed" or Feature == "speed_kmh":
+                        pass
+                    else:
+                        MaxCount = self.InfoFit[Feature]["aggregated"]["MaxCount"]
+                        Avg = self.InfoFit[Feature]["aggregated"]["Avg"]
+                        StartWindow = self.InfoFit[Feature]["aggregated"]["StartWindowS"]
+                        EndWindow = self.InfoFit[Feature]["aggregated"]["EndWindowS"]
                     # Normalization
                     SecondsInHour = 3600
                     MetersinKm = 1000
@@ -1396,10 +1452,12 @@ class DailyNetworkStats:
                     elif Feature == "av_speed":
                         self.DictInitialGuess[Function2Test][Feature] = FillInitGuessIntervalMxGs(self.DictInitialGuess[Function2Test][Feature],
                                                                                                 self.Fcm,
+                                                                                                Feature,
                                                                                                 None)
                     elif Feature == "speed_kmh":
                         self.DictInitialGuess[Function2Test][Feature] = FillInitGuessIntervalMxGs(self.DictInitialGuess[Function2Test][Feature],
                                                                                                     self.Fcm,
+                                                                                                    Feature,
                                                                                                     None)
             
 ## DISTRIBUTIONS
@@ -1415,42 +1473,44 @@ class DailyNetworkStats:
         """
         print('all different groups colored differently')
         # Inititialize Fit for all different classes
-        self.CreateDictConstraintsClass()
-        self.FittedData = {IntClass: {} for IntClass in self.IntClass2StrClass.keys()}
-        self.InfoFittedParameters = {IntClass: {} for IntClass in self.IntClass2StrClass.keys()}
+        self.CreateDictClass2FitInit()
         self.InfoFittedParameters,self.DictFittedData = ReturnFitInfoFromDict(Fcm = self.Fcm,
-                                                                            InitialGuess = self.InitialGuess,
+                                                                            InitialGuess = self.DictInitialGuess,
                                                                             DictFittedData = self.DictFittedData,
+                                                                            InfoFittedParameters = self.InfoFittedParameters,
                                                                             Feature2Label = self.Feature2Label,
-                                                                            FitFile = os.path.join(self.PlotDir,'Fit_Aggregated.json'.format(IntClass)),
-                                                                            FittedDataFile = os.path.join(self.PlotDir,'FittedData_Aggregated.json'.format(IntClass)))
-        for Feature in self.Feature2Label.keys():
-            # Plot each feature separately
+                                                                            FitFile = os.path.join(self.PlotDir,'Fit_Aggregated.json'),
+                                                                            FittedDataFile = os.path.join(self.PlotDir,'FittedData_Aggregated.json'))
+        for Feature in self.DictFittedData.keys():
             fig,ax = plt.subplots(1,1,figsize= (15,12))
             legend = []
             aggregation = False
-            n,bins = np.histogram(self.Fcm[Feature],bins = 50)
+            n,bins = np.histogram(self.Fcm[Feature].to_list(),bins = 50)
             maxCount = 0
             maxSpeed = bins[-1]
             self.Feature2MaxBins[Feature]["bins"] = maxSpeed
             self.Feature2MaxBins[Feature]["count"] = maxCount
-            y,x = np.histogram(self.Fcm[Feature].to_list(),bins = 50)
-            if max(y)>maxCount:
-                maxCount = max(y)
-                # Data
-            ax.scatter(x[1:],y)
-            # Fit
-            ax.plot(x[1:],np.array(self.DictFittedData["fitted_data"]),label = self.DictFittedData[IntClass]["best_fit"])
-            av_speed = np.mean(self.Fcm[Feature].to_list())
-            legend.append(str(self.IntClass2StrClass[IntClass]) + " " + self.Column2Legend[Feature] + " " + str(round(av_speed,3)))
-            ax.set_xticks(np.arange(bins[0],bins[-1],self.Feature2IntervalBin[Feature]))
-            ax.set_yticks(np.arange(min(n),max(n),self.Feature2IntervalCount[Feature]))
-            ax.set_xlabel(self.Feature2Label[Feature])
-            ax.set_ylabel('Count')
-            ax.set_xlim(right = maxSpeed + self.Feature2ShiftBin[Feature])
-            ax.set_ylim(top = maxCount + self.Feature2ShiftCount[Feature])
-            ax.set_xscale(self.Feature2ScaleBins[Feature])
-            ax.set_yscale(self.Feature2ScaleCount[Feature])
+            for IntClass in self.IntClass2StrClass:
+            # Plot each feature separately
+                y,x = np.histogram(self.Fcm.filter(pl.col("class") == IntClass)[Feature].to_list(),bins = 50)
+                if max(y)>maxCount:
+                    maxCount = max(y)
+                    # Data
+                ax.scatter(x[1:],y)
+                av_speed = np.mean(self.Fcm[Feature].to_list())
+                legend.append(str(self.IntClass2StrClass[IntClass]) + " " + self.Column2Legend[Feature] + " " + str(round(av_speed,3)))
+                # Fit
+                if len(x[1:]) == len(self.DictFittedData[Feature]["fitted_data"]):
+                    ax.plot(x[1:],np.array(self.DictFittedData[Feature]["fitted_data"]),label = self.DictFittedData[Feature]["best_fit"])
+                    legend.append(str(self.IntClass2StrClass[IntClass]) + " " + self.Column2Legend[Feature] + " " + str(round(av_speed,3)))
+                ax.set_xticks(np.arange(bins[0],bins[-1],self.Feature2IntervalBin[Feature]))
+                ax.set_yticks(np.arange(min(n),max(n),self.Feature2IntervalCount[Feature]))
+                ax.set_xlabel(self.Feature2Label[Feature])
+                ax.set_ylabel('Count')
+                ax.set_xlim(right = maxSpeed + self.Feature2ShiftBin[Feature])
+                ax.set_ylim(top = maxCount + self.Feature2ShiftCount[Feature])
+                ax.set_xscale(self.Feature2ScaleBins[Feature])
+                ax.set_yscale(self.Feature2ScaleCount[Feature])
             legend_ = plt.legend(legend)
             frame = legend_.get_frame()
             frame.set_facecolor('white')
@@ -1470,27 +1530,29 @@ class DailyNetworkStats:
 
         """
         self.InfoDayFit = {IntClass: {} for IntClass in self.IntClass2StrClass.keys()}
-        self.Class2FittedData = {IntClass: {} for IntClass in self.IntClass2StrClass.keys()}
-        self.Class2InfoFittedParameters = {IntClass: {} for IntClass in self.IntClass2StrClass.keys()}
+        self.Class2DictFittedData = {IntClass: {Feature: {"best_fit":[], "fitted_data":[]} for Feature in list(self.Features2Fit)} for IntClass in self.IntClass2StrClass.keys()}
+        self.Class2InfoFittedParameters = {IntClass: {Function2Fit: {Feature:{"fit":None,"StdError":None} for Feature in self.DictInitialGuess[Function2Fit].keys()} for Function2Fit in self.DictInitialGuess.keys()} for IntClass in self.IntClass2StrClass.keys()}
         for IntClass in self.IntClass2StrClass:
             self.Class2InfoFittedParameters[IntClass],self.Class2DictFittedData[IntClass] = ReturnFitInfoFromDict(Fcm = self.Fcm.filter(pl.col("class") == IntClass),
                                                                                                                 InitialGuess = self.Class2InitialGuess[IntClass],
                                                                                                                 DictFittedData = self.Class2DictFittedData[IntClass],
+                                                                                                                InfoFittedParameters = self.Class2InfoFittedParameters[IntClass],
                                                                                                                 Feature2Label = self.Feature2Label,
                                                                                                                 FitFile = os.path.join(self.PlotDir,'Fit_Class_{0}.json'.format(IntClass)),
                                                                                                                 FittedDataFile = os.path.join(self.PlotDir,'FittedData_Class_{0}.json'.format(IntClass)))
 
-        for Feature in self.Feature2Label.keys():
+        for Feature in self.DictFittedData.keys():
             for IntClass in self.IntClass2StrClass:
                 fig,ax = plt.subplots(1,1,figsize= (15,12))
                 df = self.Fcm.filter(pl.col("class") == IntClass)
                 y,x = np.histogram(df[Feature].to_list(),bins = 50)
-                InfoFit,DictFittedData = FitAndPlot(x,y,self.DictInitialGuess)                
+# ALREADY COMPUTED WITH ReturnFitInfoFromDict
+#                self.Class2DictFittedData[IntClass],self.Class2InfoFittedParameters[IntClass] = FitAndPlot(x[1:],y,self.DictInitialGuess,Feature,self.Class2DictFittedData[IntClass],self.Class2InfoFittedParameters[IntClass])                
                 if IntClass!=10 and IntClass!=11:
                     if "speed" in Feature:
                         ax.scatter(x[1:],y)
                         # Fit
-                        ax.plot(x[1:],np.array(self.Class2DictFittedData[IntClass]["fitted_data"]),label = self.Class2DictFittedData[IntClass]["best_fit"])
+                        ax.plot(x[1:],np.array(self.Class2DictFittedData[IntClass][Feature]["fitted_data"]),label = self.Class2DictFittedData[IntClass][Feature]["best_fit"])
                     av_speed = np.mean(df[Feature].to_list())
                     ax.set_xticks(np.arange(x[0],x[-1],self.Feature2IntervalBin[Feature]))
                     ax.set_yticks(np.arange(min(y),max(y),self.Feature2IntervalCount[Feature]))
