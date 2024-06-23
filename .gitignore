@@ -58,3 +58,5 @@ html/
 latex/
 screen_logs/
 vcpkg/
+vpkg_installed/
+outputverbose.txt
