@@ -1,0 +1,1793 @@
+PyMC3 not installed
+Args:  Namespace(config_file='/home/aamad/codice/city-pro/config')
+Base directory:  /home/aamad/codice/city-pro/config
+Config File:
+ /home/aamad/codice/city-pro/config/ConfigPythonAnalysis.json
+Dates to Analyze:
+ ['2022-12-30', '2022-12-31', '2023-01-01', '2022-05-12', '2022-11-11', '2022-07-01', '2022-08-05', '2022-01-31', '2023-03-18']
+Number of CPU:  9
+Initialiaze Mobility and Network for Date: 2023-01-01
+Warning: Not Initialized Class2MFD
+Reading fcm_centers
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2023-01-01_2023-01-01_fcm_centers.csv
+Reading fcm
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2023-01-01_2023-01-01_fcm.csv
+Reading fcm_new
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2023-01-01_2023-01-01_fcm_new.csv
+1st join Fcm:  ['id_act', 'lenght', 'time', 'av_speed', 'v_max', 'v_min', 'cnt', 'av_accel', 'a_max', 'class', 'p', 'origin_lat', 'origin_lon', 'destination_lat', 'destination_lon', 'start_time', 'end_time', 'speed_kmh', 'lenght_km', 'time_hours', 'class_new']
+Date:  2023-01-01
+renamed:  ['id_act', 'lenght', 'time', 'av_speed', 'v_max', 'v_min', 'cnt', 'av_accel', 'a_max', 'class', 'p', 'origin_lat', 'origin_lon', 'destination_lat', 'destination_lon', 'start_time', 'end_time', 'speed_kmh', 'lenght_km', 'time_hours', 'class_new']
+Reading stats
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2023-01-01_2023-01-01_stats.csv
+No stats
+Road exception:  
+Road exception:  
+Road exception:  
+Road exception:  
+Get increasingly included subnets
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2023-01-01_2023-01-010_class_subnet.txt
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2023-01-01_2023-01-011_class_subnet.txt
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2023-01-01_2023-01-012_class_subnet.txt
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2023-01-01_2023-01-013_class_subnet.txt
+Reading GeoJson
+Reading fluxes_sub
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/weights/bologna_mdt_2023-01-01_2023-01-01.fluxes.sub
+Class:  0
+Fraction of roads considered:  80
+Number of Roads SubNetwork:  20456
+Class:  1
+Fraction of roads considered:  80
+Number of Roads SubNetwork:  19747
+Class:  2
+Fraction of roads considered:  80
+Number of Roads SubNetwork:  5557
+Class:  3
+Fraction of roads considered:  80
+Number of Roads SubNetwork:  200
+Class:  4
+Fraction of roads considered:  80
+Number of Roads SubNetwork:  291
+Class:  80
+Considering the Total Subnetwork indipendent on the Subclass
+Computing MFD Variables from Fcm
+Compute MFD Variables:
+dict_keys([0, 1, 2, 3])
+Compute MFD Variables:
+Compute MFD Variables:
+Class 2 MFD: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬──────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed │
+│ ---      ┆ ---        ┆ ---       ┆ ---      │
+│ str      ┆ i64        ┆ f64       ┆ f64      │
+╞══════════╪════════════╪═══════════╪══════════╡
+│ 00:00:00 ┆ 1165       ┆ 5.523617  ┆ 1.534338 │
+│ 00:15:00 ┆ 331        ┆ 5.847132  ┆ 1.624203 │
+│ 00:30:00 ┆ 177        ┆ 6.421234  ┆ 1.783676 │
+│ 00:45:00 ┆ 152        ┆ 6.795294  ┆ 1.887582 │
+│ 01:00:00 ┆ 145        ┆ 7.445531  ┆ 2.068203 │
+│ …        ┆ …          ┆ …         ┆ …        │
+│ 22:45:00 ┆ 23         ┆ 9.759659  ┆ 2.711016 │
+│ 23:00:00 ┆ 32         ┆ 8.211096  ┆ 2.28086  │
+│ 23:15:00 ┆ 20         ┆ 7.239345  ┆ 2.010929 │
+│ 23:30:00 ┆ 21         ┆ 7.3655412 ┆ 2.045984 │
+│ 23:45:00 ┆ 7          ┆ 19.249216 ┆ 5.347005 │
+└──────────┴────────────┴───────────┴──────────┘
+Class 2 MFD New: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬──────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed │
+│ ---      ┆ ---        ┆ ---       ┆ ---      │
+│ str      ┆ i64        ┆ f64       ┆ f64      │
+╞══════════╪════════════╪═══════════╪══════════╡
+│ 00:00:00 ┆ 1165       ┆ 5.523617  ┆ 1.534338 │
+│ 00:15:00 ┆ 331        ┆ 5.847132  ┆ 1.624203 │
+│ 00:30:00 ┆ 177        ┆ 6.421234  ┆ 1.783676 │
+│ 00:45:00 ┆ 152        ┆ 6.795294  ┆ 1.887582 │
+│ 01:00:00 ┆ 145        ┆ 7.445531  ┆ 2.068203 │
+│ …        ┆ …          ┆ …         ┆ …        │
+│ 22:45:00 ┆ 23         ┆ 9.759659  ┆ 2.711016 │
+│ 23:00:00 ┆ 32         ┆ 8.211096  ┆ 2.28086  │
+│ 23:15:00 ┆ 20         ┆ 7.239345  ┆ 2.010929 │
+│ 23:30:00 ┆ 21         ┆ 7.3655412 ┆ 2.045984 │
+│ 23:45:00 ┆ 7          ┆ 19.249216 ┆ 5.347005 │
+└──────────┴────────────┴───────────┴──────────┘
+Compute MFD Variables:
+Compute MFD Variables:
+Class 2 MFD: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬───────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed  │
+│ ---      ┆ ---        ┆ ---       ┆ ---       │
+│ str      ┆ i64        ┆ f64       ┆ f64       │
+╞══════════╪════════════╪═══════════╪═══════════╡
+│ 00:00:00 ┆ 565        ┆ 26.693313 ┆ 7.414809  │
+│ 00:15:00 ┆ 144        ┆ 28.004262 ┆ 7.778962  │
+│ 00:30:00 ┆ 154        ┆ 29.034708 ┆ 8.065197  │
+│ 00:45:00 ┆ 153        ┆ 28.259872 ┆ 7.849964  │
+│ 01:00:00 ┆ 145        ┆ 30.19355  ┆ 8.387097  │
+│ …        ┆ …          ┆ …         ┆ …         │
+│ 22:45:00 ┆ 36         ┆ 32.309548 ┆ 8.974874  │
+│ 23:00:00 ┆ 29         ┆ 30.241385 ┆ 8.400385  │
+│ 23:15:00 ┆ 31         ┆ 29.732974 ┆ 8.259159  │
+│ 23:30:00 ┆ 16         ┆ 23.855945 ┆ 6.626651  │
+│ 23:45:00 ┆ 20         ┆ 31.105175 ┆ 8.6403265 │
+└──────────┴────────────┴───────────┴───────────┘
+Class 2 MFD New: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬───────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed  │
+│ ---      ┆ ---        ┆ ---       ┆ ---       │
+│ str      ┆ i64        ┆ f64       ┆ f64       │
+╞══════════╪════════════╪═══════════╪═══════════╡
+│ 00:00:00 ┆ 565        ┆ 26.693313 ┆ 7.414809  │
+│ 00:15:00 ┆ 144        ┆ 28.004262 ┆ 7.778962  │
+│ 00:30:00 ┆ 154        ┆ 29.034708 ┆ 8.065197  │
+│ 00:45:00 ┆ 153        ┆ 28.259872 ┆ 7.849964  │
+│ 01:00:00 ┆ 145        ┆ 30.19355  ┆ 8.387097  │
+│ …        ┆ …          ┆ …         ┆ …         │
+│ 22:45:00 ┆ 36         ┆ 32.309548 ┆ 8.974874  │
+│ 23:00:00 ┆ 29         ┆ 30.241385 ┆ 8.400385  │
+│ 23:15:00 ┆ 31         ┆ 29.732974 ┆ 8.259159  │
+│ 23:30:00 ┆ 16         ┆ 23.855945 ┆ 6.626651  │
+│ 23:45:00 ┆ 20         ┆ 31.105175 ┆ 8.6403265 │
+└──────────┴────────────┴───────────┴───────────┘
+Compute MFD Variables:
+Compute MFD Variables:
+Class 2 MFD: 
+Initialiaze Mobility and Network for Date: 2022-12-31
+Warning: Not Initialized Class2MFD
+Reading fcm_centers
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-12-31_2022-12-31_fcm_centers.csv
+Reading fcm
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-12-31_2022-12-31_fcm.csv
+Reading fcm_new
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-12-31_2022-12-31_fcm_new.csv
+1st join Fcm:  ['id_act', 'lenght', 'time', 'av_speed', 'v_max', 'v_min', 'cnt', 'av_accel', 'a_max', 'class', 'p', 'origin_lat', 'origin_lon', 'destination_lat', 'destination_lon', 'start_time', 'end_time', 'speed_kmh', 'lenght_km', 'time_hours', 'class_new']
+Date:  2022-12-31
+renamed:  ['id_act', 'lenght', 'time', 'av_speed', 'v_max', 'v_min', 'cnt', 'av_accel', 'a_max', 'class', 'p', 'origin_lat', 'origin_lon', 'destination_lat', 'destination_lon', 'start_time', 'end_time', 'speed_kmh', 'lenght_km', 'time_hours', 'class_new']
+Reading stats
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-12-31_2022-12-31_stats.csv
+No stats
+Road exception:  
+Road exception:  
+Road exception:  
+Road exception:  
+Get increasingly included subnets
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-12-31_2022-12-310_class_subnet.txt
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-12-31_2022-12-311_class_subnet.txt
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-12-31_2022-12-312_class_subnet.txt
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-12-31_2022-12-313_class_subnet.txt
+Reading GeoJson
+Reading fluxes_sub
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/weights/bologna_mdt_2022-12-31_2022-12-31.fluxes.sub
+Class:  0
+Fraction of roads considered:  80
+Number of Roads SubNetwork:  20374
+Class:  1
+Fraction of roads considered:  80
+Number of Roads SubNetwork:  20644
+Class:  2
+Fraction of roads considered:  80
+Number of Roads SubNetwork:  9236
+Class:  3
+Fraction of roads considered:  80
+Number of Roads SubNetwork:  203
+Class:  4
+Fraction of roads considered:  80
+Number of Roads SubNetwork:  633
+Class:  80
+Considering the Total Subnetwork indipendent on the Subclass
+Computing MFD Variables from Fcm
+Compute MFD Variables:
+dict_keys([0, 1, 2, 3])
+Compute MFD Variables:
+Compute MFD Variables:
+Class 2 MFD: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬──────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed │
+│ ---      ┆ ---        ┆ ---       ┆ ---      │
+│ str      ┆ i64        ┆ f64       ┆ f64      │
+╞══════════╪════════════╪═══════════╪══════════╡
+│ 00:00:00 ┆ 482        ┆ 5.943351  ┆ 1.650931 │
+│ 00:15:00 ┆ 97         ┆ 5.502443  ┆ 1.528456 │
+│ 00:30:00 ┆ 99         ┆ 6.106238  ┆ 1.696177 │
+│ 00:45:00 ┆ 55         ┆ 5.946126  ┆ 1.651702 │
+│ 01:00:00 ┆ 39         ┆ 6.908566  ┆ 1.919046 │
+│ …        ┆ …          ┆ …         ┆ …        │
+│ 22:45:00 ┆ 69         ┆ 4.457424  ┆ 1.238173 │
+│ 23:00:00 ┆ 63         ┆ 5.75224   ┆ 1.597845 │
+│ 23:15:00 ┆ 83         ┆ 5.486798  ┆ 1.524111 │
+│ 23:30:00 ┆ 64         ┆ 6.007177  ┆ 1.66866  │
+│ 23:45:00 ┆ 30         ┆ 5.590762  ┆ 1.552989 │
+└──────────┴────────────┴───────────┴──────────┘
+Class 2 MFD New: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬──────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed │
+│ ---      ┆ ---        ┆ ---       ┆ ---      │
+│ str      ┆ i64        ┆ f64       ┆ f64      │
+╞══════════╪════════════╪═══════════╪══════════╡
+│ 00:00:00 ┆ 482        ┆ 5.943351  ┆ 1.650931 │
+│ 00:15:00 ┆ 97         ┆ 5.502443  ┆ 1.528456 │
+│ 00:30:00 ┆ 99         ┆ 6.106238  ┆ 1.696177 │
+│ 00:45:00 ┆ 55         ┆ 5.946126  ┆ 1.651702 │
+│ 01:00:00 ┆ 39         ┆ 6.908566  ┆ 1.919046 │
+│ …        ┆ …          ┆ …         ┆ …        │
+│ 22:45:00 ┆ 69         ┆ 4.457424  ┆ 1.238173 │
+│ 23:00:00 ┆ 63         ┆ 5.75224   ┆ 1.597845 │
+│ 23:15:00 ┆ 83         ┆ 5.486798  ┆ 1.524111 │
+│ 23:30:00 ┆ 64         ┆ 6.007177  ┆ 1.66866  │
+│ 23:45:00 ┆ 30         ┆ 5.590762  ┆ 1.552989 │
+└──────────┴────────────┴───────────┴──────────┘
+Compute MFD Variables:
+Compute MFD Variables:
+Class 2 MFD: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬──────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed │
+│ ---      ┆ ---        ┆ ---       ┆ ---      │
+│ str      ┆ i64        ┆ f64       ┆ f64      │
+╞══════════╪════════════╪═══════════╪══════════╡
+│ 00:00:00 ┆ 326        ┆ 24.750816 ┆ 6.875227 │
+│ 00:15:00 ┆ 69         ┆ 25.302685 ┆ 7.028523 │
+│ 00:30:00 ┆ 69         ┆ 25.755492 ┆ 7.154303 │
+│ 00:45:00 ┆ 48         ┆ 27.252554 ┆ 7.570154 │
+│ 01:00:00 ┆ 29         ┆ 24.809235 ┆ 6.891454 │
+│ …        ┆ …          ┆ …         ┆ …        │
+│ 22:45:00 ┆ 40         ┆ 25.525724 ┆ 7.090479 │
+│ 23:00:00 ┆ 34         ┆ 26.593971 ┆ 7.387214 │
+│ 23:15:00 ┆ 48         ┆ 22.772196 ┆ 6.32561  │
+│ 23:30:00 ┆ 39         ┆ 26.3678   ┆ 7.324389 │
+│ 23:45:00 ┆ 22         ┆ 26.704874 ┆ 7.41802  │
+└──────────┴────────────┴───────────┴──────────┘
+Class 2 MFD New: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬──────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed │
+│ ---      ┆ ---        ┆ ---       ┆ ---      │
+│ str      ┆ i64        ┆ f64       ┆ f64      │
+╞══════════╪════════════╪═══════════╪══════════╡
+│ 00:00:00 ┆ 326        ┆ 24.750816 ┆ 6.875227 │
+│ 00:15:00 ┆ 69         ┆ 25.302685 ┆ 7.028523 │
+│ 00:30:00 ┆ 69         ┆ 25.755492 ┆ 7.154303 │
+│ 00:45:00 ┆ 48         ┆ 27.252554 ┆ 7.570154 │
+│ 01:00:00 ┆ 29         ┆ 24.809235 ┆ 6.891454 │
+│ …        ┆ …          ┆ …         ┆ …        │
+│ 22:45:00 ┆ 40         ┆ 25.525724 ┆ 7.090479 │
+│ 23:00:00 ┆ 34         ┆ 26.593971 ┆ 7.387214 │
+│ 23:15:00 ┆ 48         ┆ 22.772196 ┆ 6.32561  │
+│ 23:30:00 ┆ 39         ┆ 26.3678   ┆ 7.324389 │
+│ 23:45:00 ┆ 22         ┆ 26.704874 ┆ 7.41802  │
+└──────────┴────────────┴───────────┴──────────┘
+Compute MFD Variables:
+Compute MFD Variables:
+Class 2 MFD: 
+Initialiaze Mobility and Network for Date: 2022-12-30
+Warning: Not Initialized Class2MFD
+Reading fcm_centers
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-12-30_2022-12-30_fcm_centers.csv
+Reading fcm
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-12-30_2022-12-30_fcm.csv
+Reading fcm_new
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-12-30_2022-12-30_fcm_new.csv
+1st join Fcm:  ['id_act', 'lenght', 'time', 'av_speed', 'v_max', 'v_min', 'cnt', 'av_accel', 'a_max', 'class', 'p', 'origin_lat', 'origin_lon', 'destination_lat', 'destination_lon', 'start_time', 'end_time', 'speed_kmh', 'lenght_km', 'time_hours', 'class_new']
+Date:  2022-12-30
+renamed:  ['id_act', 'lenght', 'time', 'av_speed', 'v_max', 'v_min', 'cnt', 'av_accel', 'a_max', 'class', 'p', 'origin_lat', 'origin_lon', 'destination_lat', 'destination_lon', 'start_time', 'end_time', 'speed_kmh', 'lenght_km', 'time_hours', 'class_new']
+Reading stats
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-12-30_2022-12-30_stats.csv
+No stats
+Road exception:  
+Road exception:  
+Road exception:  
+Road exception:  
+Get increasingly included subnets
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-12-30_2022-12-300_class_subnet.txt
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-12-30_2022-12-301_class_subnet.txt
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-12-30_2022-12-302_class_subnet.txt
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-12-30_2022-12-303_class_subnet.txt
+Reading GeoJson
+Reading fluxes_sub
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/weights/bologna_mdt_2022-12-30_2022-12-30.fluxes.sub
+Class:  0
+Fraction of roads considered:  80
+Number of Roads SubNetwork:  17850
+Class:  1
+Fraction of roads considered:  80
+Number of Roads SubNetwork:  17371
+Class:  2
+Fraction of roads considered:  80
+Number of Roads SubNetwork:  177
+Class:  3
+Fraction of roads considered:  80
+Number of Roads SubNetwork:  15
+Class:  4
+Fraction of roads considered:  80
+Number of Roads SubNetwork:  25
+Class:  80
+Considering the Total Subnetwork indipendent on the Subclass
+Computing MFD Variables from Fcm
+Compute MFD Variables:
+dict_keys([0, 1, 2, 3])
+Compute MFD Variables:
+Compute MFD Variables:
+Class 2 MFD: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬───────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed  │
+│ ---      ┆ ---        ┆ ---       ┆ ---       │
+│ str      ┆ i64        ┆ f64       ┆ f64       │
+╞══════════╪════════════╪═══════════╪═══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       ┆ 0.0       │
+│ 00:15:00 ┆ 420        ┆ 7.563435  ┆ 2.100954  │
+│ 00:30:00 ┆ 137        ┆ 7.052675  ┆ 1.959076  │
+│ 00:45:00 ┆ 92         ┆ 7.272678  ┆ 2.020188  │
+│ 01:00:00 ┆ 53         ┆ 5.977288  ┆ 1.660358  │
+│ …        ┆ …          ┆ …         ┆ …         │
+│ 22:45:00 ┆ 53         ┆ 8.170725  ┆ 2.269646  │
+│ 23:00:00 ┆ 44         ┆ 9.877089  ┆ 2.743636  │
+│ 23:15:00 ┆ 40         ┆ 8.549011  ┆ 2.374725  │
+│ 23:30:00 ┆ 35         ┆ 8.393986  ┆ 2.331663  │
+│ 23:45:00 ┆ 20         ┆ 17.024755 ┆ 4.7290986 │
+└──────────┴────────────┴───────────┴───────────┘
+Class 2 MFD New: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬───────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed  │
+│ ---      ┆ ---        ┆ ---       ┆ ---       │
+│ str      ┆ i64        ┆ f64       ┆ f64       │
+╞══════════╪════════════╪═══════════╪═══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       ┆ 0.0       │
+│ 00:15:00 ┆ 420        ┆ 7.563435  ┆ 2.100954  │
+│ 00:30:00 ┆ 137        ┆ 7.052675  ┆ 1.959076  │
+│ 00:45:00 ┆ 92         ┆ 7.272678  ┆ 2.020188  │
+│ 01:00:00 ┆ 53         ┆ 5.977288  ┆ 1.660358  │
+│ …        ┆ …          ┆ …         ┆ …         │
+│ 22:45:00 ┆ 53         ┆ 8.170725  ┆ 2.269646  │
+│ 23:00:00 ┆ 44         ┆ 9.877089  ┆ 2.743636  │
+│ 23:15:00 ┆ 40         ┆ 8.549011  ┆ 2.374725  │
+│ 23:30:00 ┆ 35         ┆ 8.393986  ┆ 2.331663  │
+│ 23:45:00 ┆ 20         ┆ 17.024755 ┆ 4.7290986 │
+└──────────┴────────────┴───────────┴───────────┘
+Compute MFD Variables:
+Compute MFD Variables:
+Class 2 MFD: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬──────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed │
+│ ---      ┆ ---        ┆ ---       ┆ ---      │
+│ str      ┆ i64        ┆ f64       ┆ f64      │
+╞══════════╪════════════╪═══════════╪══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       ┆ 0.0      │
+│ 00:15:00 ┆ 308        ┆ 28.891716 ┆ 8.025477 │
+│ 00:30:00 ┆ 90         ┆ 27.906818 ┆ 7.751894 │
+│ 00:45:00 ┆ 76         ┆ 29.195991 ┆ 8.109997 │
+│ 01:00:00 ┆ 37         ┆ 26.630889 ┆ 7.397469 │
+│ …        ┆ …          ┆ …         ┆ …        │
+│ 22:45:00 ┆ 65         ┆ 28.777909 ┆ 7.993864 │
+│ 23:00:00 ┆ 70         ┆ 30.089363 ┆ 8.358156 │
+│ 23:15:00 ┆ 55         ┆ 29.926718 ┆ 8.312977 │
+│ 23:30:00 ┆ 50         ┆ 30.729896 ┆ 8.536082 │
+│ 23:45:00 ┆ 32         ┆ 32.55027  ┆ 9.041742 │
+└──────────┴────────────┴───────────┴──────────┘
+Class 2 MFD New: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬──────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed │
+│ ---      ┆ ---        ┆ ---       ┆ ---      │
+│ str      ┆ i64        ┆ f64       ┆ f64      │
+╞══════════╪════════════╪═══════════╪══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       ┆ 0.0      │
+│ 00:15:00 ┆ 308        ┆ 28.891716 ┆ 8.025477 │
+│ 00:30:00 ┆ 90         ┆ 27.906818 ┆ 7.751894 │
+│ 00:45:00 ┆ 76         ┆ 29.195991 ┆ 8.109997 │
+│ 01:00:00 ┆ 37         ┆ 26.630889 ┆ 7.397469 │
+│ …        ┆ …          ┆ …         ┆ …        │
+│ 22:45:00 ┆ 65         ┆ 28.777909 ┆ 7.993864 │
+│ 23:00:00 ┆ 70         ┆ 30.089363 ┆ 8.358156 │
+│ 23:15:00 ┆ 55         ┆ 29.926718 ┆ 8.312977 │
+│ 23:30:00 ┆ 50         ┆ 30.729896 ┆ 8.536082 │
+│ 23:45:00 ┆ 32         ┆ 32.55027  ┆ 9.041742 │
+└──────────┴────────────┴───────────┴──────────┘
+Compute MFD Variables:
+Compute MFD Variables:
+Class 2 MFD: 
+Initialiaze Mobility and Network for Date: 2023-03-18
+Warning: Not Initialized Class2MFD
+Reading fcm_centers
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2023-03-18_2023-03-18_fcm_centers.csv
+Reading fcm
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2023-03-18_2023-03-18_fcm.csv
+Reading fcm_new
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2023-03-18_2023-03-18_fcm_new.csv
+1st join Fcm:  ['id_act', 'lenght', 'time', 'av_speed', 'v_max', 'v_min', 'cnt', 'av_accel', 'a_max', 'class', 'p', 'origin_lat', 'origin_lon', 'destination_lat', 'destination_lon', 'start_time', 'end_time', 'speed_kmh', 'lenght_km', 'time_hours', 'class_new']
+Date:  2023-03-18
+renamed:  ['id_act', 'lenght', 'time', 'av_speed', 'v_max', 'v_min', 'cnt', 'av_accel', 'a_max', 'class', 'p', 'origin_lat', 'origin_lon', 'destination_lat', 'destination_lon', 'start_time', 'end_time', 'speed_kmh', 'lenght_km', 'time_hours', 'class_new']
+Reading stats
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2023-03-18_2023-03-18_stats.csv
+No stats
+Road exception:  
+Road exception:  
+Road exception:  
+Road exception:  
+Get increasingly included subnets
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2023-03-18_2023-03-180_class_subnet.txt
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2023-03-18_2023-03-181_class_subnet.txt
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2023-03-18_2023-03-182_class_subnet.txt
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2023-03-18_2023-03-183_class_subnet.txt
+Reading GeoJson
+Reading fluxes_sub
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/weights/bologna_mdt_2023-03-18_2023-03-18.fluxes.sub
+Class:  0
+Fraction of roads considered:  80
+Number of Roads SubNetwork:  20290
+Class:  1
+Fraction of roads considered:  80
+Number of Roads SubNetwork:  20080
+Class:  2
+Fraction of roads considered:  80
+Number of Roads SubNetwork:  8431
+Class:  3
+Fraction of roads considered:  80
+Number of Roads SubNetwork:  198
+Class:  4
+Fraction of roads considered:  80
+Number of Roads SubNetwork:  774
+Class:  80
+Considering the Total Subnetwork indipendent on the Subclass
+Computing MFD Variables from Fcm
+Compute MFD Variables:
+dict_keys([0, 1, 2, 3])
+Compute MFD Variables:
+Compute MFD Variables:
+Class 2 MFD: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬──────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed │
+│ ---      ┆ ---        ┆ ---       ┆ ---      │
+│ str      ┆ i64        ┆ f64       ┆ f64      │
+╞══════════╪════════════╪═══════════╪══════════╡
+│ 00:00:00 ┆ 680        ┆ 5.97226   ┆ 1.658961 │
+│ 00:15:00 ┆ 149        ┆ 5.590382  ┆ 1.552884 │
+│ 00:30:00 ┆ 118        ┆ 5.969216  ┆ 1.658116 │
+│ 00:45:00 ┆ 70         ┆ 6.463818  ┆ 1.795505 │
+│ 01:00:00 ┆ 66         ┆ 6.927582  ┆ 1.924328 │
+│ …        ┆ …          ┆ …         ┆ …        │
+│ 22:45:00 ┆ 56         ┆ 8.219991  ┆ 2.283331 │
+│ 23:00:00 ┆ 58         ┆ 7.164194  ┆ 1.990054 │
+│ 23:15:00 ┆ 49         ┆ 9.05084   ┆ 2.514122 │
+│ 23:30:00 ┆ 44         ┆ 8.884203  ┆ 2.467834 │
+│ 23:45:00 ┆ 24         ┆ 10.485622 ┆ 2.912673 │
+└──────────┴────────────┴───────────┴──────────┘
+Class 2 MFD New: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬──────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed │
+│ ---      ┆ ---        ┆ ---       ┆ ---      │
+│ str      ┆ i64        ┆ f64       ┆ f64      │
+╞══════════╪════════════╪═══════════╪══════════╡
+│ 00:00:00 ┆ 680        ┆ 5.97226   ┆ 1.658961 │
+│ 00:15:00 ┆ 149        ┆ 5.590382  ┆ 1.552884 │
+│ 00:30:00 ┆ 118        ┆ 5.969216  ┆ 1.658116 │
+│ 00:45:00 ┆ 70         ┆ 6.463818  ┆ 1.795505 │
+│ 01:00:00 ┆ 66         ┆ 6.927582  ┆ 1.924328 │
+│ …        ┆ …          ┆ …         ┆ …        │
+│ 22:45:00 ┆ 56         ┆ 8.219991  ┆ 2.283331 │
+│ 23:00:00 ┆ 58         ┆ 7.164194  ┆ 1.990054 │
+│ 23:15:00 ┆ 49         ┆ 9.05084   ┆ 2.514122 │
+│ 23:30:00 ┆ 44         ┆ 8.884203  ┆ 2.467834 │
+│ 23:45:00 ┆ 24         ┆ 10.485622 ┆ 2.912673 │
+└──────────┴────────────┴───────────┴──────────┘
+Compute MFD Variables:
+Compute MFD Variables:
+Class 2 MFD: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬──────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed │
+│ ---      ┆ ---        ┆ ---       ┆ ---      │
+│ str      ┆ i64        ┆ f64       ┆ f64      │
+╞══════════╪════════════╪═══════════╪══════════╡
+│ 00:00:00 ┆ 413        ┆ 24.677881 ┆ 6.854967 │
+│ 00:15:00 ┆ 95         ┆ 26.431337 ┆ 7.342038 │
+│ 00:30:00 ┆ 76         ┆ 25.78462  ┆ 7.162394 │
+│ 00:45:00 ┆ 73         ┆ 24.151222 ┆ 6.708673 │
+│ 01:00:00 ┆ 33         ┆ 24.790689 ┆ 6.886302 │
+│ …        ┆ …          ┆ …         ┆ …        │
+│ 22:45:00 ┆ 77         ┆ 27.120597 ┆ 7.533499 │
+│ 23:00:00 ┆ 80         ┆ 27.933932 ┆ 7.759425 │
+│ 23:15:00 ┆ 63         ┆ 27.845681 ┆ 7.734911 │
+│ 23:30:00 ┆ 68         ┆ 26.544749 ┆ 7.373541 │
+│ 23:45:00 ┆ 49         ┆ 29.134488 ┆ 8.092913 │
+└──────────┴────────────┴───────────┴──────────┘
+Class 2 MFD New: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬──────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed │
+│ ---      ┆ ---        ┆ ---       ┆ ---      │
+│ str      ┆ i64        ┆ f64       ┆ f64      │
+╞══════════╪════════════╪═══════════╪══════════╡
+│ 00:00:00 ┆ 413        ┆ 24.677881 ┆ 6.854967 │
+│ 00:15:00 ┆ 95         ┆ 26.431337 ┆ 7.342038 │
+│ 00:30:00 ┆ 76         ┆ 25.78462  ┆ 7.162394 │
+│ 00:45:00 ┆ 73         ┆ 24.151222 ┆ 6.708673 │
+│ 01:00:00 ┆ 33         ┆ 24.790689 ┆ 6.886302 │
+│ …        ┆ …          ┆ …         ┆ …        │
+│ 22:45:00 ┆ 77         ┆ 27.120597 ┆ 7.533499 │
+│ 23:00:00 ┆ 80         ┆ 27.933932 ┆ 7.759425 │
+│ 23:15:00 ┆ 63         ┆ 27.845681 ┆ 7.734911 │
+│ 23:30:00 ┆ 68         ┆ 26.544749 ┆ 7.373541 │
+│ 23:45:00 ┆ 49         ┆ 29.134488 ┆ 8.092913 │
+└──────────┴────────────┴───────────┴──────────┘
+Compute MFD Variables:
+Compute MFD Variables:
+Class 2 MFD: 
+Initialiaze Mobility and Network for Date: 2022-08-05
+Warning: Not Initialized Class2MFD
+Reading fcm_centers
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-08-05_2022-08-05_fcm_centers.csv
+Reading fcm
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-08-05_2022-08-05_fcm.csv
+Reading fcm_new
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-08-05_2022-08-05_fcm_new.csv
+1st join Fcm:  ['id_act', 'lenght', 'time', 'av_speed', 'v_max', 'v_min', 'cnt', 'av_accel', 'a_max', 'class', 'p', 'origin_lat', 'origin_lon', 'destination_lat', 'destination_lon', 'start_time', 'end_time', 'speed_kmh', 'lenght_km', 'time_hours', 'class_new']
+Date:  2022-08-05
+renamed:  ['id_act', 'lenght', 'time', 'av_speed', 'v_max', 'v_min', 'cnt', 'av_accel', 'a_max', 'class', 'p', 'origin_lat', 'origin_lon', 'destination_lat', 'destination_lon', 'start_time', 'end_time', 'speed_kmh', 'lenght_km', 'time_hours', 'class_new']
+Reading stats
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-08-05_2022-08-05_stats.csv
+No stats
+FluxesSubFile not found
+Get increasingly included subnets
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-08-05_2022-08-050_class_subnet.txt
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-08-05_2022-08-051_class_subnet.txt
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-08-05_2022-08-052_class_subnet.txt
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-08-05_2022-08-053_class_subnet.txt
+Reading GeoJson
+Reading fluxes_sub
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/weights/bologna_mdt_2022-08-05_2022-08-05.fluxes.sub
+FluxesSubFile not found
+Computing MFD Variables from Fcm
+Compute MFD Variables:
+dict_keys([0, 1, 2, 3])
+Compute MFD Variables:
+Compute MFD Variables:
+Class 2 MFD: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬──────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed │
+│ ---      ┆ ---        ┆ ---       ┆ ---      │
+│ str      ┆ i64        ┆ f64       ┆ f64      │
+╞══════════╪════════════╪═══════════╪══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       ┆ 0.0      │
+│ 00:15:00 ┆ 367        ┆ 7.996693  ┆ 2.221304 │
+│ 00:30:00 ┆ 84         ┆ 7.517825  ┆ 2.088285 │
+│ 00:45:00 ┆ 68         ┆ 7.325573  ┆ 2.034881 │
+│ 01:00:00 ┆ 52         ┆ 9.97541   ┆ 2.770947 │
+│ …        ┆ …          ┆ …         ┆ …        │
+│ 22:45:00 ┆ 63         ┆ 7.834196  ┆ 2.176166 │
+│ 23:00:00 ┆ 74         ┆ 12.026411 ┆ 3.34067  │
+│ 23:15:00 ┆ 63         ┆ 12.812614 ┆ 3.559059 │
+│ 23:30:00 ┆ 40         ┆ 10.565865 ┆ 2.934963 │
+│ 23:45:00 ┆ 29         ┆ 14.320312 ┆ 3.977864 │
+└──────────┴────────────┴───────────┴──────────┘
+Class 2 MFD New: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬──────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed │
+│ ---      ┆ ---        ┆ ---       ┆ ---      │
+│ str      ┆ i64        ┆ f64       ┆ f64      │
+╞══════════╪════════════╪═══════════╪══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       ┆ 0.0      │
+│ 00:15:00 ┆ 367        ┆ 7.996693  ┆ 2.221304 │
+│ 00:30:00 ┆ 84         ┆ 7.517825  ┆ 2.088285 │
+│ 00:45:00 ┆ 68         ┆ 7.325573  ┆ 2.034881 │
+│ 01:00:00 ┆ 52         ┆ 9.97541   ┆ 2.770947 │
+│ …        ┆ …          ┆ …         ┆ …        │
+│ 22:45:00 ┆ 63         ┆ 7.834196  ┆ 2.176166 │
+│ 23:00:00 ┆ 74         ┆ 12.026411 ┆ 3.34067  │
+│ 23:15:00 ┆ 63         ┆ 12.812614 ┆ 3.559059 │
+│ 23:30:00 ┆ 40         ┆ 10.565865 ┆ 2.934963 │
+│ 23:45:00 ┆ 29         ┆ 14.320312 ┆ 3.977864 │
+└──────────┴────────────┴───────────┴──────────┘
+Compute MFD Variables:
+Compute MFD Variables:
+Class 2 MFD: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬──────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed │
+│ ---      ┆ ---        ┆ ---       ┆ ---      │
+│ str      ┆ i64        ┆ f64       ┆ f64      │
+╞══════════╪════════════╪═══════════╪══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       ┆ 0.0      │
+│ 00:15:00 ┆ 306        ┆ 29.13482  ┆ 8.093006 │
+│ 00:30:00 ┆ 76         ┆ 30.118524 ┆ 8.366257 │
+│ 00:45:00 ┆ 67         ┆ 31.222831 ┆ 8.673009 │
+│ 01:00:00 ┆ 42         ┆ 29.52599  ┆ 8.201664 │
+│ …        ┆ …          ┆ …         ┆ …        │
+│ 22:45:00 ┆ 72         ┆ 32.493403 ┆ 9.025945 │
+│ 23:00:00 ┆ 68         ┆ 31.156678 ┆ 8.654633 │
+│ 23:15:00 ┆ 70         ┆ 31.480025 ┆ 8.744451 │
+│ 23:30:00 ┆ 59         ┆ 32.076865 ┆ 8.91024  │
+│ 23:45:00 ┆ 51         ┆ 34.287934 ┆ 9.524426 │
+└──────────┴────────────┴───────────┴──────────┘
+Class 2 MFD New: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬──────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed │
+│ ---      ┆ ---        ┆ ---       ┆ ---      │
+│ str      ┆ i64        ┆ f64       ┆ f64      │
+╞══════════╪════════════╪═══════════╪══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       ┆ 0.0      │
+│ 00:15:00 ┆ 306        ┆ 29.13482  ┆ 8.093006 │
+│ 00:30:00 ┆ 76         ┆ 30.118524 ┆ 8.366257 │
+│ 00:45:00 ┆ 67         ┆ 31.222831 ┆ 8.673009 │
+│ 01:00:00 ┆ 42         ┆ 29.52599  ┆ 8.201664 │
+│ …        ┆ …          ┆ …         ┆ …        │
+│ 22:45:00 ┆ 72         ┆ 32.493403 ┆ 9.025945 │
+│ 23:00:00 ┆ 68         ┆ 31.156678 ┆ 8.654633 │
+│ 23:15:00 ┆ 70         ┆ 31.480025 ┆ 8.744451 │
+│ 23:30:00 ┆ 59         ┆ 32.076865 ┆ 8.91024  │
+│ 23:45:00 ┆ 51         ┆ 34.287934 ┆ 9.524426 │
+└──────────┴────────────┴───────────┴──────────┘
+Compute MFD Variables:
+Compute MFD Variables:
+Class 2 MFD: 
+Initialiaze Mobility and Network for Date: 2022-01-31
+Warning: Not Initialized Class2MFD
+Reading fcm_centers
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-01-31_2022-01-31_fcm_centers.csv
+Reading fcm
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-01-31_2022-01-31_fcm.csv
+Reading fcm_new
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-01-31_2022-01-31_fcm_new.csv
+1st join Fcm:  ['id_act', 'lenght', 'time', 'av_speed', 'v_max', 'v_min', 'cnt', 'av_accel', 'a_max', 'class', 'p', 'origin_lat', 'origin_lon', 'destination_lat', 'destination_lon', 'start_time', 'end_time', 'speed_kmh', 'lenght_km', 'time_hours', 'class_new']
+Date:  2022-01-31
+renamed:  ['id_act', 'lenght', 'time', 'av_speed', 'v_max', 'v_min', 'cnt', 'av_accel', 'a_max', 'class', 'p', 'origin_lat', 'origin_lon', 'destination_lat', 'destination_lon', 'start_time', 'end_time', 'speed_kmh', 'lenght_km', 'time_hours', 'class_new']
+Reading stats
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-01-31_2022-01-31_stats.csv
+No stats
+Road exception:  
+Road exception:  
+Road exception:  
+Road exception:  
+Get increasingly included subnets
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-01-31_2022-01-310_class_subnet.txt
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-01-31_2022-01-311_class_subnet.txt
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-01-31_2022-01-312_class_subnet.txt
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-01-31_2022-01-313_class_subnet.txt
+Reading GeoJson
+Reading fluxes_sub
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/weights/bologna_mdt_2022-01-31_2022-01-31.fluxes.sub
+Class:  0
+Fraction of roads considered:  80
+Number of Roads SubNetwork:  20398
+Class:  1
+Fraction of roads considered:  80
+Number of Roads SubNetwork:  21090
+Class:  2
+Fraction of roads considered:  80
+Number of Roads SubNetwork:  8985
+Class:  3
+Fraction of roads considered:  80
+Number of Roads SubNetwork:  164
+Class:  80
+Considering the Total Subnetwork indipendent on the Subclass
+Computing MFD Variables from Fcm
+Compute MFD Variables:
+dict_keys([0, 1, 2, 3])
+Compute MFD Variables:
+Compute MFD Variables:
+Class 2 MFD: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬──────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed │
+│ ---      ┆ ---        ┆ ---       ┆ ---      │
+│ str      ┆ i64        ┆ f64       ┆ f64      │
+╞══════════╪════════════╪═══════════╪══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       ┆ 0.0      │
+│ 00:15:00 ┆ 336        ┆ 6.714933  ┆ 1.865259 │
+│ 00:30:00 ┆ 105        ┆ 7.216091  ┆ 2.00447  │
+│ 00:45:00 ┆ 77         ┆ 6.994484  ┆ 1.942912 │
+│ 01:00:00 ┆ 46         ┆ 7.257318  ┆ 2.015922 │
+│ …        ┆ …          ┆ …         ┆ …        │
+│ 22:45:00 ┆ 26         ┆ 9.459012  ┆ 2.627503 │
+│ 23:00:00 ┆ 22         ┆ 8.093005  ┆ 2.248057 │
+│ 23:15:00 ┆ 22         ┆ 8.585648  ┆ 2.384902 │
+│ 23:30:00 ┆ 14         ┆ 12.451675 ┆ 3.458799 │
+│ 23:45:00 ┆ 8          ┆ 11.744077 ┆ 3.262244 │
+└──────────┴────────────┴───────────┴──────────┘
+Class 2 MFD New: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬──────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed │
+│ ---      ┆ ---        ┆ ---       ┆ ---      │
+│ str      ┆ i64        ┆ f64       ┆ f64      │
+╞══════════╪════════════╪═══════════╪══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       ┆ 0.0      │
+│ 00:15:00 ┆ 336        ┆ 6.714933  ┆ 1.865259 │
+│ 00:30:00 ┆ 105        ┆ 7.216091  ┆ 2.00447  │
+│ 00:45:00 ┆ 77         ┆ 6.994484  ┆ 1.942912 │
+│ 01:00:00 ┆ 46         ┆ 7.257318  ┆ 2.015922 │
+│ …        ┆ …          ┆ …         ┆ …        │
+│ 22:45:00 ┆ 26         ┆ 9.459012  ┆ 2.627503 │
+│ 23:00:00 ┆ 22         ┆ 8.093005  ┆ 2.248057 │
+│ 23:15:00 ┆ 22         ┆ 8.585648  ┆ 2.384902 │
+│ 23:30:00 ┆ 14         ┆ 12.451675 ┆ 3.458799 │
+│ 23:45:00 ┆ 8          ┆ 11.744077 ┆ 3.262244 │
+└──────────┴────────────┴───────────┴──────────┘
+Compute MFD Variables:
+Compute MFD Variables:
+Class 2 MFD: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬──────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed │
+│ ---      ┆ ---        ┆ ---       ┆ ---      │
+│ str      ┆ i64        ┆ f64       ┆ f64      │
+╞══════════╪════════════╪═══════════╪══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       ┆ 0.0      │
+│ 00:15:00 ┆ 222        ┆ 26.501038 ┆ 7.3614   │
+│ 00:30:00 ┆ 73         ┆ 26.884476 ┆ 7.46791  │
+│ 00:45:00 ┆ 53         ┆ 26.226882 ┆ 7.285245 │
+│ 01:00:00 ┆ 19         ┆ 28.830782 ┆ 8.008551 │
+│ …        ┆ …          ┆ …         ┆ …        │
+│ 22:45:00 ┆ 20         ┆ 25.358553 ┆ 7.044042 │
+│ 23:00:00 ┆ 16         ┆ 26.468845 ┆ 7.352457 │
+│ 23:15:00 ┆ 28         ┆ 25.633935 ┆ 7.120537 │
+│ 23:30:00 ┆ 21         ┆ 27.878501 ┆ 7.744028 │
+│ 23:45:00 ┆ 11         ┆ 31.490512 ┆ 8.747365 │
+└──────────┴────────────┴───────────┴──────────┘
+Class 2 MFD New: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬──────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed │
+│ ---      ┆ ---        ┆ ---       ┆ ---      │
+│ str      ┆ i64        ┆ f64       ┆ f64      │
+╞══════════╪════════════╪═══════════╪══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       ┆ 0.0      │
+│ 00:15:00 ┆ 222        ┆ 26.501038 ┆ 7.3614   │
+│ 00:30:00 ┆ 73         ┆ 26.884476 ┆ 7.46791  │
+│ 00:45:00 ┆ 53         ┆ 26.226882 ┆ 7.285245 │
+│ 01:00:00 ┆ 19         ┆ 28.830782 ┆ 8.008551 │
+│ …        ┆ …          ┆ …         ┆ …        │
+│ 22:45:00 ┆ 20         ┆ 25.358553 ┆ 7.044042 │
+│ 23:00:00 ┆ 16         ┆ 26.468845 ┆ 7.352457 │
+│ 23:15:00 ┆ 28         ┆ 25.633935 ┆ 7.120537 │
+│ 23:30:00 ┆ 21         ┆ 27.878501 ┆ 7.744028 │
+│ 23:45:00 ┆ 11         ┆ 31.490512 ┆ 8.747365 │
+└──────────┴────────────┴───────────┴──────────┘
+Compute MFD Variables:
+Compute MFD Variables:
+Class 2 MFD: 
+Initialiaze Mobility and Network for Date: 2022-11-11
+Warning: Not Initialized Class2MFD
+Reading fcm_centers
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-11-11_2022-11-11_fcm_centers.csv
+Reading fcm
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-11-11_2022-11-11_fcm.csv
+Reading fcm_new
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-11-11_2022-11-11_fcm_new.csv
+1st join Fcm:  ['id_act', 'lenght', 'time', 'av_speed', 'v_max', 'v_min', 'cnt', 'av_accel', 'a_max', 'class', 'p', 'origin_lat', 'origin_lon', 'destination_lat', 'destination_lon', 'start_time', 'end_time', 'speed_kmh', 'lenght_km', 'time_hours', 'class_new']
+Date:  2022-11-11
+renamed:  ['id_act', 'lenght', 'time', 'av_speed', 'v_max', 'v_min', 'cnt', 'av_accel', 'a_max', 'class', 'p', 'origin_lat', 'origin_lon', 'destination_lat', 'destination_lon', 'start_time', 'end_time', 'speed_kmh', 'lenght_km', 'time_hours', 'class_new']
+Reading stats
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-11-11_2022-11-11_stats.csv
+No stats
+Road exception:  
+Road exception:  
+Road exception:  
+Road exception:  
+Get increasingly included subnets
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-11-11_2022-11-110_class_subnet.txt
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-11-11_2022-11-111_class_subnet.txt
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-11-11_2022-11-112_class_subnet.txt
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-11-11_2022-11-113_class_subnet.txt
+Reading GeoJson
+Reading fluxes_sub
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/weights/bologna_mdt_2022-11-11_2022-11-11.fluxes.sub
+Class:  0
+Fraction of roads considered:  80
+Number of Roads SubNetwork:  16541
+Class:  1
+Fraction of roads considered:  80
+Number of Roads SubNetwork:  14746
+Class:  2
+Fraction of roads considered:  80
+Number of Roads SubNetwork:  65
+Class:  3
+Fraction of roads considered:  80
+Number of Roads SubNetwork:  15
+Class:  4
+Fraction of roads considered:  80
+Number of Roads SubNetwork:  11
+Class:  80
+Considering the Total Subnetwork indipendent on the Subclass
+Computing MFD Variables from Fcm
+Compute MFD Variables:
+dict_keys([0, 1, 2, 3])
+Compute MFD Variables:
+Compute MFD Variables:
+Class 2 MFD: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬──────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed │
+│ ---      ┆ ---        ┆ ---       ┆ ---      │
+│ str      ┆ i64        ┆ f64       ┆ f64      │
+╞══════════╪════════════╪═══════════╪══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       ┆ 0.0      │
+│ 00:15:00 ┆ 605        ┆ 7.969415  ┆ 2.213726 │
+│ 00:30:00 ┆ 169        ┆ 7.780962  ┆ 2.161378 │
+│ 00:45:00 ┆ 118        ┆ 8.064204  ┆ 2.240057 │
+│ 01:00:00 ┆ 89         ┆ 7.909445  ┆ 2.197068 │
+│ …        ┆ …          ┆ …         ┆ …        │
+│ 22:45:00 ┆ 98         ┆ 8.859003  ┆ 2.460834 │
+│ 23:00:00 ┆ 69         ┆ 9.792505  ┆ 2.72014  │
+│ 23:15:00 ┆ 61         ┆ 9.683902  ┆ 2.689973 │
+│ 23:30:00 ┆ 58         ┆ 8.926363  ┆ 2.479545 │
+│ 23:45:00 ┆ 71         ┆ 9.712563  ┆ 2.697934 │
+└──────────┴────────────┴───────────┴──────────┘
+Class 2 MFD New: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬──────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed │
+│ ---      ┆ ---        ┆ ---       ┆ ---      │
+│ str      ┆ i64        ┆ f64       ┆ f64      │
+╞══════════╪════════════╪═══════════╪══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       ┆ 0.0      │
+│ 00:15:00 ┆ 605        ┆ 7.969415  ┆ 2.213726 │
+│ 00:30:00 ┆ 169        ┆ 7.780962  ┆ 2.161378 │
+│ 00:45:00 ┆ 118        ┆ 8.064204  ┆ 2.240057 │
+│ 01:00:00 ┆ 89         ┆ 7.909445  ┆ 2.197068 │
+│ …        ┆ …          ┆ …         ┆ …        │
+│ 22:45:00 ┆ 98         ┆ 8.859003  ┆ 2.460834 │
+│ 23:00:00 ┆ 69         ┆ 9.792505  ┆ 2.72014  │
+│ 23:15:00 ┆ 61         ┆ 9.683902  ┆ 2.689973 │
+│ 23:30:00 ┆ 58         ┆ 8.926363  ┆ 2.479545 │
+│ 23:45:00 ┆ 71         ┆ 9.712563  ┆ 2.697934 │
+└──────────┴────────────┴───────────┴──────────┘
+Compute MFD Variables:
+Compute MFD Variables:
+Class 2 MFD: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬───────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed  │
+│ ---      ┆ ---        ┆ ---       ┆ ---       │
+│ str      ┆ i64        ┆ f64       ┆ f64       │
+╞══════════╪════════════╪═══════════╪═══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       ┆ 0.0       │
+│ 00:15:00 ┆ 479        ┆ 33.253277 ┆ 9.237021  │
+│ 00:30:00 ┆ 136        ┆ 33.06335  ┆ 9.184264  │
+│ 00:45:00 ┆ 88         ┆ 35.82383  ┆ 9.951064  │
+│ 01:00:00 ┆ 70         ┆ 35.406107 ┆ 9.83503   │
+│ …        ┆ …          ┆ …         ┆ …         │
+│ 22:45:00 ┆ 87         ┆ 36.347256 ┆ 10.09646  │
+│ 23:00:00 ┆ 96         ┆ 37.15388  ┆ 10.320522 │
+│ 23:15:00 ┆ 111        ┆ 35.859015 ┆ 9.960838  │
+│ 23:30:00 ┆ 95         ┆ 36.438007 ┆ 10.121669 │
+│ 23:45:00 ┆ 70         ┆ 39.97186  ┆ 11.103295 │
+└──────────┴────────────┴───────────┴───────────┘
+Class 2 MFD New: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬───────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed  │
+│ ---      ┆ ---        ┆ ---       ┆ ---       │
+│ str      ┆ i64        ┆ f64       ┆ f64       │
+╞══════════╪════════════╪═══════════╪═══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       ┆ 0.0       │
+│ 00:15:00 ┆ 479        ┆ 33.253277 ┆ 9.237021  │
+│ 00:30:00 ┆ 136        ┆ 33.06335  ┆ 9.184264  │
+│ 00:45:00 ┆ 88         ┆ 35.82383  ┆ 9.951064  │
+│ 01:00:00 ┆ 70         ┆ 35.406107 ┆ 9.83503   │
+│ …        ┆ …          ┆ …         ┆ …         │
+│ 22:45:00 ┆ 87         ┆ 36.347256 ┆ 10.09646  │
+│ 23:00:00 ┆ 96         ┆ 37.15388  ┆ 10.320522 │
+│ 23:15:00 ┆ 111        ┆ 35.859015 ┆ 9.960838  │
+│ 23:30:00 ┆ 95         ┆ 36.438007 ┆ 10.121669 │
+│ 23:45:00 ┆ 70         ┆ 39.97186  ┆ 11.103295 │
+└──────────┴────────────┴───────────┴───────────┘
+Compute MFD Variables:
+Compute MFD Variables:
+Class 2 MFD: 
+Initialiaze Mobility and Network for Date: 2022-05-12
+Warning: Not Initialized Class2MFD
+Reading fcm_centers
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-05-12_2022-05-12_fcm_centers.csv
+Reading fcm
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-05-12_2022-05-12_fcm.csv
+Reading fcm_new
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-05-12_2022-05-12_fcm_new.csv
+1st join Fcm:  ['id_act', 'lenght', 'time', 'av_speed', 'v_max', 'v_min', 'cnt', 'av_accel', 'a_max', 'class', 'p', 'origin_lat', 'origin_lon', 'destination_lat', 'destination_lon', 'start_time', 'end_time', 'speed_kmh', 'lenght_km', 'time_hours', 'class_new']
+Date:  2022-05-12
+renamed:  ['id_act', 'lenght', 'time', 'av_speed', 'v_max', 'v_min', 'cnt', 'av_accel', 'a_max', 'class', 'p', 'origin_lat', 'origin_lon', 'destination_lat', 'destination_lon', 'start_time', 'end_time', 'speed_kmh', 'lenght_km', 'time_hours', 'class_new']
+Reading stats
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-05-12_2022-05-12_stats.csv
+No stats
+FluxesSubFile not found
+Get increasingly included subnets
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-05-12_2022-05-120_class_subnet.txt
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-05-12_2022-05-121_class_subnet.txt
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-05-12_2022-05-122_class_subnet.txt
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-05-12_2022-05-123_class_subnet.txt
+Reading GeoJson
+Reading fluxes_sub
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/weights/bologna_mdt_2022-05-12_2022-05-12.fluxes.sub
+FluxesSubFile not found
+Computing MFD Variables from Fcm
+Compute MFD Variables:
+dict_keys([0, 1, 2, 3])
+Compute MFD Variables:
+Compute MFD Variables:
+Class 2 MFD: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬──────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed │
+│ ---      ┆ ---        ┆ ---       ┆ ---      │
+│ str      ┆ i64        ┆ f64       ┆ f64      │
+╞══════════╪════════════╪═══════════╪══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       ┆ 0.0      │
+│ 00:15:00 ┆ 0          ┆ 0.0       ┆ 0.0      │
+│ 00:30:00 ┆ 481        ┆ 6.401821  ┆ 1.778284 │
+│ 00:45:00 ┆ 158        ┆ 6.917063  ┆ 1.921406 │
+│ 01:00:00 ┆ 80         ┆ 6.195281  ┆ 1.720911 │
+│ …        ┆ …          ┆ …         ┆ …        │
+│ 22:45:00 ┆ 63         ┆ 8.909209  ┆ 2.47478  │
+│ 23:00:00 ┆ 54         ┆ 7.677825  ┆ 2.132729 │
+│ 23:15:00 ┆ 40         ┆ 9.581434  ┆ 2.661509 │
+│ 23:30:00 ┆ 56         ┆ 9.572487  ┆ 2.659024 │
+│ 23:45:00 ┆ 26         ┆ 10.73756  ┆ 2.982656 │
+└──────────┴────────────┴───────────┴──────────┘
+Class 2 MFD New: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬──────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed │
+│ ---      ┆ ---        ┆ ---       ┆ ---      │
+│ str      ┆ i64        ┆ f64       ┆ f64      │
+╞══════════╪════════════╪═══════════╪══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       ┆ 0.0      │
+│ 00:15:00 ┆ 0          ┆ 0.0       ┆ 0.0      │
+│ 00:30:00 ┆ 481        ┆ 6.401821  ┆ 1.778284 │
+│ 00:45:00 ┆ 158        ┆ 6.917063  ┆ 1.921406 │
+│ 01:00:00 ┆ 80         ┆ 6.195281  ┆ 1.720911 │
+│ …        ┆ …          ┆ …         ┆ …        │
+│ 22:45:00 ┆ 63         ┆ 8.909209  ┆ 2.47478  │
+│ 23:00:00 ┆ 54         ┆ 7.677825  ┆ 2.132729 │
+│ 23:15:00 ┆ 40         ┆ 9.581434  ┆ 2.661509 │
+│ 23:30:00 ┆ 56         ┆ 9.572487  ┆ 2.659024 │
+│ 23:45:00 ┆ 26         ┆ 10.73756  ┆ 2.982656 │
+└──────────┴────────────┴───────────┴──────────┘
+Compute MFD Variables:
+Compute MFD Variables:
+Class 2 MFD: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬──────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed │
+│ ---      ┆ ---        ┆ ---       ┆ ---      │
+│ str      ┆ i64        ┆ f64       ┆ f64      │
+╞══════════╪════════════╪═══════════╪══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       ┆ 0.0      │
+│ 00:15:00 ┆ 0          ┆ 0.0       ┆ 0.0      │
+│ 00:30:00 ┆ 289        ┆ 25.870069 ┆ 7.18613  │
+│ 00:45:00 ┆ 99         ┆ 24.710182 ┆ 6.863939 │
+│ 01:00:00 ┆ 52         ┆ 25.693813 ┆ 7.13717  │
+│ …        ┆ …          ┆ …         ┆ …        │
+│ 22:45:00 ┆ 43         ┆ 26.408743 ┆ 7.335762 │
+│ 23:00:00 ┆ 59         ┆ 28.530647 ┆ 7.92518  │
+│ 23:15:00 ┆ 54         ┆ 27.010852 ┆ 7.503014 │
+│ 23:30:00 ┆ 39         ┆ 28.727381 ┆ 7.979828 │
+│ 23:45:00 ┆ 31         ┆ 27.412703 ┆ 7.61464  │
+└──────────┴────────────┴───────────┴──────────┘
+Class 2 MFD New: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬──────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed │
+│ ---      ┆ ---        ┆ ---       ┆ ---      │
+│ str      ┆ i64        ┆ f64       ┆ f64      │
+╞══════════╪════════════╪═══════════╪══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       ┆ 0.0      │
+│ 00:15:00 ┆ 0          ┆ 0.0       ┆ 0.0      │
+│ 00:30:00 ┆ 289        ┆ 25.870069 ┆ 7.18613  │
+│ 00:45:00 ┆ 99         ┆ 24.710182 ┆ 6.863939 │
+│ 01:00:00 ┆ 52         ┆ 25.693813 ┆ 7.13717  │
+│ …        ┆ …          ┆ …         ┆ …        │
+│ 22:45:00 ┆ 43         ┆ 26.408743 ┆ 7.335762 │
+│ 23:00:00 ┆ 59         ┆ 28.530647 ┆ 7.92518  │
+│ 23:15:00 ┆ 54         ┆ 27.010852 ┆ 7.503014 │
+│ 23:30:00 ┆ 39         ┆ 28.727381 ┆ 7.979828 │
+│ 23:45:00 ┆ 31         ┆ 27.412703 ┆ 7.61464  │
+└──────────┴────────────┴───────────┴──────────┘
+Compute MFD Variables:
+Compute MFD Variables:
+Class 2 MFD: 
+Initialiaze Mobility and Network for Date: 2022-07-01
+Warning: Not Initialized Class2MFD
+Reading fcm_centers
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-07-01_2022-07-01_fcm_centers.csv
+Reading fcm
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-07-01_2022-07-01_fcm.csv
+Reading fcm_new
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-07-01_2022-07-01_fcm_new.csv
+1st join Fcm:  ['id_act', 'lenght', 'time', 'av_speed', 'v_max', 'v_min', 'cnt', 'av_accel', 'a_max', 'class', 'p', 'origin_lat', 'origin_lon', 'destination_lat', 'destination_lon', 'start_time', 'end_time', 'speed_kmh', 'lenght_km', 'time_hours', 'class_new']
+Date:  2022-07-01
+renamed:  ['id_act', 'lenght', 'time', 'av_speed', 'v_max', 'v_min', 'cnt', 'av_accel', 'a_max', 'class', 'p', 'origin_lat', 'origin_lon', 'destination_lat', 'destination_lon', 'start_time', 'end_time', 'speed_kmh', 'lenght_km', 'time_hours', 'class_new']
+Reading stats
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-07-01_2022-07-01_stats.csv
+No stats
+Road exception:  
+Road exception:  
+Road exception:  
+Road exception:  
+Get increasingly included subnets
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-07-01_2022-07-010_class_subnet.txt
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-07-01_2022-07-011_class_subnet.txt
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-07-01_2022-07-012_class_subnet.txt
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-07-01_2022-07-013_class_subnet.txt
+Reading GeoJson
+Reading fluxes_sub
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/weights/bologna_mdt_2022-07-01_2022-07-01.fluxes.sub
+Class:  0
+Fraction of roads considered:  80
+Number of Roads SubNetwork:  14371
+Class:  1
+Fraction of roads considered:  80
+Number of Roads SubNetwork:  12311
+Class:  2
+Fraction of roads considered:  80
+Number of Roads SubNetwork:  91
+Class:  3
+Fraction of roads considered:  80
+Number of Roads SubNetwork:  10
+Class:  80
+Considering the Total Subnetwork indipendent on the Subclass
+Computing MFD Variables from Fcm
+Compute MFD Variables:
+dict_keys([0, 1, 2, 3])
+Compute MFD Variables:
+Compute MFD Variables:
+Class 2 MFD: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬──────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed │
+│ ---      ┆ ---        ┆ ---       ┆ ---      │
+│ str      ┆ i64        ┆ f64       ┆ f64      │
+╞══════════╪════════════╪═══════════╪══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       ┆ 0.0      │
+│ 00:15:00 ┆ 648        ┆ 7.572834  ┆ 2.103565 │
+│ 00:30:00 ┆ 163        ┆ 7.949904  ┆ 2.208307 │
+│ 00:45:00 ┆ 124        ┆ 7.18767   ┆ 1.996575 │
+│ 01:00:00 ┆ 55         ┆ 8.435974  ┆ 2.343326 │
+│ …        ┆ …          ┆ …         ┆ …        │
+│ 22:45:00 ┆ 102        ┆ 9.264567  ┆ 2.573491 │
+│ 23:00:00 ┆ 93         ┆ 8.450226  ┆ 2.347285 │
+│ 23:15:00 ┆ 85         ┆ 11.087405 ┆ 3.079835 │
+│ 23:30:00 ┆ 62         ┆ 9.555825  ┆ 2.654396 │
+│ 23:45:00 ┆ 30         ┆ 11.882914 ┆ 3.30081  │
+└──────────┴────────────┴───────────┴──────────┘
+Class 2 MFD New: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬──────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed │
+│ ---      ┆ ---        ┆ ---       ┆ ---      │
+│ str      ┆ i64        ┆ f64       ┆ f64      │
+╞══════════╪════════════╪═══════════╪══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       ┆ 0.0      │
+│ 00:15:00 ┆ 648        ┆ 7.572834  ┆ 2.103565 │
+│ 00:30:00 ┆ 163        ┆ 7.949904  ┆ 2.208307 │
+│ 00:45:00 ┆ 124        ┆ 7.18767   ┆ 1.996575 │
+│ 01:00:00 ┆ 55         ┆ 8.435974  ┆ 2.343326 │
+│ …        ┆ …          ┆ …         ┆ …        │
+│ 22:45:00 ┆ 102        ┆ 9.264567  ┆ 2.573491 │
+│ 23:00:00 ┆ 93         ┆ 8.450226  ┆ 2.347285 │
+│ 23:15:00 ┆ 85         ┆ 11.087405 ┆ 3.079835 │
+│ 23:30:00 ┆ 62         ┆ 9.555825  ┆ 2.654396 │
+│ 23:45:00 ┆ 30         ┆ 11.882914 ┆ 3.30081  │
+└──────────┴────────────┴───────────┴──────────┘
+Compute MFD Variables:
+Compute MFD Variables:
+Class 2 MFD: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬──────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed │
+│ ---      ┆ ---        ┆ ---       ┆ ---      │
+│ str      ┆ i64        ┆ f64       ┆ f64      │
+╞══════════╪════════════╪═══════════╪══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       ┆ 0.0      │
+│ 00:15:00 ┆ 450        ┆ 28.98336  ┆ 8.050933 │
+│ 00:30:00 ┆ 137        ┆ 28.818712 ┆ 8.005198 │
+│ 00:45:00 ┆ 84         ┆ 29.762238 ┆ 8.267288 │
+│ 01:00:00 ┆ 51         ┆ 31.557403 ┆ 8.765945 │
+│ …        ┆ …          ┆ …         ┆ …        │
+│ 22:45:00 ┆ 97         ┆ 30.276261 ┆ 8.410072 │
+│ 23:00:00 ┆ 84         ┆ 31.091609 ┆ 8.636558 │
+│ 23:15:00 ┆ 97         ┆ 31.232184 ┆ 8.675607 │
+│ 23:30:00 ┆ 82         ┆ 31.572565 ┆ 8.770157 │
+│ 23:45:00 ┆ 70         ┆ 33.589385 ┆ 9.330385 │
+└──────────┴────────────┴───────────┴──────────┘
+Class 2 MFD New: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬──────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed │
+│ ---      ┆ ---        ┆ ---       ┆ ---      │
+│ str      ┆ i64        ┆ f64       ┆ f64      │
+╞══════════╪════════════╪═══════════╪══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       ┆ 0.0      │
+│ 00:15:00 ┆ 450        ┆ 28.98336  ┆ 8.050933 │
+│ 00:30:00 ┆ 137        ┆ 28.818712 ┆ 8.005198 │
+│ 00:45:00 ┆ 84         ┆ 29.762238 ┆ 8.267288 │
+│ 01:00:00 ┆ 51         ┆ 31.557403 ┆ 8.765945 │
+│ …        ┆ …          ┆ …         ┆ …        │
+│ 22:45:00 ┆ 97         ┆ 30.276261 ┆ 8.410072 │
+│ 23:00:00 ┆ 84         ┆ 31.091609 ┆ 8.636558 │
+│ 23:15:00 ┆ 97         ┆ 31.232184 ┆ 8.675607 │
+│ 23:30:00 ┆ 82         ┆ 31.572565 ┆ 8.770157 │
+│ 23:45:00 ┆ 70         ┆ 33.589385 ┆ 9.330385 │
+└──────────┴────────────┴───────────┴──────────┘
+Compute MFD Variables:
+Compute MFD Variables:
+Class 2 MFD: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬───────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed  │
+│ ---      ┆ ---        ┆ ---       ┆ ---       │
+│ str      ┆ i64        ┆ f64       ┆ f64       │
+╞══════════╪════════════╪═══════════╪═══════════╡
+│ 00:00:00 ┆ 828        ┆ 51.367601 ┆ 14.268778 │
+│ 00:15:00 ┆ 191        ┆ 54.49076  ┆ 15.136322 │
+│ 00:30:00 ┆ 165        ┆ 55.727475 ┆ 15.479854 │
+│ 00:45:00 ┆ 108        ┆ 54.251165 ┆ 15.069768 │
+│ 01:00:00 ┆ 94         ┆ 54.365335 ┆ 15.101482 │
+│ …        ┆ …          ┆ …         ┆ …         │
+│ 22:45:00 ┆ 157        ┆ 53.464278 ┆ 14.851188 │
+│ 23:00:00 ┆ 160        ┆ 52.991074 ┆ 14.719743 │
+│ 23:15:00 ┆ 177        ┆ 53.851289 ┆ 14.958691 │
+│ 23:30:00 ┆ 177        ┆ 53.116222 ┆ 14.754506 │
+│ 23:45:00 ┆ 107        ┆ 56.776984 ┆ 15.771384 │
+└──────────┴────────────┴───────────┴───────────┘
+Class 2 MFD New: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬───────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed  │
+│ ---      ┆ ---        ┆ ---       ┆ ---       │
+│ str      ┆ i64        ┆ f64       ┆ f64       │
+╞══════════╪════════════╪═══════════╪═══════════╡
+│ 00:00:00 ┆ 828        ┆ 51.367601 ┆ 14.268778 │
+│ 00:15:00 ┆ 191        ┆ 54.49076  ┆ 15.136322 │
+│ 00:30:00 ┆ 165        ┆ 55.727475 ┆ 15.479854 │
+│ 00:45:00 ┆ 108        ┆ 54.251165 ┆ 15.069768 │
+│ 01:00:00 ┆ 94         ┆ 54.365335 ┆ 15.101482 │
+│ …        ┆ …          ┆ …         ┆ …         │
+│ 22:45:00 ┆ 157        ┆ 53.464278 ┆ 14.851188 │
+│ 23:00:00 ┆ 160        ┆ 52.991074 ┆ 14.719743 │
+│ 23:15:00 ┆ 177        ┆ 53.851289 ┆ 14.958691 │
+│ 23:30:00 ┆ 177        ┆ 53.116222 ┆ 14.754506 │
+│ 23:45:00 ┆ 107        ┆ 56.776984 ┆ 15.771384 │
+└──────────┴────────────┴───────────┴───────────┘
+Compute MFD Variables:
+Compute MFD Variables:
+Class 2 MFD: 
+shape: (96, 4)
+┌──────────┬────────────┬────────────┬───────────┐
+│ time     ┆ population ┆ speed_kmh  ┆ av_speed  │
+│ ---      ┆ ---        ┆ ---        ┆ ---       │
+│ str      ┆ i64        ┆ f64        ┆ f64       │
+╞══════════╪════════════╪════════════╪═══════════╡
+│ 00:00:00 ┆ 122        ┆ 97.96469   ┆ 27.212414 │
+│ 00:15:00 ┆ 43         ┆ 98.130774  ┆ 27.258548 │
+│ 00:30:00 ┆ 30         ┆ 100.892544 ┆ 28.025707 │
+│ 00:45:00 ┆ 22         ┆ 106.782005 ┆ 29.661668 │
+│ 01:00:00 ┆ 18         ┆ 101.02394  ┆ 28.062206 │
+│ …        ┆ …          ┆ …          ┆ …         │
+│ 22:45:00 ┆ 38         ┆ 100.005243 ┆ 27.779234 │
+│ 23:00:00 ┆ 32         ┆ 93.854036  ┆ 26.070566 │
+│ 23:15:00 ┆ 50         ┆ 99.051962  ┆ 27.514434 │
+│ 23:30:00 ┆ 30         ┆ 97.8003    ┆ 27.16675  │
+│ 23:45:00 ┆ 20         ┆ 107.763498 ┆ 29.934305 │
+└──────────┴────────────┴────────────┴───────────┘
+Class 2 MFD New: 
+shape: (96, 4)
+┌──────────┬────────────┬────────────┬───────────┐
+│ time     ┆ population ┆ speed_kmh  ┆ av_speed  │
+│ ---      ┆ ---        ┆ ---        ┆ ---       │
+│ str      ┆ i64        ┆ f64        ┆ f64       │
+╞══════════╪════════════╪════════════╪═══════════╡
+│ 00:00:00 ┆ 122        ┆ 97.96469   ┆ 27.212414 │
+│ 00:15:00 ┆ 43         ┆ 98.130774  ┆ 27.258548 │
+│ 00:30:00 ┆ 30         ┆ 100.892544 ┆ 28.025707 │
+│ 00:45:00 ┆ 22         ┆ 106.782005 ┆ 29.661668 │
+│ 01:00:00 ┆ 18         ┆ 101.02394  ┆ 28.062206 │
+│ …        ┆ …          ┆ …          ┆ …         │
+│ 22:45:00 ┆ 38         ┆ 100.005243 ┆ 27.779234 │
+│ 23:00:00 ┆ 32         ┆ 93.854036  ┆ 26.070566 │
+│ 23:15:00 ┆ 50         ┆ 99.051962  ┆ 27.514434 │
+│ 23:30:00 ┆ 30         ┆ 97.8003    ┆ 27.16675  │
+│ 23:45:00 ┆ 20         ┆ 107.763498 ┆ 29.934305 │
+└──────────┴────────────┴────────────┴───────────┘
+Reading timed_fluxes
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2023-03-18_2023-03-18_timed_fluxes.csv
+Plotting Daily Incremental Subnetworks in HTML
+Subnets Increasingly already Plotted in HTML
+Get MFD For Plot: None
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population
+Get Lower Bounds From Bins: speed_kmh
+
+Interval Error:  46.232929577825004
+After GetMFDForPlot:
+
+Plotting MFD:
+
+Get MFD For Plot: 0
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 0
+Get Lower Bounds From Bins: speed_kmh Class 0
+
+Interval Error:  7.34759029779159
+Get MFD For Plot: 0
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 0
+Get Lower Bounds From Bins: speed_kmh Class 0
+
+Interval Error:  7.34759029779159
+After GetMFDForPlot Class 0:
+
+Plotting MFD:
+
+Plotting MFD:
+
+Get MFD For Plot: 1
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 1
+Get Lower Bounds From Bins: speed_kmh Class 1
+
+Interval Error:  26.94933142857143
+Get MFD For Plot: 1
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 1
+Get Lower Bounds From Bins: speed_kmh Class 1
+
+Interval Error:  26.94933142857143
+After GetMFDForPlot Class 1:
+
+Plotting MFD:
+
+Plotting MFD:
+
+Get MFD For Plot: 2
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 2
+Get Lower Bounds From Bins: speed_kmh Class 2
+
+Interval Error:  56.05584284520794
+Get MFD For Plot: 2
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 2
+Get Lower Bounds From Bins: speed_kmh Class 2
+
+Interval Error:  56.05584284520794
+After GetMFDForPlot Class 2:
+
+Plotting MFD:
+
+Plotting MFD:
+
+Get MFD For Plot: 3
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 3
+Get Lower Bounds From Bins: speed_kmh Class 3
+
+Interval Error:  5.887122707269256
+Get MFD For Plot: 3
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 3
+Get Lower Bounds From Bins: speed_kmh Class 3
+
+Interval Error:  5.887122707269256
+After GetMFDForPlot Class 3:
+
+Plotting MFD:
+
+Plotting MFD:
+
+Reading fluxes
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/weights/bologna_mdt_2023-03-18_2023-03-18.fluxes
+all different groups colored differently
+Initialize The Fitting Parameters Initial Guess And Windows
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬───────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed  │
+│ ---      ┆ ---        ┆ ---       ┆ ---       │
+│ str      ┆ i64        ┆ f64       ┆ f64       │
+╞══════════╪════════════╪═══════════╪═══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       ┆ 0.0       │
+│ 00:15:00 ┆ 415        ┆ 57.142675 ┆ 15.872965 │
+│ 00:30:00 ┆ 137        ┆ 56.493132 ┆ 15.692537 │
+│ 00:45:00 ┆ 100        ┆ 58.633951 ┆ 16.287208 │
+│ 01:00:00 ┆ 59         ┆ 60.099722 ┆ 16.694367 │
+│ …        ┆ …          ┆ …         ┆ …         │
+│ 22:45:00 ┆ 142        ┆ 59.177529 ┆ 16.438202 │
+│ 23:00:00 ┆ 150        ┆ 56.76047  ┆ 15.766797 │
+│ 23:15:00 ┆ 159        ┆ 58.187104 ┆ 16.163084 │
+│ 23:30:00 ┆ 175        ┆ 60.14123  ┆ 16.705897 │
+│ 23:45:00 ┆ 104        ┆ 62.493365 ┆ 17.359268 │
+└──────────┴────────────┴───────────┴───────────┘
+Class 2 MFD New: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬───────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed  │
+│ ---      ┆ ---        ┆ ---       ┆ ---       │
+│ str      ┆ i64        ┆ f64       ┆ f64       │
+╞══════════╪════════════╪═══════════╪═══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       ┆ 0.0       │
+│ 00:15:00 ┆ 415        ┆ 57.142675 ┆ 15.872965 │
+│ 00:30:00 ┆ 137        ┆ 56.493132 ┆ 15.692537 │
+│ 00:45:00 ┆ 100        ┆ 58.633951 ┆ 16.287208 │
+│ 01:00:00 ┆ 59         ┆ 60.099722 ┆ 16.694367 │
+│ …        ┆ …          ┆ …         ┆ …         │
+│ 22:45:00 ┆ 142        ┆ 59.177529 ┆ 16.438202 │
+│ 23:00:00 ┆ 150        ┆ 56.76047  ┆ 15.766797 │
+│ 23:15:00 ┆ 159        ┆ 58.187104 ┆ 16.163084 │
+│ 23:30:00 ┆ 175        ┆ 60.14123  ┆ 16.705897 │
+│ 23:45:00 ┆ 104        ┆ 62.493365 ┆ 17.359268 │
+└──────────┴────────────┴───────────┴───────────┘
+Compute MFD Variables:
+Compute MFD Variables:
+Class 2 MFD: 
+shape: (96, 4)
+┌──────────┬────────────┬────────────┬───────────┐
+│ time     ┆ population ┆ speed_kmh  ┆ av_speed  │
+│ ---      ┆ ---        ┆ ---        ┆ ---       │
+│ str      ┆ i64        ┆ f64        ┆ f64       │
+╞══════════╪════════════╪════════════╪═══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0        ┆ 0.0       │
+│ 00:15:00 ┆ 143        ┆ 102.853007 ┆ 28.57028  │
+│ 00:30:00 ┆ 52         ┆ 96.802657  ┆ 26.889627 │
+│ 00:45:00 ┆ 53         ┆ 102.39156  ┆ 28.4421   │
+│ 01:00:00 ┆ 47         ┆ 105.639595 ┆ 29.344332 │
+│ …        ┆ …          ┆ …          ┆ …         │
+│ 22:45:00 ┆ 143        ┆ 108.200714 ┆ 30.055754 │
+│ 23:00:00 ┆ 148        ┆ 104.78088  ┆ 29.1058   │
+│ 23:15:00 ┆ 133        ┆ 105.136863 ┆ 29.204684 │
+│ 23:30:00 ┆ 142        ┆ 102.845672 ┆ 28.568242 │
+│ 23:45:00 ┆ 112        ┆ 106.675804 ┆ 29.632168 │
+└──────────┴────────────┴────────────┴───────────┘
+Class 2 MFD New: 
+shape: (96, 4)
+┌──────────┬────────────┬────────────┬───────────┐
+│ time     ┆ population ┆ speed_kmh  ┆ av_speed  │
+│ ---      ┆ ---        ┆ ---        ┆ ---       │
+│ str      ┆ i64        ┆ f64        ┆ f64       │
+╞══════════╪════════════╪════════════╪═══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0        ┆ 0.0       │
+│ 00:15:00 ┆ 143        ┆ 102.853007 ┆ 28.57028  │
+│ 00:30:00 ┆ 52         ┆ 96.802657  ┆ 26.889627 │
+│ 00:45:00 ┆ 53         ┆ 102.39156  ┆ 28.4421   │
+│ 01:00:00 ┆ 47         ┆ 105.639595 ┆ 29.344332 │
+│ …        ┆ …          ┆ …          ┆ …         │
+│ 22:45:00 ┆ 143        ┆ 108.200714 ┆ 30.055754 │
+│ 23:00:00 ┆ 148        ┆ 104.78088  ┆ 29.1058   │
+│ 23:15:00 ┆ 133        ┆ 105.136863 ┆ 29.204684 │
+│ 23:30:00 ┆ 142        ┆ 102.845672 ┆ 28.568242 │
+│ 23:45:00 ┆ 112        ┆ 106.675804 ┆ 29.632168 │
+└──────────┴────────────┴────────────┴───────────┘
+Reading timed_fluxes
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-08-05_2022-08-05_timed_fluxes.csv
+No Subnetworks to Plot
+VelTimePercorrenceFile not found
+Get MFD For Plot: None
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population
+Get Lower Bounds From Bins: speed_kmh
+
+Interval Error:  65.51657422556781
+After GetMFDForPlot:
+
+Plotting MFD:
+
+Get MFD For Plot: 0
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 0
+Get Lower Bounds From Bins: speed_kmh Class 0
+
+Interval Error:  10.737974933942652
+Get MFD For Plot: 0
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 0
+Get Lower Bounds From Bins: speed_kmh Class 0
+
+Interval Error:  10.737974933942652
+After GetMFDForPlot Class 0:
+
+Plotting MFD:
+
+Plotting MFD:
+
+Get MFD For Plot: 1
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 1
+Get Lower Bounds From Bins: speed_kmh Class 1
+
+Interval Error:  3.4811162630447825
+Get MFD For Plot: 1
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 1
+Get Lower Bounds From Bins: speed_kmh Class 1
+
+Interval Error:  3.4811162630447825
+After GetMFDForPlot Class 1:
+
+Plotting MFD:
+
+Plotting MFD:
+
+Get MFD For Plot: 2
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 2
+Get Lower Bounds From Bins: speed_kmh Class 2
+
+Interval Error:  62.94605349193636
+Get MFD For Plot: 2
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 2
+Get Lower Bounds From Bins: speed_kmh Class 2
+
+Interval Error:  62.94605349193636
+After GetMFDForPlot Class 2:
+
+Plotting MFD:
+
+Plotting MFD:
+
+Get MFD For Plot: 3
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 3
+Get Lower Bounds From Bins: speed_kmh Class 3
+
+Interval Error:  105.4801213184134
+Get MFD For Plot: 3
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 3
+Get Lower Bounds From Bins: speed_kmh Class 3
+
+Interval Error:  105.4801213184134
+After GetMFDForPlot Class 3:
+
+Plotting MFD:
+
+Plotting MFD:
+
+Reading fluxes
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/weights/bologna_mdt_2022-08-05_2022-08-05.fluxes
+all different groups colored differently
+Initialize The Fitting Parameters Initial Guess And Windows
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬───────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed  │
+│ ---      ┆ ---        ┆ ---       ┆ ---       │
+│ str      ┆ i64        ┆ f64       ┆ f64       │
+╞══════════╪════════════╪═══════════╪═══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       ┆ 0.0       │
+│ 00:15:00 ┆ 238        ┆ 49.943029 ┆ 13.873064 │
+│ 00:30:00 ┆ 98         ┆ 50.201522 ┆ 13.944867 │
+│ 00:45:00 ┆ 62         ┆ 46.658623 ┆ 12.960729 │
+│ 01:00:00 ┆ 27         ┆ 56.001547 ┆ 15.555985 │
+│ …        ┆ …          ┆ …         ┆ …         │
+│ 22:45:00 ┆ 43         ┆ 57.814074 ┆ 16.059465 │
+│ 23:00:00 ┆ 60         ┆ 55.726846 ┆ 15.47968  │
+│ 23:15:00 ┆ 51         ┆ 55.671076 ┆ 15.464188 │
+│ 23:30:00 ┆ 52         ┆ 54.654376 ┆ 15.181771 │
+│ 23:45:00 ┆ 23         ┆ 61.411182 ┆ 17.058662 │
+└──────────┴────────────┴───────────┴───────────┘
+Class 2 MFD New: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬───────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed  │
+│ ---      ┆ ---        ┆ ---       ┆ ---       │
+│ str      ┆ i64        ┆ f64       ┆ f64       │
+╞══════════╪════════════╪═══════════╪═══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       ┆ 0.0       │
+│ 00:15:00 ┆ 238        ┆ 49.943029 ┆ 13.873064 │
+│ 00:30:00 ┆ 98         ┆ 50.201522 ┆ 13.944867 │
+│ 00:45:00 ┆ 62         ┆ 46.658623 ┆ 12.960729 │
+│ 01:00:00 ┆ 27         ┆ 56.001547 ┆ 15.555985 │
+│ …        ┆ …          ┆ …         ┆ …         │
+│ 22:45:00 ┆ 43         ┆ 57.814074 ┆ 16.059465 │
+│ 23:00:00 ┆ 60         ┆ 55.726846 ┆ 15.47968  │
+│ 23:15:00 ┆ 51         ┆ 55.671076 ┆ 15.464188 │
+│ 23:30:00 ┆ 52         ┆ 54.654376 ┆ 15.181771 │
+│ 23:45:00 ┆ 23         ┆ 61.411182 ┆ 17.058662 │
+└──────────┴────────────┴───────────┴───────────┘
+Compute MFD Variables:
+Compute MFD Variables:
+Class 2 MFD: 
+shape: (96, 4)
+┌──────────┬────────────┬────────────┬───────────┐
+│ time     ┆ population ┆ speed_kmh  ┆ av_speed  │
+│ ---      ┆ ---        ┆ ---        ┆ ---       │
+│ str      ┆ i64        ┆ f64        ┆ f64       │
+╞══════════╪════════════╪════════════╪═══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0        ┆ 0.0       │
+│ 00:15:00 ┆ 31         ┆ 95.780148  ┆ 26.605597 │
+│ 00:30:00 ┆ 21         ┆ 104.354623 ┆ 28.987395 │
+│ 00:45:00 ┆ 17         ┆ 84.545449  ┆ 23.484847 │
+│ 01:00:00 ┆ 7          ┆ 90.305383  ┆ 25.084829 │
+│ …        ┆ …          ┆ …          ┆ …         │
+│ 22:45:00 ┆ 24         ┆ 104.12574  ┆ 28.923817 │
+│ 23:00:00 ┆ 33         ┆ 96.633698  ┆ 26.842694 │
+│ 23:15:00 ┆ 27         ┆ 91.805013  ┆ 25.501393 │
+│ 23:30:00 ┆ 21         ┆ 98.005646  ┆ 27.22379  │
+│ 23:45:00 ┆ 20         ┆ 102.497328 ┆ 28.47148  │
+└──────────┴────────────┴────────────┴───────────┘
+Class 2 MFD New: 
+shape: (96, 4)
+┌──────────┬────────────┬────────────┬───────────┐
+│ time     ┆ population ┆ speed_kmh  ┆ av_speed  │
+│ ---      ┆ ---        ┆ ---        ┆ ---       │
+│ str      ┆ i64        ┆ f64        ┆ f64       │
+╞══════════╪════════════╪════════════╪═══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0        ┆ 0.0       │
+│ 00:15:00 ┆ 31         ┆ 95.780148  ┆ 26.605597 │
+│ 00:30:00 ┆ 21         ┆ 104.354623 ┆ 28.987395 │
+│ 00:45:00 ┆ 17         ┆ 84.545449  ┆ 23.484847 │
+│ 01:00:00 ┆ 7          ┆ 90.305383  ┆ 25.084829 │
+│ …        ┆ …          ┆ …          ┆ …         │
+│ 22:45:00 ┆ 24         ┆ 104.12574  ┆ 28.923817 │
+│ 23:00:00 ┆ 33         ┆ 96.633698  ┆ 26.842694 │
+│ 23:15:00 ┆ 27         ┆ 91.805013  ┆ 25.501393 │
+│ 23:30:00 ┆ 21         ┆ 98.005646  ┆ 27.22379  │
+│ 23:45:00 ┆ 20         ┆ 102.497328 ┆ 28.47148  │
+└──────────┴────────────┴────────────┴───────────┘
+Reading timed_fluxes
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-01-31_2022-01-31_timed_fluxes.csv
+Plotting Daily Incremental Subnetworks in HTML
+Subnets Increasingly already Plotted in HTML
+Get MFD For Plot: None
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population
+Get Lower Bounds From Bins: speed_kmh
+
+Interval Error:  48.754169141613716
+After GetMFDForPlot:
+
+Plotting MFD:
+
+Get MFD For Plot: 0
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 0
+Get Lower Bounds From Bins: speed_kmh Class 0
+
+Interval Error:  9.094067248698332
+Get MFD For Plot: 0
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 0
+Get Lower Bounds From Bins: speed_kmh Class 0
+
+Interval Error:  9.094067248698332
+After GetMFDForPlot Class 0:
+
+Plotting MFD:
+
+Plotting MFD:
+
+Get MFD For Plot: 1
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 1
+Get Lower Bounds From Bins: speed_kmh Class 1
+
+Interval Error:  27.48943460806913
+Get MFD For Plot: 1
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 1
+Get Lower Bounds From Bins: speed_kmh Class 1
+
+Interval Error:  27.48943460806913
+After GetMFDForPlot Class 1:
+
+Plotting MFD:
+
+Plotting MFD:
+
+Get MFD For Plot: 2
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 2
+Get Lower Bounds From Bins: speed_kmh Class 2
+
+Interval Error:  55.36583126918393
+Get MFD For Plot: 2
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 2
+Get Lower Bounds From Bins: speed_kmh Class 2
+
+Interval Error:  55.36583126918393
+After GetMFDForPlot Class 2:
+
+Plotting MFD:
+
+Plotting MFD:
+
+Get MFD For Plot: 3
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 3
+Get Lower Bounds From Bins: speed_kmh Class 3
+
+Interval Error:  104.03737200000003
+Get MFD For Plot: 3
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 3
+Get Lower Bounds From Bins: speed_kmh Class 3
+
+Interval Error:  104.03737200000003
+After GetMFDForPlot Class 3:
+
+Plotting MFD:
+
+Plotting MFD:
+
+Reading fluxes
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/weights/bologna_mdt_2022-01-31_2022-01-31.fluxes
+all different groups colored differently
+Initialize The Fitting Parameters Initial Guess And Windows
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬───────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed  │
+│ ---      ┆ ---        ┆ ---       ┆ ---       │
+│ str      ┆ i64        ┆ f64       ┆ f64       │
+╞══════════╪════════════╪═══════════╪═══════════╡
+│ 00:00:00 ┆ 2          ┆ 103.11804 ┆ 28.6439   │
+│ 00:15:00 ┆ 456        ┆ 65.003738 ┆ 18.056594 │
+│ 00:30:00 ┆ 111        ┆ 67.719816 ┆ 18.81106  │
+│ 00:45:00 ┆ 92         ┆ 67.974685 ┆ 18.881857 │
+│ 01:00:00 ┆ 76         ┆ 74.405098 ┆ 20.668083 │
+│ …        ┆ …          ┆ …         ┆ …         │
+│ 22:45:00 ┆ 117        ┆ 71.585605 ┆ 19.88489  │
+│ 23:00:00 ┆ 113        ┆ 67.918937 ┆ 18.866372 │
+│ 23:15:00 ┆ 133        ┆ 71.251503 ┆ 19.792084 │
+│ 23:30:00 ┆ 136        ┆ 73.30945  ┆ 20.363736 │
+│ 23:45:00 ┆ 91         ┆ 80.787126 ┆ 22.440868 │
+└──────────┴────────────┴───────────┴───────────┘
+Class 2 MFD New: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬───────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed  │
+│ ---      ┆ ---        ┆ ---       ┆ ---       │
+│ str      ┆ i64        ┆ f64       ┆ f64       │
+╞══════════╪════════════╪═══════════╪═══════════╡
+│ 00:00:00 ┆ 2          ┆ 103.11804 ┆ 28.6439   │
+│ 00:15:00 ┆ 456        ┆ 65.003738 ┆ 18.056594 │
+│ 00:30:00 ┆ 111        ┆ 67.719816 ┆ 18.81106  │
+│ 00:45:00 ┆ 92         ┆ 67.974685 ┆ 18.881857 │
+│ 01:00:00 ┆ 76         ┆ 74.405098 ┆ 20.668083 │
+│ …        ┆ …          ┆ …         ┆ …         │
+│ 22:45:00 ┆ 117        ┆ 71.585605 ┆ 19.88489  │
+│ 23:00:00 ┆ 113        ┆ 67.918937 ┆ 18.866372 │
+│ 23:15:00 ┆ 133        ┆ 71.251503 ┆ 19.792084 │
+│ 23:30:00 ┆ 136        ┆ 73.30945  ┆ 20.363736 │
+│ 23:45:00 ┆ 91         ┆ 80.787126 ┆ 22.440868 │
+└──────────┴────────────┴───────────┴───────────┘
+Compute MFD Variables:
+Compute MFD Variables:
+Class 2 MFD: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬──────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed │
+│ ---      ┆ ---        ┆ ---       ┆ ---      │
+│ str      ┆ i64        ┆ f64       ┆ f64      │
+╞══════════╪════════════╪═══════════╪══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       ┆ 0.0      │
+│ 00:15:00 ┆ 4          ┆ 85.83084  ┆ 23.8419  │
+│ 00:30:00 ┆ 1          ┆ 107.4222  ┆ 29.8395  │
+│ 00:45:00 ┆ 0          ┆ 0.0       ┆ 0.0      │
+│ 01:00:00 ┆ 0          ┆ 0.0       ┆ 0.0      │
+│ …        ┆ …          ┆ …         ┆ …        │
+│ 22:45:00 ┆ 1          ┆ 143.87148 ┆ 39.9643  │
+│ 23:00:00 ┆ 0          ┆ 0.0       ┆ 0.0      │
+│ 23:15:00 ┆ 0          ┆ 0.0       ┆ 0.0      │
+│ 23:30:00 ┆ 1          ┆ 62.94672  ┆ 17.4852  │
+│ 23:45:00 ┆ 0          ┆ 0.0       ┆ 0.0      │
+└──────────┴────────────┴───────────┴──────────┘
+Class 2 MFD New: 
+shape: (96, 4)
+┌──────────┬────────────┬───────────┬──────────┐
+│ time     ┆ population ┆ speed_kmh ┆ av_speed │
+│ ---      ┆ ---        ┆ ---       ┆ ---      │
+│ str      ┆ i64        ┆ f64       ┆ f64      │
+╞══════════╪════════════╪═══════════╪══════════╡
+│ 00:00:00 ┆ 0          ┆ 0.0       ┆ 0.0      │
+│ 00:15:00 ┆ 4          ┆ 85.83084  ┆ 23.8419  │
+│ 00:30:00 ┆ 1          ┆ 107.4222  ┆ 29.8395  │
+│ 00:45:00 ┆ 0          ┆ 0.0       ┆ 0.0      │
+│ 01:00:00 ┆ 0          ┆ 0.0       ┆ 0.0      │
+│ …        ┆ …          ┆ …         ┆ …        │
+│ 22:45:00 ┆ 1          ┆ 143.87148 ┆ 39.9643  │
+│ 23:00:00 ┆ 0          ┆ 0.0       ┆ 0.0      │
+│ 23:15:00 ┆ 0          ┆ 0.0       ┆ 0.0      │
+│ 23:30:00 ┆ 1          ┆ 62.94672  ┆ 17.4852  │
+│ 23:45:00 ┆ 0          ┆ 0.0       ┆ 0.0      │
+└──────────┴────────────┴───────────┴──────────┘
+Reading timed_fluxes
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/bologna_mdt_2022-11-11_2022-11-11_timed_fluxes.csv
+Plotting Daily Incremental Subnetworks in HTML
+Subnets Increasingly already Plotted in HTML
+Get MFD For Plot: None
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population
+Get Lower Bounds From Bins: speed_kmh
+
+Interval Error:  15.375774229521
+After GetMFDForPlot:
+
+Plotting MFD:
+
+Get MFD For Plot: 0
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 0
+Get Lower Bounds From Bins: speed_kmh Class 0
+
+Interval Error:  10.795394320904318
+Get MFD For Plot: 0
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 0
+Get Lower Bounds From Bins: speed_kmh Class 0
+
+Interval Error:  10.795394320904318
+After GetMFDForPlot Class 0:
+
+Plotting MFD:
+
+Plotting MFD:
+
+Get MFD For Plot: 1
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 1
+Get Lower Bounds From Bins: speed_kmh Class 1
+
+Interval Error:  36.74625699591332
+Get MFD For Plot: 1
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 1
+Get Lower Bounds From Bins: speed_kmh Class 1
+
+Interval Error:  36.74625699591332
+After GetMFDForPlot Class 1:
+
+Plotting MFD:
+
+Plotting MFD:
+
+Get MFD For Plot: 2
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 2
+Get Lower Bounds From Bins: speed_kmh Class 2
+
+Interval Error:  19.519296335108365
+Get MFD For Plot: 2
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 2
+Get Lower Bounds From Bins: speed_kmh Class 2
+
+Interval Error:  19.519296335108365
+After GetMFDForPlot Class 2:
+
+Plotting MFD:
+
+Plotting MFD:
+
+Get MFD For Plot: 3
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 3
+Get Lower Bounds From Bins: speed_kmh Class 3
+
+Interval Error:  128.76341684210524
+Get MFD For Plot: 3
+MFD Features Aggregated: 
+Get Lower Bounds From Bins: population Class 3
+Get Lower Bounds From Bins: speed_kmh Class 3
+
+Interval Error:  128.76341684210524
+After GetMFDForPlot Class 3:
+
+Plotting MFD:
+
+Plotting MFD:
+
+Reading fluxes
+/home/aamad/codice/city-pro/output/bologna_mdt_detailed/weights/bologna_mdt_2022-11-11_2022-11-11.fluxes
+all different groups colored differently
+Initialize The Fitting Parameters Initial Guess And Windows

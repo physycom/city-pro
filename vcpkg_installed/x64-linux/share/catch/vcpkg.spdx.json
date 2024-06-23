@@ -1,0 +1,95 @@
+{
+  "$schema": "https://raw.githubusercontent.com/spdx/spdx-spec/v2.2.1/schemas/spdx-schema.json",
+  "spdxVersion": "SPDX-2.2",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "documentNamespace": "https://spdx.org/spdxdocs/catch-x64-linux-alias#1-7e621a0c-758e-4977-b0f8-8ffb36e48699",
+  "name": "catch:x64-linux@alias#1 81b4dbd9bc7e6cc40d1440f28a7f84a1e7ce45c46d0b80ecded44675c7a2af88",
+  "creationInfo": {
+    "creators": [
+      "Tool: vcpkg-2024-06-10-02590c430e4ed9215d27870138c2e579cc338772"
+    ],
+    "created": "2024-06-21T15:55:17Z"
+  },
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "GENERATES",
+      "relatedSpdxElement": "SPDXRef-binary"
+    },
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-file-0"
+    },
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-file-1"
+    },
+    {
+      "spdxElementId": "SPDXRef-binary",
+      "relationshipType": "GENERATED_FROM",
+      "relatedSpdxElement": "SPDXRef-port"
+    },
+    {
+      "spdxElementId": "SPDXRef-file-0",
+      "relationshipType": "CONTAINED_BY",
+      "relatedSpdxElement": "SPDXRef-port"
+    },
+    {
+      "spdxElementId": "SPDXRef-file-1",
+      "relationshipType": "CONTAINED_BY",
+      "relatedSpdxElement": "SPDXRef-port"
+    }
+  ],
+  "packages": [
+    {
+      "name": "catch",
+      "SPDXID": "SPDXRef-port",
+      "versionInfo": "alias#1",
+      "downloadLocation": "git+https://github.com/microsoft/vcpkg@1f30153a939599e85b3098abf501d739f8ef88c2",
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "description": "Deprecated alias for Catch2 unit testing framework",
+      "comment": "This is the port (recipe) consumed by vcpkg."
+    },
+    {
+      "name": "catch:x64-linux",
+      "SPDXID": "SPDXRef-binary",
+      "versionInfo": "81b4dbd9bc7e6cc40d1440f28a7f84a1e7ce45c46d0b80ecded44675c7a2af88",
+      "downloadLocation": "NONE",
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "comment": "This is a binary package built by vcpkg."
+    }
+  ],
+  "files": [
+    {
+      "fileName": ".//home/aamad/.cache/vcpkg/registries/git-trees/1f30153a939599e85b3098abf501d739f8ef88c2/portfile.cmake",
+      "SPDXID": "SPDXRef-file-0",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "16471ec9a5c3dbec7727a062ac069ccbe805f3486de47296c62c92cf895d054c"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "fileName": ".//home/aamad/.cache/vcpkg/registries/git-trees/1f30153a939599e85b3098abf501d739f8ef88c2/vcpkg.json",
+      "SPDXID": "SPDXRef-file-1",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "c84610ff91bef30bab599eaab74c88aab9e9d82d617c80686f893d42d5d2720f"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    }
+  ]
+}

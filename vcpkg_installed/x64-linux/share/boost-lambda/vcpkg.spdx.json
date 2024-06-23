@@ -1,0 +1,110 @@
+{
+  "$schema": "https://raw.githubusercontent.com/spdx/spdx-spec/v2.2.1/schemas/spdx-schema.json",
+  "spdxVersion": "SPDX-2.2",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "documentNamespace": "https://spdx.org/spdxdocs/boost-lambda-x64-linux-1.84.0-65883ba8-ccf5-48a9-a094-f52001ac7b4c",
+  "name": "boost-lambda:x64-linux@1.84.0 8f8aaad45f2ae8b419b901207f461c222ca092f2dc0f0c9e1086c9921d48bc99",
+  "creationInfo": {
+    "creators": [
+      "Tool: vcpkg-2024-06-10-02590c430e4ed9215d27870138c2e579cc338772"
+    ],
+    "created": "2024-06-21T15:53:58Z"
+  },
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "GENERATES",
+      "relatedSpdxElement": "SPDXRef-binary"
+    },
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-file-0"
+    },
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-file-1"
+    },
+    {
+      "spdxElementId": "SPDXRef-binary",
+      "relationshipType": "GENERATED_FROM",
+      "relatedSpdxElement": "SPDXRef-port"
+    },
+    {
+      "spdxElementId": "SPDXRef-file-0",
+      "relationshipType": "CONTAINED_BY",
+      "relatedSpdxElement": "SPDXRef-port"
+    },
+    {
+      "spdxElementId": "SPDXRef-file-1",
+      "relationshipType": "CONTAINED_BY",
+      "relatedSpdxElement": "SPDXRef-port"
+    }
+  ],
+  "packages": [
+    {
+      "name": "boost-lambda",
+      "SPDXID": "SPDXRef-port",
+      "versionInfo": "1.84.0",
+      "downloadLocation": "git+https://github.com/microsoft/vcpkg@43da545cb3f4c5f999a69afa8588efded1489161",
+      "homepage": "https://github.com/boostorg/lambda",
+      "licenseConcluded": "BSL-1.0",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "description": "Boost lambda module",
+      "comment": "This is the port (recipe) consumed by vcpkg."
+    },
+    {
+      "name": "boost-lambda:x64-linux",
+      "SPDXID": "SPDXRef-binary",
+      "versionInfo": "8f8aaad45f2ae8b419b901207f461c222ca092f2dc0f0c9e1086c9921d48bc99",
+      "downloadLocation": "NONE",
+      "licenseConcluded": "BSL-1.0",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "comment": "This is a binary package built by vcpkg."
+    },
+    {
+      "SPDXID": "SPDXRef-resource-1",
+      "name": "boostorg/lambda",
+      "downloadLocation": "git+https://github.com/boostorg/lambda@boost-1.84.0",
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "checksums": [
+        {
+          "algorithm": "SHA512",
+          "checksumValue": "0cfd5465b8f18a67155936273bc5488c19543b12e54f6e7975bb7d769a9909f2359b9cdf24d5aa459ef9ff64f367ca26799f175ce16dbf7544c5871cdea1b1f9"
+        }
+      ]
+    }
+  ],
+  "files": [
+    {
+      "fileName": ".//home/aamad/.cache/vcpkg/registries/git-trees/43da545cb3f4c5f999a69afa8588efded1489161/portfile.cmake",
+      "SPDXID": "SPDXRef-file-0",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "74cb8bcb0734d3b2f4020eeda2e7614881f161c8231fea4162649afb53d5f655"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "fileName": ".//home/aamad/.cache/vcpkg/registries/git-trees/43da545cb3f4c5f999a69afa8588efded1489161/vcpkg.json",
+      "SPDXID": "SPDXRef-file-1",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "1672f8834e855fd73081e4267beb547472dba5ae207cd0f2213c0a17e35b0797"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    }
+  ]
+}

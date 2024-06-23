@@ -1,0 +1,110 @@
+{
+  "$schema": "https://raw.githubusercontent.com/spdx/spdx-spec/v2.2.1/schemas/spdx-schema.json",
+  "spdxVersion": "SPDX-2.2",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "documentNamespace": "https://spdx.org/spdxdocs/boost-xpressive-x64-linux-1.84.0-8f614d7c-7b66-4604-9268-bdcd0eb15592",
+  "name": "boost-xpressive:x64-linux@1.84.0 69ac2a23bf5d7a608316105ccc19869bd8167e17ec1656e739e985c03b1b3515",
+  "creationInfo": {
+    "creators": [
+      "Tool: vcpkg-2024-06-10-02590c430e4ed9215d27870138c2e579cc338772"
+    ],
+    "created": "2024-06-21T15:53:30Z"
+  },
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "GENERATES",
+      "relatedSpdxElement": "SPDXRef-binary"
+    },
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-file-0"
+    },
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-file-1"
+    },
+    {
+      "spdxElementId": "SPDXRef-binary",
+      "relationshipType": "GENERATED_FROM",
+      "relatedSpdxElement": "SPDXRef-port"
+    },
+    {
+      "spdxElementId": "SPDXRef-file-0",
+      "relationshipType": "CONTAINED_BY",
+      "relatedSpdxElement": "SPDXRef-port"
+    },
+    {
+      "spdxElementId": "SPDXRef-file-1",
+      "relationshipType": "CONTAINED_BY",
+      "relatedSpdxElement": "SPDXRef-port"
+    }
+  ],
+  "packages": [
+    {
+      "name": "boost-xpressive",
+      "SPDXID": "SPDXRef-port",
+      "versionInfo": "1.84.0",
+      "downloadLocation": "git+https://github.com/microsoft/vcpkg@44168cef786140f27bd0efd38d258a3894cea3c2",
+      "homepage": "https://github.com/boostorg/xpressive",
+      "licenseConcluded": "BSL-1.0",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "description": "Boost xpressive module",
+      "comment": "This is the port (recipe) consumed by vcpkg."
+    },
+    {
+      "name": "boost-xpressive:x64-linux",
+      "SPDXID": "SPDXRef-binary",
+      "versionInfo": "69ac2a23bf5d7a608316105ccc19869bd8167e17ec1656e739e985c03b1b3515",
+      "downloadLocation": "NONE",
+      "licenseConcluded": "BSL-1.0",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "comment": "This is a binary package built by vcpkg."
+    },
+    {
+      "SPDXID": "SPDXRef-resource-1",
+      "name": "boostorg/xpressive",
+      "downloadLocation": "git+https://github.com/boostorg/xpressive@boost-1.84.0",
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "checksums": [
+        {
+          "algorithm": "SHA512",
+          "checksumValue": "6eeb0d9bad40b115f74b1dd527288b26ef21b172f24aabd9abdfca2dca1d21bfd302ea3df0b2c9b28bab117faa6b4268df64b1aa7efec5a9181b1a5219dea063"
+        }
+      ]
+    }
+  ],
+  "files": [
+    {
+      "fileName": ".//home/aamad/.cache/vcpkg/registries/git-trees/44168cef786140f27bd0efd38d258a3894cea3c2/portfile.cmake",
+      "SPDXID": "SPDXRef-file-0",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "de00e736c59db4d23cea4dded6658b4762599359a85984d613256e2698ee7456"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "fileName": ".//home/aamad/.cache/vcpkg/registries/git-trees/44168cef786140f27bd0efd38d258a3894cea3c2/vcpkg.json",
+      "SPDXID": "SPDXRef-file-1",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "b93b27893e578caf3a093a4dfa70cbcddfbcafba7196e76c3b10083fe9048527"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    }
+  ]
+}

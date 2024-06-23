@@ -2408,10 +2408,10 @@ void dump_fluxes(std::vector<traj_base> &traj,config &config_,std::vector<center
 void make_MFD(jsoncons::json jconf,std::vector<traj_base> &traj,std::vector<centers_fcm_base> &centers_fcm)
 {
     std::cout << "Make MFD" << std::endl;
-    double lat_max_MFD = jconf.has_member("lat_max_MFD") ? jconf["lat_max_MFD"].as<double>() : 44.08189;
-    double lat_min_MFD = jconf.has_member("lat_min_MFD") ? jconf["lat_min_MFD"].as<double>() : 44.04698;
-    double lon_max_MFD = jconf.has_member("lon_max_MFD") ? jconf["lon_max_MFD"].as<double>() : 12.55489;
-    double lon_min_MFD = jconf.has_member("lon_min_MFD") ? jconf["lon_min_MFD"].as<double>() : 12.61257;
+    double lat_max_MFD = jconf.contains("lat_max_MFD") ? jconf["lat_max_MFD"].as<double>() : 44.08189;
+    double lat_min_MFD = jconf.contains("lat_min_MFD") ? jconf["lat_min_MFD"].as<double>() : 44.04698;
+    double lon_max_MFD = jconf.contains("lon_max_MFD") ? jconf["lon_max_MFD"].as<double>() : 12.55489;
+    double lon_min_MFD = jconf.contains("lon_min_MFD") ? jconf["lon_min_MFD"].as<double>() : 12.61257;
 
     // initialize MFD_collector
     std::map<int, std::map<int, std::vector<std::pair<double, int>>>> MFD_collection;

@@ -1,0 +1,110 @@
+{
+  "$schema": "https://raw.githubusercontent.com/spdx/spdx-spec/v2.2.1/schemas/spdx-schema.json",
+  "spdxVersion": "SPDX-2.2",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "documentNamespace": "https://spdx.org/spdxdocs/physycom-utils-x64-linux-1.0.0#2-72cec4bf-6469-49d4-a711-eeebe2bdfd9e",
+  "name": "physycom-utils:x64-linux@1.0.0#2 3e8071db8c274f9279068dd6b8528304cc1a8f704100f9ffd5529cb438abbf05",
+  "creationInfo": {
+    "creators": [
+      "Tool: vcpkg-2024-06-10-02590c430e4ed9215d27870138c2e579cc338772"
+    ],
+    "created": "2024-06-21T15:55:21Z"
+  },
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "GENERATES",
+      "relatedSpdxElement": "SPDXRef-binary"
+    },
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-file-0"
+    },
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-file-1"
+    },
+    {
+      "spdxElementId": "SPDXRef-binary",
+      "relationshipType": "GENERATED_FROM",
+      "relatedSpdxElement": "SPDXRef-port"
+    },
+    {
+      "spdxElementId": "SPDXRef-file-0",
+      "relationshipType": "CONTAINED_BY",
+      "relatedSpdxElement": "SPDXRef-port"
+    },
+    {
+      "spdxElementId": "SPDXRef-file-1",
+      "relationshipType": "CONTAINED_BY",
+      "relatedSpdxElement": "SPDXRef-port"
+    }
+  ],
+  "packages": [
+    {
+      "name": "physycom-utils",
+      "SPDXID": "SPDXRef-port",
+      "versionInfo": "1.0.0#2",
+      "downloadLocation": "git+https://github.com/physycom/vcpkg-registry@904715f44272afad7b686c38e3d5afad40f38e3d",
+      "homepage": "https://github.com/physycom/utils",
+      "licenseConcluded": "BSL-1.0",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "description": "A collection of ready to use, very fast and easy to learn template libraries.",
+      "comment": "This is the port (recipe) consumed by vcpkg."
+    },
+    {
+      "name": "physycom-utils:x64-linux",
+      "SPDXID": "SPDXRef-binary",
+      "versionInfo": "3e8071db8c274f9279068dd6b8528304cc1a8f704100f9ffd5529cb438abbf05",
+      "downloadLocation": "NONE",
+      "licenseConcluded": "BSL-1.0",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "comment": "This is a binary package built by vcpkg."
+    },
+    {
+      "SPDXID": "SPDXRef-resource-1",
+      "name": "physycom/utils",
+      "downloadLocation": "git+https://github.com/physycom/utils@6e31b4ec885e2204cb43c5b4854dbc1d06176b51",
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "checksums": [
+        {
+          "algorithm": "SHA512",
+          "checksumValue": "73fc209f91ea29458efbf6a673ff69ac21d5af09769d8598b3b03ccfd8043572951f25b090ef1dcd470f8e15565f6b93078e0b7448f92d176744c18ff748d1f1"
+        }
+      ]
+    }
+  ],
+  "files": [
+    {
+      "fileName": ".//home/aamad/.cache/vcpkg/registries/git-trees/904715f44272afad7b686c38e3d5afad40f38e3d/portfile.cmake",
+      "SPDXID": "SPDXRef-file-0",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "b46dcb2fbe59408c397121de39ad7d1e482abcb7e1003ca8cf4ae478bf2786e1"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "fileName": ".//home/aamad/.cache/vcpkg/registries/git-trees/904715f44272afad7b686c38e3d5afad40f38e3d/vcpkg.json",
+      "SPDXID": "SPDXRef-file-1",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "1ca300a10d3987868ac3e44f5d7b6336b57d2531be315e824a93094501767493"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    }
+  ]
+}

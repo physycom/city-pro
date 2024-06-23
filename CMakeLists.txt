@@ -14,6 +14,8 @@ if(DEFINED ENV{VCPKG_ROOT} AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
   message(STATUS "VCPKG found: $ENV{VCPKG_ROOT}")
   message(STATUS "Using VCPKG integration")
   set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
+  # Adds the vcpkg installed packages to the search path
+  include("$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake")
   if(VCPKG_MANIFEST_FEATURES)
     message(STATUS "VCPKG_MANIFEST_FEATURES: ${VCPKG_MANIFEST_FEATURES}")
   endif()
@@ -79,8 +81,14 @@ endif()
 find_library(LIBRT rt)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 # JSONCONS with ./vcpkg install jsoncons
-set(CMAKE_PREFIX_PATH  "$ENV{VCPKG_ROOT}/installed/")
-
+if(DEFINED ENV{VCPKG_DEFAULT_TRIPLET})
+  set(JSONCONS_PATH "$ENV{VCPKG_ROOT}/packages/jsoncons_$ENV{VCPKG_DEFAULT_TRIPLET}/include")
+  set(PHYSYCOM_UTILS_PATH "$ENV{VCPKG_ROOT}/packages/physycom-utils_$ENV{VCPKG_DEFAULT_TRIPLET}/include")
+  include_directories(${JSONCONS_PATH})
+  include_directories(${PHYSYCOM_UTILS_PATH})
+  message(STATUS "Using jsoncons from ${JSONCONS_PATH}")
+  message(STATUS "Using physycom-utils from ${PHYSYCOM_UTILS_PATH}")
+endif()
 find_package(Threads REQUIRED)
 find_package(FLTK CONFIG REQUIRED)
 find_package(Boost COMPONENTS filesystem REQUIRED)
@@ -118,7 +126,6 @@ add_library(city-pro_lib ${CMAKE_SOURCE_DIR}/source/carto.cpp
 )
 
 target_link_libraries(city-pro_lib
-  jsoncons::jsoncons
   OpenGL::GL
   OpenGL::GLU
   fltk fltk_gl fltk_forms fltk_images
@@ -129,11 +136,17 @@ target_link_libraries(city-pro_lib
   Physycom::utils
 )
 add_executable(city-pro             ${CMAKE_SOURCE_DIR}/source/main_city-pro.cpp)
+target_include_directories(city-pro PRIVATE "${JSONCONS_PATH}")
+target_include_directories(city-pro PRIVATE "${PHYSYCOM_UTILS_PATH}")
 target_link_libraries(city-pro      city-pro_lib)
 
 add_executable(city-pro_subnet           ${CMAKE_SOURCE_DIR}/source/main_city-pro_subnet.cpp)
+target_include_directories(city-pro_subnet PRIVATE "${JSONCONS_PATH}")
+target_include_directories(city-pro_subnet PRIVATE "${PHYSYCOM_UTILS_PATH}")
+
 target_link_libraries(city-pro_subnet    
-                      city-pro_lib)
+                      city-pro_lib
+                      )
 
 set_property(TARGET city-pro_lib PROPERTY CXX_STANDARD 14)
 set_property(TARGET city-pro PROPERTY CXX_STANDARD 14)
@@ -148,7 +161,7 @@ set_property(TARGET city-pro_subnet PROPERTY CXX_STANDARD 14)
 #set_tests_properties(my_app_valgrind_test PROPERTIES LABELS valgrind)# Add linking dependencies
 
 
-pybind11_add_module(pycitypro ${CMAKE_CURRENT_LIST_DIR}/source/python_interface.cpp)
+#pybind11_add_module(pycitypro ${CMAKE_CURRENT_LIST_DIR}/source/python_interface.cpp)
 
 if(LIBRT)
   target_link_libraries(city-pro ${LIBRT})

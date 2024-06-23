@@ -7,7 +7,7 @@ except:
 from scipy.special import gamma
 from scipy.optimize import curve_fit,minimize
 from scipy import stats
-from scipy.stats import powerlaw as pl
+from scipy.stats import powerlaw as plw
 import numpy as np
 
 # FUCNTIONS FOR FITTING
@@ -158,7 +158,7 @@ def Fitting(x,y_measured,label = 'powerlaw',initial_guess = (6000,0.3),maxfev = 
         USAGE:
 
     '''
-    if len(interval)==0:
+    if len(interval)!=0:
         x = np.array([x[i] for i in range(len(x)) if x[i] >= interval[0] and x[i] <= interval[1]])
         y_measured = np.array([y_measured[i] for i in range(len(x)) if x[i] >= interval[0] and x[i] <= interval[1]])
     else:
@@ -167,8 +167,8 @@ def Fitting(x,y_measured,label = 'powerlaw',initial_guess = (6000,0.3),maxfev = 
         assert len(x) == len(y_measured), "x and y_measured must have the same length"
     print('Fitting {}'.format(label))
     result_powerlaw = minimize(Name2LossFunction[label], initial_guess, args = (x, y_measured))#,maxfev = maxfev
-    optimal_params_pl = result_powerlaw.x
-    fit = curve_fit(Name2Function[label], xdata = x, ydata = y_measured,p0 = list(optimal_params_pl),maxfev = maxfev)
+    optimal_params_plw = result_powerlaw.x
+    fit = curve_fit(Name2Function[label], xdata = x, ydata = y_measured,p0 = list(optimal_params_plw),maxfev = maxfev)
     print(fit)
     print('{} fit: '.format(label),fit[0][0],' ',fit[0][1])
     print('Convergence fit {}: '.format(label),result_powerlaw.success)
@@ -190,7 +190,7 @@ def FitAndStdError(x,y_measured,label,initial_guess,maxfev = 10000,interval = []
     StdError = np.sqrt(np.sum((np.array(y_measured) - np.array(FittedData))**2))/SqrtN
     return fit,StdError
 
-def FitAndPlot(x,y_measured,DictInitialGuess,Feature):
+def FitAndPlot(x,y_measured,DictInitialGuess,Feature,InfoFit,DictFittedData):
     """
         Input:
             x: np.array -> x-axis
@@ -211,24 +211,28 @@ def FitAndPlot(x,y_measured,DictInitialGuess,Feature):
                                             {"initial_guess":[6000,0.3],"interval":[0,100]},
                                         "linear":
                                             {"initial_guess":[6000,0.3],"interval":[0,100]}}
+        NOTE: The Function will update InfoFit and DictFittedData each time a new Feature is fitted
+        NOTE: This fact is embedded in the Usage
     """
-    assert  len(ListLabel) == len(ListInitialGuess) == len(ListMaxFev), "Lists must have the same length"
-    InfoFit =  {Function2Fit: {Feature:{"fit":None,"StdError":None} for Feature in DictInitialGuess[Function2Fit].keys()} for Function2Fit in DictInitialGuess.keys()}
-    DictFittedData = {Feature: {"best_fit":[], "fitted_data":[]} for Feature in list(DictInitialGuess.keys())[0]}
+    print("Fit and Plot:")
     for Function2Fit in DictInitialGuess.keys():
-        InfoFit[Function2Fit][Feature]['fit'],InfoFit[Function2Fit][Feature]['StdError'] = FitAndStdError(x,y_measured,label,tuple(DictInitialGuess[Function2Fit][Feature]["initial_guess"]),10000,DictInitialGuess[Function2Fit][Feature]["interval"])
-        if len(fit[0]) == 2:
-            A = fit[0][0]
-            b = fit[0][1]
-        else:
-            raise ValueError("Fit Of more than 2 parameters need to be handled separately")
+        print('Fitting Function {}'.format(Function2Fit))
+        print('Feature {}'.format(Feature))
+        if Feature in DictInitialGuess[Function2Fit].keys():
+            InfoFit[Function2Fit][Feature]['fit'],InfoFit[Function2Fit][Feature]['StdError'] = FitAndStdError(x,y_measured,Function2Fit,tuple(DictInitialGuess[Function2Fit][Feature]["initial_guess"]),10000,DictInitialGuess[Function2Fit][Feature]["interval"])
+            print("InfoFit After Fitting:\n",InfoFit)
     for Function2Fit in DictInitialGuess.keys():
         InfError = 10000000000
         BestFit = None        
-        for Feature in DictInitialGuess[Function2Fit].keys():
-            if InfoFit[Feature]['StdError'] < InfError:
-                InfError = InfoFit[Feature]['StdError']
-                BestFit = Feature
+        if Feature in DictInitialGuess[Function2Fit].keys(): 
+            Error = InfoFit[Function2Fit][Feature]['StdError']
+            if Error is not None:
+                if InfoFit[Function2Fit][Feature]['StdError'] < InfError:
+                    InfError = InfoFit[Function2Fit][Feature]['StdError']
+                    BestFit = Feature
+            else:
+                print("The Case with Feature {0} and Function {1} has Nan Error".format(Feature,Function2Fit))
+    if Feature in DictInitialGuess[Function2Fit].keys():
         DictFittedData[Feature]["best_fit"] = BestFit
         DictFittedData[Feature]["fitted_data"] = Name2Function[BestFit](x,A,b)
     return InfoFit,DictFittedData

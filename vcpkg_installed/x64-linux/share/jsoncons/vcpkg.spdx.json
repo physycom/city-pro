@@ -1,0 +1,110 @@
+{
+  "$schema": "https://raw.githubusercontent.com/spdx/spdx-spec/v2.2.1/schemas/spdx-schema.json",
+  "spdxVersion": "SPDX-2.2",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "documentNamespace": "https://spdx.org/spdxdocs/jsoncons-x64-linux-0.173.4-9fe05300-501f-446c-97f5-1722e66715b1",
+  "name": "jsoncons:x64-linux@0.173.4 84e6b19ed8aed5523fcb45911d16e147755a48f69ab16dacfafe882f0c4d12f4",
+  "creationInfo": {
+    "creators": [
+      "Tool: vcpkg-2024-06-10-02590c430e4ed9215d27870138c2e579cc338772"
+    ],
+    "created": "2024-06-21T15:55:10Z"
+  },
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "GENERATES",
+      "relatedSpdxElement": "SPDXRef-binary"
+    },
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-file-0"
+    },
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-file-1"
+    },
+    {
+      "spdxElementId": "SPDXRef-binary",
+      "relationshipType": "GENERATED_FROM",
+      "relatedSpdxElement": "SPDXRef-port"
+    },
+    {
+      "spdxElementId": "SPDXRef-file-0",
+      "relationshipType": "CONTAINED_BY",
+      "relatedSpdxElement": "SPDXRef-port"
+    },
+    {
+      "spdxElementId": "SPDXRef-file-1",
+      "relationshipType": "CONTAINED_BY",
+      "relatedSpdxElement": "SPDXRef-port"
+    }
+  ],
+  "packages": [
+    {
+      "name": "jsoncons",
+      "SPDXID": "SPDXRef-port",
+      "versionInfo": "0.173.4",
+      "downloadLocation": "git+https://github.com/microsoft/vcpkg@67af9fd33f09c21ff9f5a6de4e28a558542114a7",
+      "homepage": "https://github.com/danielaparker/jsoncons",
+      "licenseConcluded": "BSL-1.0",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "description": "A C++, header-only library for constructing JSON and JSON-like text and binary data formats, with JSON Pointer, JSON Patch, JSON Schema, JSONPath, JMESPath, CSV, MessagePack, CBOR, BSON, UBJSON",
+      "comment": "This is the port (recipe) consumed by vcpkg."
+    },
+    {
+      "name": "jsoncons:x64-linux",
+      "SPDXID": "SPDXRef-binary",
+      "versionInfo": "84e6b19ed8aed5523fcb45911d16e147755a48f69ab16dacfafe882f0c4d12f4",
+      "downloadLocation": "NONE",
+      "licenseConcluded": "BSL-1.0",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "comment": "This is a binary package built by vcpkg."
+    },
+    {
+      "SPDXID": "SPDXRef-resource-1",
+      "name": "danielaparker/jsoncons",
+      "downloadLocation": "git+https://github.com/danielaparker/jsoncons@v0.173.4",
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "checksums": [
+        {
+          "algorithm": "SHA512",
+          "checksumValue": "e876d2596ea2d8aff5c1131c27936ddacc03828880cc680ba1b301629557c690332f0a48889af931c2629a984f17e3318e3e025a15a8b823ac9c4b9523dcaf8e"
+        }
+      ]
+    }
+  ],
+  "files": [
+    {
+      "fileName": ".//home/aamad/.cache/vcpkg/registries/git-trees/67af9fd33f09c21ff9f5a6de4e28a558542114a7/portfile.cmake",
+      "SPDXID": "SPDXRef-file-0",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "a0dd94edfe234e21a6ab00ee92cfc1718c6301404a9a7a2250447fee449ae35b"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "fileName": ".//home/aamad/.cache/vcpkg/registries/git-trees/67af9fd33f09c21ff9f5a6de4e28a558542114a7/vcpkg.json",
+      "SPDXID": "SPDXRef-file-1",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "c70476e913640ceba321aed6283054eb7e6bc7cc820619df074ae0e56bb869da"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    }
+  ]
+}
