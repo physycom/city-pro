@@ -1444,24 +1444,25 @@ void make_polygons_analysis(config &config_,std::vector<centers_fcm_base> &cente
     return;
 }
 //----------------------------------------------------------------------------------------------------
-/*
-make_multimodality description:
-Input:
-    traj: vector of traj_base (contains informations useful in input:
-                                    - average_inst_speed,v_min,v_max,sinuosity 
-                                informations about output:
-                                    - means_class (int of the class the trajectory belongs to), means_p (vector float of probability size of num_classes = config.num_tm) )
-    config: Configuration file
-    centers_fcm: vector of size num_classes = config.num_tm
-Description:
-
-Goal:
-    Assign each traj the values of means_class (According to the Fuzzy kmean) and means_p
-    
-NOTE:
-IMPORTANT -> The classes are in order of velcoity in cw (vector of centers_fcm) from the slowest to quickest .
-It is important as going on with the algorithm, you clusterize the network by the distinction of the trajectories and order will
-remain. 
+/**
+*   @brief make_multimodality description: Uses the FCM algorithm to clusterize the trajectories.
+*    Assigns to each traj the values of 'means_class' (According to the Fuzzy kmean) and 'means_p' (probability of belonging to the assigned class)
+*
+*    @param traj: vector of traj_base (contains informations useful in input:
+*                                    - average_inst_speed,v_min,v_max,sinuosity 
+*                                informations about output:
+*                                    - means_class (int of the class the trajectory belongs to), means_p (vector float of probability size of num_classes = config.num_tm) )
+*    @param config: Configuration file
+*    @param centers_fcm: vector of size num_classes = config.num_tm
+*   \details The algorithm creates a matrix 'features_data' [NumberOfTrajectories x NumberOfFeatures]. 
+*
+*
+*    
+*    
+*   NOTE:
+*   IMPORTANT -> The classes are in order of velcoity in cw (vector of centers_fcm) from the slowest to quickest .
+*   It is important as going on with the algorithm, you clusterize the network by the distinction of the trajectories and order will
+*   remain. 
 */
 void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector<centers_fcm_base> &centers_fcm)
 {
@@ -1683,8 +1684,6 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
                 for(auto &p:traj[n].p_cluster){
                     p = p/total_prob_with_all_classes;
                 }
-//              DEBUG probability normalized: CHECK
-//                std::cout << "Probability all classes: " << total_prob_with_all_classes << std::endl;
 
                 idx_2fcm++; 
             }
@@ -1692,9 +1691,6 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
                 traj[n].p_cluster.insert(it,0.0);
             }
 
-//        for (auto &p : traj[n].p_cluster){
-//            std::cout <<"Prob Associated: "<< p << std::endl;
-//        }
 
         }
 
@@ -1706,7 +1702,6 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
             int index_cluster = 0;
             int index_chosen = 0;
             // DA CONTROLLARE !!!!!!!! CHECK
-//            std::cout << "Trajectory number: " << n << std::endl;
             if(traj[n].means_class!=10 || traj[n].means_class!=11){        
                 for(auto p: traj[n].p_cluster){
                     if(p>max_probability){
@@ -1719,43 +1714,6 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
                 traj[n].means_class = index_chosen;
                 traj[n].means_p = max_probability;
             }
-//              DEBUG
-//            std::cout << "Velocity: " << traj[n].average_speed << std::endl;
-//            std::cout << "Class: " << traj[n].means_class << std::endl;
-//            std::cout << "control output before pressing a key to go on: " << std::endl;
-//            int number;
-//            std::cin >> number;
-
-/*
-            if (traj[n].means_class == slow_id2)
-            {  
-                traj[n].p_cluster[slow_id2] = (*(fcm2->get_membership()))(idx_2fcm, slow_id2);
-                //traj[n].p_cluster.push_back((*(fcm2->get_membership()))(idx_2fcm, medium_id2));
-                if ((*(fcm2->get_membership()))(idx_2fcm, slow_id2) > (*(fcm2->get_membership()))(idx_2fcm,medium_id2))
-                {
-                    traj[n].means_class = fcm2->get_reordered_map_centers_value(slow_id2);
-                    traj[n].means_p = traj[n].p_cluster[fcm2->get_reordered_map_centers_value(slow_id2)];
-                   out_fcm2 << " chosen class: " << traj[n].means_class << " probability: " << traj[n].means_p << " velocity: " << centers_fcm[traj[n].means_class].feat_vector[0] <<std::endl;
-                }
-                else
-                {
-//                    traj[n].means_class = num_tm;
-//                    traj[n].means_p = traj[n].p_cluster[num_tm];
-                    traj[n].means_class = fcm2->get_reordered_map_centers_value(medium_id2);
-                    traj[n].means_p = traj[n].p_cluster[fcm2->get_reordered_map_centers_value(medium_id2)];
-                   out_fcm2 << " chosen class: " << traj[n].means_class << " probability: " << traj[n].means_p << " velocity: " << centers_fcm[traj[n].means_class].feat_vector[0] <<std::endl;
-
-                }
-                idx_2fcm++;
-            }
-//ADDED ALBI ORDERING CENTERS_FCM
-            else{   
-                traj[n].means_class += 1;
-                traj[n].means_p = traj[n].p_cluster[traj[n].means_class];
-               out_fcm2 << " chosen class: " << traj[n].means_class << " probability: " << traj[n].means_p << " velocity: " << centers_fcm[traj[n].means_class].feat_vector[0] <<std::endl;
-            }
-//ADDED ALBI ORDERING CENTERS_FCM
-*/
             out_fcm2<< " trajectory number: "<< n <<std::endl;
             for(auto &p:traj[n].p_cluster){
                 out_fcm2 << p << ";";
@@ -1832,7 +1790,7 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
 // ALBI
 
 /**
- * Calculates the intersection of two vectors v1 and v2 and stores the result in vector v3.
+ * @brief Calculates the intersection of two vectors v1 and v2 and stores the result in vector v3.
  *
  * @param v1 the first vector
  * @param v2 the second vector
@@ -1884,15 +1842,31 @@ void subnet_complementary(std::vector<int> v1, std::vector<int> intersection, st
         }
     }
 }
-/* Description selecttraj_from_vectorpolysubnet_velsubnet:
-* Generates a vector of trajectories that are contained by the subnet whose label is save_label 
+/**  @brief compute_velocity_and_time_percorrence:
+*    @param poly_subnet: vector of integers representing the subnet
+*    @param poly: vector of integers representing all the road network
+*    @param traj: vector of trajectories
+*    @param label_save: string for saving the subnet velocity and time percorrence
+*   NOTE: Complementary to assign_new_class where traj.new_class_means is associated according to the number of times the trajectory is found in subnet of index new_class_means
+*   NOTE: Here I count the trajectories that pass through the subnet
+*   NOTE: Launched for each different poly_subnet separately
+*    \details 
+*   Takes a subnet at a time (subnets80,hierarchically_selected_subnets) 
+*   Given the poly of the subnet
+*
+*
+*
+*   @return vector of trajectories that pass through the subnetwork
+*   @return _velocity_subnet.csv: file containing the average speed of the trajectories that pass through the
 */
 
-std::vector<traj_base> selecttraj_from_vectorpolysubnet_velsubnet(std::vector<int> poly_subnet, std::vector<traj_base> &traj, std::vector<poly_base> &poly, std::string label_save)
+std::vector<traj_base> compute_velocity_and_time_percorrence(std::vector<int> poly_subnet, std::vector<traj_base> &traj, std::vector<poly_base> &poly, std::string label_save)
 {
     std::cout << "case: " << label_save << " initial number of trajectories analyzed: " << traj.size() << " number of polies subnet: " << poly_subnet.size() << " total number polies: " << poly.size() << std::endl;
+    // bin time 
     int time_step = config_.bin_time * 60; // bin_time
     int num_bin = int((config_.end_time - config_.start_time) / time_step);
+    // Trajectories that are in the subnet
     std::vector<traj_base> traj_subnet;
     // INITIALIZE time2av_vel,time2velocities,time2timepercorrence {bin_0: 0.0, bin_1: 0.0, ...} , {bin_0: vector<double> 0., bin_1: vector<double> 0., ...} ,{bin_0: 0.0, bin_1: 0.0, ...} 
     for (auto pol : poly_subnet)
@@ -1907,8 +1881,9 @@ std::vector<traj_base> selecttraj_from_vectorpolysubnet_velsubnet(std::vector<in
     }
     // collect data of trajectories of interest
     std::cout << "number of recognized trajectories: " << traj_subnet.size() << std::endl;
+    // For each trajectory
     for (auto &t : traj)
-    {
+    {   // Polies the trajectory passes through
         std::vector<int> found_polies;
         for (auto &sp : t.path)
         { // for(auto &sp:t.stop_point){
@@ -1974,8 +1949,20 @@ std::vector<traj_base> selecttraj_from_vectorpolysubnet_velsubnet(std::vector<in
     velocity_subnet(poly_subnet, poly, time_step, num_bin, label_save);
     return traj_subnet;
 }
-/* Description velocity_subnet:
-
+/** @brief velocity_subnet: Generate the file _{save_label}velocity_subnet.csv
+*   @param poly_subnet: vector of integers representing the subnet
+*   @param poly: vector of integers representing all the road network
+*   @param time_step: time step (config.bin_time*60)
+*   @param num_bin: number of bins
+*   @param save_label: string for saving the subnet velocity and time percorrence
+*   \details
+*
+*
+*
+*
+*
+*
+*
 */
 
 void velocity_subnet(std::vector<int> poly_subnet, std::vector<poly_base> &poly, int time_step, int num_bin, std::string save_label)
@@ -2053,7 +2040,7 @@ std::vector<int> simplifies_c_intersect(std::map<std::string, std::vector<int>> 
     spaced_file_subnet_complete_intersection.close();
     std::vector<traj_base> traj_complete_intersection;
     std::string label_save = "complete_intersection_";
-    traj_complete_intersection = selecttraj_from_vectorpolysubnet_velsubnet(net_complete_intersection, traj, poly, label_save);
+    traj_complete_intersection = compute_velocity_and_time_percorrence(net_complete_intersection, traj, poly, label_save);
 
     return net_complete_intersection;
 }
@@ -2221,6 +2208,10 @@ void assign_new_class(std::vector<traj_base> &traj,std::map<std::string, std::ve
     newclassification.close();
 }
 
+/**
+*
+*   @brief simplifies_c_complement:
+ */
 std::map<std::string, std::vector<int>> simplifies_c_complement(std::map<std::string, std::vector<int>> subnets80,std::vector<traj_base> &traj,std::vector<poly_base> &poly)
 {
     std::cout << "Compute the complete complement" << std::endl;
@@ -2254,7 +2245,7 @@ std::map<std::string, std::vector<int>> simplifies_c_complement(std::map<std::st
         // Take the complete complementary and calculate the velocity of polies. (Look at the population and time of these data.)
         std::vector<traj_base> traj_complete_complement;
         std::string label_save = "complete_complement_" + k->first + "_";
-        traj_complete_complement = selecttraj_from_vectorpolysubnet_velsubnet(complete_complement[key1], traj, poly, label_save);
+        traj_complete_complement = compute_velocity_and_time_percorrence(complete_complement[key1], traj, poly, label_save);
         //      complete_complement[key1].clear();
     }
     return complete_complement;
@@ -2264,13 +2255,18 @@ std::map<std::string, std::vector<int>> simplifies_c_complement(std::map<std::st
 *    
 *    @param traj: vector of all trajectories (those initialized by make_traj)
 *    @param poly: vector of polies (those initialized by make_poly)
-*    @param subnets: map of subnets (those initialized by make_subnets) (load_subnets if already computed)
+*    @param subnets: map of subnets (those initialized by make_subnets) (load_subnets if already computed) in main_city-pro.cpp
 *   \details
+*    - Fill subnets80 with subnet[sub_80] 
+*    - Compute std::map<Class (0,1,..),vector<int> polies> 'hierarchically_selected_subnets' [Contains the subnetworks such that the lower velocity does not intersect with the higher velocity subnetworks]
+*    - Assign new_means_class to each trajectory following the principle of biggest presence in the hierarchically selected subnetworks (computing assign_new_class)  
+*    - Compute the velocity and time percorrence of the trajectories that live in the subnetworks (compute_velocity_and_time_percorrence)   
+*    
 *    
 *    
 *    ITERATED FOR EACH CLASS: fcm_centers.size()-1
-*    2- simplifies_c_intersect (a)-> subnet_intersecton (b)-> selecttraj_from_vectorpolysubnet_velsubnet (c)-> velocity_subnet
-*    3- simplifies_c_complement (a)-> subnet_complement (b)-> selecttraj_from_vectorpolysubnet_velsubnet (c)-> velocity_subnet
+*    2- simplifies_c_intersect (a)-> subnet_intersecton (b)-> compute_velocity_and_time_percorrence (c)-> velocity_subnet
+*    3- simplifies_c_complement (a)-> subnet_complement (b)-> compute_velocity_and_time_percorrence (c)-> velocity_subnet
 *
 *Output:
 *    1 (a) -> traj_of_interest (b)-> class_i_velocity_subnet.csv -- with i = [1,...,fcm_centers.size()-1] FORMAT {id_local;time;av_speed;time_percorrence}
@@ -2311,9 +2307,16 @@ void analysis_subnets(std::vector<traj_base> &traj,std::vector<poly_base> &poly,
     std::map<std::string,std::vector<int>> hierarchically_selected_subnets; 
     hierarchically_selected_subnets = hierarchical_deletion_of_intersection(subnets80);
     assign_new_class(traj,hierarchically_selected_subnets);
-    hierarchically_selected_subnets.clear();
     // VELOCITY TIME SUBNET FOR EACH CLASS
-    std::cout << "Print all subnets? " << config_.all_subnets_speed << " (1 = yes, 0 = no)" << std::endl;
+    for (auto &hssn : hierarchically_selected_subnets)
+    {
+        std::vector<traj_base> traj_of_interest;
+        std::string label_save = "class_" + hssn.first ;
+        traj_of_interest = compute_velocity_and_time_percorrence(hssn.second, traj, poly, label_save);
+        traj_of_interest.clear();
+    }
+    hierarchically_selected_subnets.clear();
+/*
     for (std::map<std::string, std::vector<int>>::iterator i = subnets.begin(); i != subnets.end(); ++i){
         std::vector<traj_base> traj_subnet_tmp;
         std::vector<std::string> tokens;
@@ -2331,7 +2334,7 @@ void analysis_subnets(std::vector<traj_base> &traj,std::vector<poly_base> &poly,
                     spaced_file_subnet << p << " ";
                 }
                 spaced_file_subnet.close(); 
-                traj_subnet_tmp = selecttraj_from_vectorpolysubnet_velsubnet(polies, traj, poly, "class_"+tokens[1]);
+                traj_subnet_tmp = compute_velocity_and_time_percorrence(polies, traj, poly, "class_"+tokens[1]);
 
             }
             else
@@ -2342,6 +2345,7 @@ void analysis_subnets(std::vector<traj_base> &traj,std::vector<poly_base> &poly,
 
         traj_subnet_tmp.clear();
     }
+    
     // COMPUTE INTERSECTION // PRODUCE VELOCITY AND TIME SUBNETS:
     if(config_.complete_intersection_speed==true){
         std::vector<int> total_intersection = simplifies_c_intersect(subnets80,traj,poly);
@@ -2352,7 +2356,7 @@ void analysis_subnets(std::vector<traj_base> &traj,std::vector<poly_base> &poly,
         std::map<std::string, std::vector<int>> total_complement = simplifies_c_complement(subnets80,traj,poly);
         total_complement.clear();
         }
-    
+*/    
 }
 /* Description dump_FD:
 */
