@@ -98,6 +98,7 @@ struct traj_base {
   double sinuosity;
   vector<double> p_cluster;
   int means_class;
+  int means_new_class;
   double means_p;
   std::map<int,int> class_countpoly;
   

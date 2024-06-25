@@ -109,6 +109,7 @@ def Main(config,StrDate):
     Network.ComputeMFDVariablesClass()
     # SAVE SUBNETS IN GEOJSON
     Network.CompleteGeoJsonWithClassInfo()
+    Network.CompareOld2NewClass()
     # TIMED FLUXES
     Network.ReadTimedFluxes()
     # PLOT SUBNETS
@@ -118,6 +119,7 @@ def Main(config,StrDate):
 #        Network.PlotTimePercorrenceHTML()     
     # FUNDAMENTAL DIAGRAM
     Network.ReadVelocitySubnet()
+    Network.PlotTimePercorrenceDistributionAllClasses()
     Network.PlotMFD()
     # HYSTERESIS DIAGRAM
     Network.ReadFluxes()
@@ -126,6 +128,26 @@ def Main(config,StrDate):
     Network.PlotDistrPerClass()
 ## +++++++++++++++ FITTING PROCEDURES +++++++++++++++++++++++++++++
     return Network
+def MainComparison(ListNetworkDays,PlotDirAggregated,verbose):
+    NetAllDays = NetworkAllDays(ListNetworkDays,PlotDirAggregated,verbose)
+    # Create Fcm for All -> Distribution lenght and time (Power law )
+    NetAllDays.ConcatenatePerClass()
+    # Create Fcm for All -> Distribution lenght and time (Exponential with all mixed Heterogeneous classes)
+    NetAllDays.ConcatenateAllFcms()
+    # All Days Plot Distribution Velocity Aggregated
+    NetAllDays.PlotDistributionAggregatedAllDays()
+    NetAllDays.PlotDistributionAggregatedAllDaysPerClass()
+    # Comparison of Distribution Time lenght (Among Days)
+    NetAllDays.PlotDistributionComparisonAllDays()
+    NetAllDays.PlotDistributionComparisonAllDaysPerClass()
+    # All Days Plot Distribution Velocity Comparison
+    NetAllDays.CreateClass2SubNetAllDays()
+    NetAllDays.PlotClass2SubNetAllDays()
+    NetAllDays.PlotClass2SubnetsComparisonAllDays()
+    # MFD All Days
+    NetAllDays.ComputeAggregatedMFDVariablesObj()
+    NetAllDays.PlotMFDAggreagated()
+
 if __name__ == "__main__":
     try:
         parser = argparse.ArgumentParser(description="Process configuration file.")
@@ -171,80 +193,9 @@ if __name__ == "__main__":
         for StrDate in StrDates:
             print("Initialiaze Mobility and Network for Date: " + StrDate)
             # Initialize Network
-            Network = DailyNetworkStats(config,StrDate)
-    ## +++++++++++++++++ INITIALIZE CLASSES +++++++++++++++++++++++++++
-            # Create Classes
-            Network.ReadFcmCenters()
-            # Create Dictionaries
-            Network.CreateDictionaryIntClass2StrClass()
-            Network.ReadFcm()
-            ## Classes associated to inclusion principle
-            Network.ReadFcmNew()
-            Network.AddFcmNew2Fcm()
-            # NOTE: Network.FcmCenters -> DataFrame ["class","av_speed","vmin","vmax","sinuosity","count"]
-            Network.ReadStats()
-            Network.GetIncreasinglyIncludedSubnets()
-            Network.ReadGeoJson()
-            Network.ReadFluxesSub()
-            Network.ComputeMFDVariablesClass()
-            # SAVE SUBNETS IN GEOJSON
-            Network.CompleteGeoJsonWithClassInfo()
-            # TIMED FLUXES
-            Network.ReadTimedFluxes()
-            # PLOT SUBNETS
-            Network.PlotSubnetHTML()
-            Network.PlotIncrementSubnetHTML()   
-#            Network.PlotFluxesHTML()
-#            Network.PlotTimePercorrenceHTML()     
-            # FUNDAMENTAL DIAGRAM
-            Network.ReadVelocitySubnet()
-            Network.PlotMFD()
-            # HYSTERESIS DIAGRAM
-            Network.ReadFluxes()
-    ## +++++++++++++++++ PLOT TRAJECTORIES STATS +++++++++++++++++++++++++++
-            Network.PlotDailySpeedDistr("Aggregated")
-            Network.PlotDistrPerClass()
-    ## +++++++++++++++ FITTING PROCEDURES +++++++++++++++++++++++++++++
-            if FittingAnalysis:
-                # ALL CLASSES
-                StartingGuessParametersPerLabel = Network.RetrieveGuessParametersPerLabel()
-                for label in Network.labels2FitNames2Try.keys():
-                    for FunctionName in Network.labels2FitNames2Try[label]:
-                        print("====== FITTING FUNCTION: ",Network.labels2FitNames2Try[label] ," quantity: {} ======".format(label))
-                        Network.FittingFunctionAllClasses(label,Network.labels2FitNames2Try[label],bins = 100)
-                # SUB CLASSES
-                StartingGuessParametersPerClassAndLabel = Network.RetrieveGuessParametersPerClassLabel()
-                for Class in Network.Classes:
-                    for label in Network.labels2FitNames2Try.keys():
-                        for FunctionName in Network.labels2FitNames2Try[label]:
-                            print("====== FITTING FUNCTION: " + label + " class {0} {1} ======".format(Class, label))
-                            Network.FittingFunctionSubClasses(Class,label,Network.labels2FitNames2Try[label],bins = 100)
-        ## ALL DAYS ANALYSIS
-
+            Network = Main(config,StrDate)        ## ALL DAYS ANALYSIS
             # Add to Lists to Give in Input for the All Days Analysis
             ListNetworkDays.append(Network)
     
-    if parallel:
-        Network = ListNetworkDays[0]
     # All Days Mobility Analysis
-    NetAllDays = NetworkAllDays(ListNetworkDays,Network.PlotDirAggregated,Network.verbose)
-    
-    # Create Fcm for All -> Distribution lenght and time (Power law )
-    NetAllDays.ConcatenatePerClass()
-    
-    # Create Fcm for All -> Distribution lenght and time (Exponential with all mixed Heterogeneous classes)
-    NetAllDays.ConcatenateAllFcms()
-    # All Days Plot Distribution Velocity Aggregated
-    NetAllDays.PlotDistributionAggregatedAllDays()
-    NetAllDays.PlotDistributionAggregatedAllDaysPerClass()
-    # Comparison of Distribution Time lenght (Among Days)
-    NetAllDays.PlotDistributionComparisonAllDays()
-    NetAllDays.PlotDistributionComparisonAllDaysPerClass()
-    # All Days Plot Distribution Velocity Comparison
-    NetAllDays.CreateClass2SubNetAllDays()
-    NetAllDays.PlotClass2SubNetAllDays()
-    NetAllDays.PlotClass2SubnetsComparisonAllDays()
-    # MFD All Days
-    NetAllDays.ComputeAggregatedMFDVariablesObj()
-    NetAllDays.PlotMFDAggreagated()
-
+    MainComparison(ListNetworkDays,Network.PlotDirAggregated,Network.verbose)

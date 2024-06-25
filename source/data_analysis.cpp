@@ -1846,13 +1846,13 @@ void subnet_intersection(std::vector<int> v1, std::vector<int> v2, std::vector<i
 }
 
 /**
- * Generates the complementary set of elements in v1 relative to the intersection set.
- *
  * @param v1 vector of integers to generate the complementary set from
  * @param intersection vector of integers representing the intersection set
  * @param v3 reference to a vector of integers to store the complementary set
- *
- * @return void
+ * \details Used with: v1 = starting_subnet, intersection = subnet_intersection_class,v3 = temporary_complement
+ * Generates the complementary set of the elements of intersection with respect to v1.
+ * Is the set in v1 that are not in intersection. Essentially for the usage in the algorithm; is the set of polies that are just in the lower class and not in the higher class.
+ * @return void: Creates v3 that contains the elements that are not in intersecion but are in v1
  *
  * @throws None
  */
@@ -1860,6 +1860,7 @@ void subnet_complementary(std::vector<int> v1, std::vector<int> intersection, st
 {
     std::sort(v1.begin(), v1.end());
     std::sort(intersection.begin(), intersection.end());
+    // For each element in v1, check if it is in the intersection set
     for (auto &e1 : v1)
     {
         bool found = false;
@@ -2056,48 +2057,55 @@ std::vector<int> simplifies_c_intersect(std::map<std::string, std::vector<int>> 
 
     return net_complete_intersection;
 }
-/* Description simplifies_c_complement:
-Input: 
-    - subnets80: map of subnets (those initialized by make_subnets) (load_subnets if already computed)
-    - traj: vector of all trajectories (those initialized by make_traj)
-    - poly: vector of polies (those initialized by make_poly)
-Output:
-    ITERATION FOR ALL CLASSES:
-    - complete_complement: vector of polies belonging just to the class i (i = [1,...,fcm_centers.size()-1])
-    - complete_complement_i_velocity_subnet.csv: velocity of polies belonging just to the class i (i = [1,...,fcm_centers.size()-1]) FORMAT {id_local;time;av_speed;time_percorrence} 
+/** Description simplifies_c_complement:
+*Input: 
+*    @param subnets80: map of subnets (those initialized by make_subnets) (load_subnets if already computed)
+*    @param traj: vector of all trajectories (those initialized by make_traj)
+*    @param poly: vector of polies (those initialized by make_poly)
+*Output:
+*    \details ITERATION FOR ALL CLASSES:
+*    - complete_complement: vector of polies belonging just to the class i (i = [1,...,fcm_centers.size()-1])
+*    - complete_complement_i_velocity_subnet.csv: velocity of polies belonging just to the class i (i = [1,...,fcm_centers.size()-1]) FORMAT {id_local;time;av_speed;time_percorrence} 
 */
 
-/*
+/**
 Description hierarchical_deletion_of_intersection: builds and save file.txt containing:
-    quickest subnet
-    second quickest subnet without the quickest
-    3 quickest without 1,2
-    and so on until the slowest subnet
-DESCRIPTION:
-    step1: for (std::map<std::string, std::vector<int>>::iterator i = subnets80.begin(); i != subnets80.end(); ++i)
-        I iterate from ordered subnets (vector of int) -> subnets80[0] = (poly00,...,polyn0) <slowest class> 
-    step2: for (std::map<std::string, std::vector<int>>::iterator j = subnets80.begin(); j != subnets80.end(); ++j)
-        I extract the intersection recursively obtaining the slowe
-        st subnet
+*    @brief Called by analysis_subnet: Returns a map of subnets that are hierarchically selected.
+*    @param subnets80: <IntClass,VectorIntPoly> map of subnets 
+*   \details 
+*   NOTE: Consider the subnet up to 3. The class 4 is not considered since empirically in data I have worked with contains too-quick trajectories.
+*   - Take iteratively each vector of polies of successive class in subnets80 'starting_subnet = i->second': Example (subnets80[0],...,subnets[1],...,Subnets[3],...)
+*   - Take iteratively each vector of polies of successive class in subnets80 that have bigger key 'j->second': Example (subnets80[1],subnets[2],subnets[3]/subnets[2],subnets[3]/subnets[3])
+*   - Compute intersection between 'starting_subnet' and 'j->second' and save it in 'subnet_intersection_class'
+*    - Compute the part of 'starting_subnet' that is not in 'subnet_intersection_class' and save it in 'temporary_complement'
+*    -Clear the intersection and temporary.
+*    In this way I obtain the starting subnetwork that iteratively gets rid of the polies that are in the higher velocity classes.
+*    @return hierarchically_selected_subnets: <IntClass,VectorIntPoly> map of subnets that are hierarchically selected.
 */      
 
 
 std::map<std::string,std::vector<int>> hierarchical_deletion_of_intersection(std::map<std::string, std::vector<int>> subnets80){
     int idx_subnet2cut = 0;
     std::map<std::string,std::vector<int>> hierarchically_selected_subnets;
+    // Iterate over the lower velocity class
     for (std::map<std::string, std::vector<int>>::iterator i = subnets80.begin(); i != subnets80.end(); ++i){
-//        std::cout << "hierarchical intersection:\nclass: " << i->first << " size: " << i->second.size() << std::endl;
+        // Subnet to be cut
         std::vector<int> starting_subnet = i->second;
         int idx_subnet2compare = 0;
+        // Iterate over the higher velocity class
         for (std::map<std::string, std::vector<int>>::iterator j = subnets80.begin(); j != subnets80.end(); ++j)
             {
+            // Subnet intersection that changes for higher velocity and fixed lower velocity 
             std::vector<int> subnet_intersection_class;
-
+            // Control that we are comparing just lower velocity with higher velocity, and that do not consider indices over 3 NOTE: 4 Is put by hand since for the analysis I have made the class 4 contained trajectories that are too quick
             if (idx_subnet2cut<idx_subnet2compare && idx_subnet2cut<4){
                 std::vector<int> temporary_complement;
+                // Compute intersection and save it in subnet_intersection_class
                 subnet_intersection(starting_subnet, j->second, subnet_intersection_class); // update net_complete_intersection with the intersection of the successive class
+                // Compute the elements that are just in the starting subnet
                 subnet_complementary(starting_subnet, subnet_intersection_class, temporary_complement);
                 starting_subnet = temporary_complement;
+                // Clear so that iteratively I can extract the polies in the higher velocity classes from the low velocity class so that I am sure that low velocity is just low velocity.
                 subnet_intersection_class.clear();
                 temporary_complement.clear();
             }
@@ -2120,14 +2128,30 @@ std::map<std::string,std::vector<int>> hierarchical_deletion_of_intersection(std
     return hierarchically_selected_subnets;
 }
 
-/*
-assign_new_class: assign new class to trajectories that live in the subnet.
-Associates to the trajcetories that are of the slower classes the class that most represents them. 
-Hopefully, we find that the slower classes contain trajectories that actually are in the quickest part of the network
-This part of the code needs to be used to analyze the fondamental diagram. That now contains all the different classs.
+/**
+*   @brief assign_new_class: assign new class to trajectories that live in the subnet.
+*   Reassociates 'means_class' of each trajectory that are not classified to the quickest fcm class assigning 'means_new_class'. 
+*   Goal:  
+*   Finding those trajectories that are slow in the quickest part of the network
+*   This part of the code needs to be used to analyze the fondamental diagram. That now contains all the different classs
+*   NOTE: In Usage the class is associated already with the subnetworks already hierarchically filtered so that each subnet contains just those indices that are not of the higher velcotiy ones.
+*   \details  - Declare the vector that counts the number of points per class 'count_point_per_class'
+*             - Iterate of each class in 'subnets80'
+*               - Consider just the slower classes and not the last one that is the quickest according to the fcm classification
+*               - Get the integer id of the poly of the class subnet_index 
+*               - For each int id of the poly that belongs to the trajectory path (time,int_poly_id)
+*               -If the poly on path is in the subset
+*                    - Add the trajectory the count of the class
+*               - Find the class with the maximum count of points
+*               - Assign the new class to the trajectory
+*               - Initialize means_new_class
+*               - Write the new classification in the file 'fcm_new.csv'
+*   @param traj vector of trajectories
+*   @param poly vector of polies
+*   @param subnets80 map of subnets key: str -> class (0,1,..,fcm_centers.size()-1) [Class], value: vector<int> -> polies [Subset of subnetwork]
 */
 
-void assign_new_class(std::vector<traj_base> &traj,std::vector<poly_base> &poly,std::map<std::string, std::vector<int>> subnets80){
+void assign_new_class(std::vector<traj_base> &traj,std::map<std::string, std::vector<int>> subnets80){
     std::cout << "assign new class" << std::endl;
     ofstream newclassification(config_.cartout_basename + "/" + config_.name_pro + "_fcm_new.csv");
     newclassification <<"id_act;class";
@@ -2142,19 +2166,22 @@ void assign_new_class(std::vector<traj_base> &traj,std::vector<poly_base> &poly,
     
 
     for (auto &t : traj)
-    {            
+    {   // Declare the vector that counts the number of points per class         
         std::vector<int> count_point_per_class(subnets80.size(),0);
+        // Consider just the slower classes and not the last one that is the quickest according to the fcm classification
         if(t.means_class!=subnets80.size()-1){
             for (std::map<std::string, std::vector<int>>::iterator i = subnets80.begin(); i != subnets80.end(); ++i){
-                int subnet_index = std::stoi(i->first);        
+                int subnet_index = std::stoi(i->first);    
+                // Get the integer id of the poly of the class subnet_index    
                 std::vector<int> subnet_polies = i->second;
+                // For each int id of the poly that belongs to the trajectory path (time,int_poly_id)
                 for (auto &sp : t.path)
                 { // for(auto &sp:t.stop_point){
                     for (auto pol : subnet_polies)
                     {
                         if (sp.first == pol)
                         { 
-                            // add the trajectory that live in the subnet and their speed.
+                            // If the poly on path is in the subset add the trajectory the count of the class 
                             count_point_per_class[subnet_index] +=1;
                             break;
                         }
@@ -2171,6 +2198,7 @@ void assign_new_class(std::vector<traj_base> &traj,std::vector<poly_base> &poly,
                     index_class = i;
                 }
             }
+            t.means_new_class = index_class;
             newclassification << t.id_act << ";" << index_class;
             for(auto c:count_point_per_class){
                 newclassification << ";" << c;}
@@ -2178,6 +2206,7 @@ void assign_new_class(std::vector<traj_base> &traj,std::vector<poly_base> &poly,
             //TODO cicla per scrivere la frazione di strade per ogni classe
         }
         else{
+            t.means_new_class = t.means_class;
             newclassification << t.id_act << ";" << t.means_class;
             for(int c = 0;c <count_point_per_class.size();c++){
                 if(c==count_point_per_class.size()-1)
@@ -2185,7 +2214,7 @@ void assign_new_class(std::vector<traj_base> &traj,std::vector<poly_base> &poly,
                 else 
                     newclassification << ";" << 0;
                 }
-            newclassification << std::endl;
+            newclassification << std::endl; 
 
         }
     }
@@ -2230,25 +2259,26 @@ std::map<std::string, std::vector<int>> simplifies_c_complement(std::map<std::st
     }
     return complete_complement;
 }
-/* Description analysis_subnet:
-Input: 
-    - traj: vector of all trajectories (those initialized by make_traj)
-    - poly: vector of polies (those initialized by make_poly)
-    - subnets: map of subnets (those initialized by make_subnets) (load_subnets if already computed)
-
-Order calls:
-    1- config_["all_subnets_speed"] (a) -> selecttraj_from_vectorpolysubnet_velsubnet (b)-> velocity_subnet
-    ITERATED FOR EACH CLASS: fcm_centers.size()-1
-    2- simplifies_c_intersect (a)-> subnet_intersecton (b)-> selecttraj_from_vectorpolysubnet_velsubnet (c)-> velocity_subnet
-    3- simplifies_c_complement (a)-> subnet_complement (b)-> selecttraj_from_vectorpolysubnet_velsubnet (c)-> velocity_subnet
-
-Output:
-    1 (a) -> traj_of_interest (b)-> class_i_velocity_subnet.csv -- with i = [1,...,fcm_centers.size()-1] FORMAT {id_local;time;av_speed;time_percorrence}
-    ITERATED FOR EACH CLASS: fcm_centers.size()-1
-    2 (a) -> polies_of_interest (b) -> traj_of_interest (c)-> complete_intersection_velocity_subnet.csv 
-    3 (a) -> polies_of_interest(b) -> traj_of_interest (c)-> complete_complement_i_velocity_subnet.csv -- with i = [1,...,fcm_centers.size()-1] FORMAT {id_local;time;av_speed;time_percorrence}
-
-
+/**  Description analysis_subnet:
+*   @brief The code is responsible for the analysis of the subnets.
+*    
+*    @param traj: vector of all trajectories (those initialized by make_traj)
+*    @param poly: vector of polies (those initialized by make_poly)
+*    @param subnets: map of subnets (those initialized by make_subnets) (load_subnets if already computed)
+*   \details
+*    
+*    
+*    ITERATED FOR EACH CLASS: fcm_centers.size()-1
+*    2- simplifies_c_intersect (a)-> subnet_intersecton (b)-> selecttraj_from_vectorpolysubnet_velsubnet (c)-> velocity_subnet
+*    3- simplifies_c_complement (a)-> subnet_complement (b)-> selecttraj_from_vectorpolysubnet_velsubnet (c)-> velocity_subnet
+*
+*Output:
+*    1 (a) -> traj_of_interest (b)-> class_i_velocity_subnet.csv -- with i = [1,...,fcm_centers.size()-1] FORMAT {id_local;time;av_speed;time_percorrence}
+*    ITERATED FOR EACH CLASS: fcm_centers.size()-1
+*    2 (a) -> polies_of_interest (b) -> traj_of_interest (c)-> complete_intersection_velocity_subnet.csv 
+*    3 (a) -> polies_of_interest(b) -> traj_of_interest (c)-> complete_complement_i_velocity_subnet.csv -- with i = [1,...,fcm_centers.size()-1] FORMAT {id_local;time;av_speed;time_percorrence}
+*
+*
 */
 
 void analysis_subnets(std::vector<traj_base> &traj,std::vector<poly_base> &poly,map<string, vector<int>> &subnets)  
@@ -2280,7 +2310,7 @@ void analysis_subnets(std::vector<traj_base> &traj,std::vector<poly_base> &poly,
     // and so on ...
     std::map<std::string,std::vector<int>> hierarchically_selected_subnets; 
     hierarchically_selected_subnets = hierarchical_deletion_of_intersection(subnets80);
-    assign_new_class(traj,poly,hierarchically_selected_subnets);
+    assign_new_class(traj,hierarchically_selected_subnets);
     hierarchically_selected_subnets.clear();
     // VELOCITY TIME SUBNET FOR EACH CLASS
     std::cout << "Print all subnets? " << config_.all_subnets_speed << " (1 = yes, 0 = no)" << std::endl;
