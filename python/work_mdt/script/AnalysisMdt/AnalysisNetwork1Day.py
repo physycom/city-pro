@@ -55,8 +55,9 @@ def PlotTimePercorrenceDistribution(RoadsTimeVel,Time2Distr,AvgTimePercorrence,S
     """
     fig,ax = plt.subplots(1,1,figsize = (10,10))
     for time,RTV in RoadsTimeVel.groupby("start_bin"):
-        Time2Distr.append(RTV["time_percorrence"].to_list())
-        AvgTimePercorrence.append(np.mean(RTV["time_percorrence"]))
+        ValidTime = RTV.filter(pl.col("time_percorrence")>0).to_list()
+        Time2Distr.append(ValidTime)
+        AvgTimePercorrence.append(np.mean(ValidTime["time_percorrence"]))
         StartInterval = datetime.datetime.fromtimestamp(time)
         StrTimesLabel.append(StartInterval.strftime("%Y-%m-%d %H:%M:%S").split(" ")[1])
     ax.plot(StrTimesLabel, AvgTimePercorrence)
@@ -162,6 +163,10 @@ def ReturnFitInfoFromDict(Fcm,InitialGuess,DictFittedData,InfoFittedParameters,F
         json.dump(DictFittedData,f,cls=NumpyArrayEncoder,indent = 4)
 
     return InfoFittedParameters,DictFittedData
+
+def AddMessageToLog(Message,LogFile):
+    with open(LogFile,'a') as f:
+        f.write(Message+'\n')
 
 class DailyNetworkStats:
     '''
@@ -373,8 +378,17 @@ class DailyNetworkStats:
 
         # STATS about TRAJECTORIES
         self.Class2MaxCountSpeed = defaultdict(dict)
+        # LOG File
+        self.LogFile = os.path.join(self.PlotDir,"{0}.log".format(self.StrDate))
+        self.CountFunctionsCalled = 0
+        with open(self.LogFile,'w') as f:
+            f.write("Log File for {0}\n".format(self.StrDate))
 # --------------- Read Files ---------------- #
     def ReadTimedFluxes(self):
+        """
+            Read ../ouputdir/basename_date_date_timed_fluxes.csv
+        """
+        self.CountFunctionsCalled += 1
         if self.verbose:
             print("Reading timed_fluxes")
             print(self.DictDirInput["timed_fluxes"])
@@ -382,21 +396,37 @@ class DailyNetworkStats:
             self.TimedFluxes = pd.read_csv(self.DictDirInput["timed_fluxes"],delimiter = ';')
             self.TimedFluxes = pl.from_pandas(self.TimedFluxes)
             self.ReadTime2FluxesBool = True
+            Message = "{} Read Timed Fluxes: True".format(self.CountFunctionsCalled)
+            AddMessageToLog(Message,self.LogFile)
         else:   
+            Message = "{} Read Timed Fluxes: False".format(self.CountFunctionsCalled)
+            AddMessageToLog(Message,self.LogFile)
             print("No timed_fluxes")    
 
     def ReadFluxes(self):
+        """
+            Read ../ouputdir/weights/basename_date_date.fluxes
+        """
+        self.CountFunctionsCalled += 1
         if self.verbose:
             print("Reading fluxes")
             print(self.DictDirInput["fluxes"])
         if os.path.isfile(self.DictDirInput["fluxes"]):
             self.Fluxes = pd.read_csv(self.DictDirInput["fluxes"],delimiter = ';')
             self.Fluxes = pl.from_pandas(self.Fluxes)
-            self.ReadFluxesBool = True        
+            self.ReadFluxesBool = True     
+            Message = "{} Read Fluxes: True".format(self.CountFunctionsCalled)
+            AddMessageToLog(Message,self.LogFile)   
         else:
+            Message = "{} Read Fluxes: False".format(self.CountFunctionsCalled)
+            AddMessageToLog(Message,self.LogFile)
             print("No fluxes")    
 
     def ReadFcm(self):
+        """
+            Read ../ouputdir/basename_date_date_fcm.csv
+        """
+        self.CountFunctionsCalled += 1
         if self.verbose:
             print("Reading fcm")
             print(self.DictDirInput["fcm"])
@@ -407,12 +437,19 @@ class DailyNetworkStats:
             self.Fcm = self.Fcm.with_columns(pl.col("av_speed").apply(lambda x: ms2kmh(x), return_dtype=pl.Float64).alias("speed_kmh"))
             self.Fcm = self.Fcm.with_columns(pl.col("lenght").apply(lambda x: m2km(x), return_dtype=pl.Float64).alias("lenght_km"))
             self.Fcm = self.Fcm.with_columns(pl.col("time").apply(lambda x: s2h(x), return_dtype=pl.Float64).alias("time_hours"))
-
             self.ReadFcmBool = True
+            Message = "{} Read Fcm: True".format(self.CountFunctionsCalled)
+            AddMessageToLog(Message,self.LogFile)
         else:
+            Message = "{} Read Fcm: False".format(self.CountFunctionsCalled)
+            AddMessageToLog(Message,self.LogFile)
             print("No fcm")
 
     def ReadStats(self):
+        """
+            Read ../ouputdir/basename_date_date_stats.csv
+        """
+        self.CountFunctionsCalled += 1
         if self.verbose:
             print("Reading stats")
             print(self.DictDirInput["stats"])
@@ -424,10 +461,18 @@ class DailyNetworkStats:
             self.Stats = self.Stats.with_columns(pl.col("lenght").apply(lambda x: m2km(x), return_dtype=pl.Float64).alias("lenght_km"))
             self.Stats = self.Stats.with_columns(pl.col("time").apply(lambda x: s2h(x), return_dtype=pl.Float64).alias("time_hours"))
             self.ReadStatsBool = True
+            Message = "{} Read Stats: True".format(self.CountFunctionsCalled)
+            AddMessageToLog(Message,self.LogFile)
         else:
+            Message = "{} Read Stats: False".format(self.CountFunctionsCalled)
+            AddMessageToLog(Message,self.LogFile)
             print("No stats")    
 
     def ReadFcmNew(self):
+        """
+            Read ../ouputdir/basename_date_date_fcm_new.csv
+        """
+        self.CountFunctionsCalled += 1
         if self.verbose:
             print("Reading fcm_new")
             print(self.DictDirInput["fcm_new"])
@@ -435,7 +480,11 @@ class DailyNetworkStats:
             self.FcmNew = pd.read_csv(self.DictDirInput["fcm_new"],delimiter = ';')
             self.FcmNew = pl.from_pandas(self.FcmNew)
             self.ReadFcmNewBool = True
+            Message = "{} Read Fcm New: True".format(self.CountFunctionsCalled)
+            AddMessageToLog(Message,self.LogFile)
         else:
+            Message = "{} Read Fcm New: False".format(self.CountFunctionsCalled)
+            AddMessageToLog(Message,self.LogFile)
             print("No fcm_new")    
 
     def ReadFcmCenters(self,verbose=False):
@@ -445,42 +494,62 @@ class DailyNetworkStats:
             NOTE: This function will define also what are the classes in any plot since it is used to initialize
             IntClass2StrClass
         """
+        self.CountFunctionsCalled += 1
         if self.verbose:
             print("Reading fcm_centers")
             print(self.DictDirInput["fcm_centers"])
         Features = {"class":[],"av_speed":[],"v_max":[],"v_min":[],"sinuosity":[],"people":[]}
-        FcmCenters = pd.read_csv(self.DictDirInput["fcm_centers"],delimiter = ';') 
-        FcmCenters = pl.from_pandas(FcmCenters)
-        FlattenedFcmCenters = FcmCenters.to_numpy().flatten()    
-        Row2Jump = False   
-        idxcol = 0
-        # Initialize Features by Reading the the columns as 1st row.
-        for col in FcmCenters.columns:
-            if idxcol == 0 or idxcol == len(FcmCenters.columns)-1:
-                Features[list(Features.keys())[idxcol]].append(int(col))
-            else:
-                Features[list(Features.keys())[idxcol]].append(float(col))
-            idxcol += 1
-        # Fill the other rows
-        for val in range(len(FlattenedFcmCenters)):
-            # Check that is the first row
-            if int(val/len(FcmCenters.columns)) == 0: 
-                if verbose:
-                    print("Iteration: ", val," case Row {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[val])
-                # Check that is the first element of the row
-                if val%len(FcmCenters.columns) == 0: 
+        if os.path.isfile(self.DictDirInput["fcm_centers"]):
+            FcmCenters = pd.read_csv(self.DictDirInput["fcm_centers"],delimiter = ';') 
+            FcmCenters = pl.from_pandas(FcmCenters)
+            FlattenedFcmCenters = FcmCenters.to_numpy().flatten()    
+            Row2Jump = False   
+            idxcol = 0
+            # Initialize Features by Reading the the columns as 1st row.
+            for col in FcmCenters.columns:
+                if idxcol == 0 or idxcol == len(FcmCenters.columns)-1:
+                    Features[list(Features.keys())[idxcol]].append(int(col))
+                else:
+                    Features[list(Features.keys())[idxcol]].append(float(col))
+                idxcol += 1
+            # Fill the other rows
+            for val in range(len(FlattenedFcmCenters)):
+                # Check that is the first row
+                if int(val/len(FcmCenters.columns)) == 0: 
                     if verbose:
-                        print("\tIteration: ", val," case Row {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[val])
-                    Row2Jump = False
-                    # Check that the velocity is not too high
-                    if float(FlattenedFcmCenters[val + 1]) > 50:
-                        if verbose:                
-                            print("\t\tDiscarded Row: ", val/len(FcmCenters.columns))
-                        Row2Jump = True
-                        pass
+                        print("Iteration: ", val," case Row {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[val])
+                    # Check that is the first element of the row
+                    if val%len(FcmCenters.columns) == 0: 
+                        if verbose:
+                            print("\tIteration: ", val," case Row {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[val])
+                        Row2Jump = False
+                        # Check that the velocity is not too high
+                        if float(FlattenedFcmCenters[val + 1]) > 50:
+                            if verbose:                
+                                print("\t\tDiscarded Row: ", val/len(FcmCenters.columns))
+                            Row2Jump = True
+                            pass
+                        else:
+                            if verbose:
+                                print("\t\tRow2Jump: ",Row2Jump)
+                            if not Row2Jump:
+                                if verbose:
+                                    print("\t\tIteration: ", val," not Jump:")
+                                keyidx = val
+                                if list(Features.keys())[keyidx] == "class" or list(Features.keys())[keyidx] == "people":
+                                    Features[list(Features.keys())[keyidx]].append(int(FlattenedFcmCenters[val]))
+                                    if verbose:
+                                        print("\t\t\tIteration: ", val," Col: " ,list(Features.keys())[keyidx]," Appending: ", int(FlattenedFcmCenters[val]))
+                                else:
+                                    Features[list(Features.keys())[keyidx]].append(float(FlattenedFcmCenters[val]))
+                                    if verbose:
+                                        print("\t\t\tIteration: ", val," Col: " ,list(Features.keys())[keyidx]," Appending: ", float(FlattenedFcmCenters[val]))
+                            else:
+                                if verbose:
+                                    print("\t\tJump: ", "Iteration: ", val,"Row: {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[keyidx],"Value FCM info: ", float(FlattenedFcmCenters[val]))
                     else:
                         if verbose:
-                            print("\t\tRow2Jump: ",Row2Jump)
+                            print("\tIteration: ",  val,"Row: {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[keyidx],"Value FCM info: ", float(FlattenedFcmCenters[val]))
                         if not Row2Jump:
                             if verbose:
                                 print("\t\tIteration: ", val," not Jump:")
@@ -496,44 +565,44 @@ class DailyNetworkStats:
                         else:
                             if verbose:
                                 print("\t\tJump: ", "Iteration: ", val,"Row: {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[keyidx],"Value FCM info: ", float(FlattenedFcmCenters[val]))
+                # Not first row
                 else:
-                    if verbose:
-                        print("\tIteration: ",  val,"Row: {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[keyidx],"Value FCM info: ", float(FlattenedFcmCenters[val]))
-                    if not Row2Jump:
-                        if verbose:
-                            print("\t\tIteration: ", val," not Jump:")
-                        keyidx = val
-                        if list(Features.keys())[keyidx] == "class" or list(Features.keys())[keyidx] == "people":
-                            Features[list(Features.keys())[keyidx]].append(int(FlattenedFcmCenters[val]))
-                            if verbose:
-                                print("\t\t\tIteration: ", val," Col: " ,list(Features.keys())[keyidx]," Appending: ", int(FlattenedFcmCenters[val]))
-                        else:
-                            Features[list(Features.keys())[keyidx]].append(float(FlattenedFcmCenters[val]))
-                            if verbose:
-                                print("\t\t\tIteration: ", val," Col: " ,list(Features.keys())[keyidx]," Appending: ", float(FlattenedFcmCenters[val]))
-                    else:
-                        if verbose:
-                            print("\t\tJump: ", "Iteration: ", val,"Row: {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[keyidx],"Value FCM info: ", float(FlattenedFcmCenters[val]))
-            # Not first row
-            else:
-                if verbose:        
-                    print("Iteration: ", val," case Row {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[val%len(FcmCenters.columns)])                    
-                # Check that is the first element of the row
-                if val%len(FcmCenters.columns) == 0:
-                    if verbose:                
-                        print("\tIteration: ", val," case Row {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[val%len(FcmCenters.columns)])                    
-                    # Check that the velocity is not too high
-                    Row2Jump = False
-                    if float(FlattenedFcmCenters[val + 1]) > 50:
-                        Row2Jump = True
+                    if verbose:        
+                        print("Iteration: ", val," case Row {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[val%len(FcmCenters.columns)])                    
+                    # Check that is the first element of the row
+                    if val%len(FcmCenters.columns) == 0:
                         if verbose:                
-                            print("\t\tDiscarded Row: ", val/len(FcmCenters.columns))
-                        pass
-                    else:
-                        if not Row2Jump:
+                            print("\tIteration: ", val," case Row {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[val%len(FcmCenters.columns)])                    
+                        # Check that the velocity is not too high
+                        Row2Jump = False
+                        if float(FlattenedFcmCenters[val + 1]) > 50:
+                            Row2Jump = True
                             if verbose:                
+                                print("\t\tDiscarded Row: ", val/len(FcmCenters.columns))
+                            pass
+                        else:
+                            if not Row2Jump:
+                                if verbose:                
+                                    print("\t\tIteration: ", val," not Jump:")
+                                keyidx = int(val%len(FcmCenters.columns))
+                                if list(Features.keys())[keyidx] == "class" or list(Features.keys())[keyidx] == "people":
+                                    Features[list(Features.keys())[keyidx]].append(int(FlattenedFcmCenters[val]))
+                                    if verbose:
+                                        print("\t\t\tIteration: ", val," Col: " ,list(Features.keys())[keyidx]," Appending: ", int(FlattenedFcmCenters[val]))
+                                else:
+                                    Features[list(Features.keys())[keyidx]].append(float(FlattenedFcmCenters[val]))
+                                    if verbose:
+                                        print("\t\t\tIteration: ", val," Col: " ,list(Features.keys())[keyidx]," Appending: ", float(FlattenedFcmCenters[val]))
+                            else:
+                                if verbose:
+                                    print("\t\tJump: ", "Iteration: ", val,"Row: {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[keyidx],"Value FCM info: ", float(FlattenedFcmCenters[val]))
+                    else:
+                        if verbose:
+                            print("\tIteration: ",  val,"Row: {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[keyidx],"Value FCM info: ", float(FlattenedFcmCenters[val]))
+                        if not Row2Jump:
+                            if verbose:
                                 print("\t\tIteration: ", val," not Jump:")
-                            keyidx = int(val%len(FcmCenters.columns))
+                            keyidx = val%len(FcmCenters.columns)
                             if list(Features.keys())[keyidx] == "class" or list(Features.keys())[keyidx] == "people":
                                 Features[list(Features.keys())[keyidx]].append(int(FlattenedFcmCenters[val]))
                                 if verbose:
@@ -545,28 +614,16 @@ class DailyNetworkStats:
                         else:
                             if verbose:
                                 print("\t\tJump: ", "Iteration: ", val,"Row: {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[keyidx],"Value FCM info: ", float(FlattenedFcmCenters[val]))
-                else:
-                    if verbose:
-                        print("\tIteration: ",  val,"Row: {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[keyidx],"Value FCM info: ", float(FlattenedFcmCenters[val]))
-                    if not Row2Jump:
-                        if verbose:
-                            print("\t\tIteration: ", val," not Jump:")
-                        keyidx = val%len(FcmCenters.columns)
-                        if list(Features.keys())[keyidx] == "class" or list(Features.keys())[keyidx] == "people":
-                            Features[list(Features.keys())[keyidx]].append(int(FlattenedFcmCenters[val]))
-                            if verbose:
-                                print("\t\t\tIteration: ", val," Col: " ,list(Features.keys())[keyidx]," Appending: ", int(FlattenedFcmCenters[val]))
-                        else:
-                            Features[list(Features.keys())[keyidx]].append(float(FlattenedFcmCenters[val]))
-                            if verbose:
-                                print("\t\t\tIteration: ", val," Col: " ,list(Features.keys())[keyidx]," Appending: ", float(FlattenedFcmCenters[val]))
-                    else:
-                        if verbose:
-                            print("\t\tJump: ", "Iteration: ", val,"Row: {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[keyidx],"Value FCM info: ", float(FlattenedFcmCenters[val]))
 
-            
-        self.FcmCenters = pl.DataFrame(Features)
-        self.ReadFcmCentersBool = True    
+                
+            self.FcmCenters = pl.DataFrame(Features)
+            self.ReadFcmCentersBool = True    
+            Message = "{} Read Fcm Centers: True".format(self.CountFunctionsCalled)
+            AddMessageToLog(Message,self.LogFile)
+        else:
+            Message = "{} Read Fcm Centers: False".format(self.CountFunctionsCalled)
+            AddMessageToLog(Message,self.LogFile)
+            print("No fcm_centers")
 
     def ReadFluxesSub(self):
         '''
@@ -577,6 +634,7 @@ class DailyNetworkStats:
                 self.IntClass2Roads: (dict) -> self.IntClass2Roads = {IntClass:[] for IntClass in self.IntClasses}
                 self.IntClass2RoadsInit: (bool) -> Boolean value to Say I have stored the SubnetInts For each Class
         '''
+        self.CountFunctionsCalled += 1
         if self.verbose:
             print("Reading fluxes_sub")
             print(self.DictDirInput["fluxes_sub"])
@@ -607,22 +665,45 @@ class DailyNetworkStats:
                     if self.verbose:
                         print("Number of Roads SubNetwork: ",len(IdRoads))     
             self.ReadFluxesSubBool = True
+            Message = "{} Read Fluxes Sub: True".format(self.CountFunctionsCalled)
+            for Class in self.IntClass2Roads.keys():
+                Message += "Class: {0} -> {1} Roads, ".format(Class,len(self.IntClass2Roads[Class]))
+            AddMessageToLog(Message,self.LogFile)
         else:
+            Message = "{} Read Fluxes Sub: False".format(self.CountFunctionsCalled)
+            AddMessageToLog(Message,self.LogFile)
             print("FluxesSubFile not found")
 
     def ReadGeoJson(self):
+        """
+            Read the GeoJson File and store it in self.GeoJson
+        """
+        self.CountFunctionsCalled += 1
         if self.verbose:
             print("Reading GeoJson")
-        if not os.path.isfile(self.GeoJsonFile):
+        if not os.path.isfile(self.GeoJsonFile) and not os.path.isfile(os.path.join(self.InputBaseDir,"BolognaMDTClassInfo.geojson")):
+            Message = "{} Read GeoJson: False".format(self.CountFunctionsCalled)
+            AddMessageToLog(Message,self.LogFile)
             exit("GeoJsonFile not found")
         if os.path.exists(os.path.join(self.InputBaseDir,"BolognaMDTClassInfo.geojson")):
             self.GeoJson = gpd.read_file(os.path.join(self.InputBaseDir,"BolognaMDTClassInfo.geojson"))
             self.ReadGeojsonBool = True
+            Message = "{} Read GeoJson: True".format(self.CountFunctionsCalled)
+            AddMessageToLog(Message,self.LogFile)
         else:
             self.GeoJson = gpd.read_file(self.GeoJsonFile)
             self.ReadGeojsonBool = True
+            Message = "{} Read GeoJson: True".format(self.CountFunctionsCalled)
+            AddMessageToLog(Message,self.LogFile)
 
     def GetIncreasinglyIncludedSubnets(self):
+        """
+            Description:
+                Get the Increasingly Included Subnets
+        """
+        self.CountFunctionsCalled += 1
+        Message = "{} Get Increasingly Included Subnets: True".format(self.CountFunctionsCalled)
+        AddMessageToLog(Message,self.LogFile)
         self.DictSubnetsTxtDir = defaultdict(dict)
         if self.BoolStrClass2IntClass:
             for Class in self.IntClass2StrClass.keys():
@@ -633,6 +714,8 @@ class DailyNetworkStats:
                 for class_ in self.DictSubnetsTxtDir:
                     print(self.DictSubnetsTxtDir[class_])
         else:
+            Message = "{} Get Increasingly Included Subnets: False".format(self.CountFunctionsCalled)
+            AddMessageToLog(Message,self.LogFile)
             print("Warning: Not Initialized DictSubnetsTxtDir -> Will not have Increasingly Included SubNetworks")
 
     def ReadFluxesSubIncreasinglyIncludedIntersection(self):
@@ -643,6 +726,7 @@ class DailyNetworkStats:
             Output:
                 self.IntClass2RoadsIncreasinglyIncludedIntersection: (dict) -> {IntClass:[] for IntClass in self.IntClasses}
         '''
+        self.CountFunctionsCalled += 1
         DoNothing = False
         self.IntClass2RoadsIncreasinglyIncludedIntersection = defaultdict(list)
         try:
@@ -657,7 +741,13 @@ class DailyNetworkStats:
                         pass
     #            self.IntClass2RoadsIncreasinglyIncludedIntersection[Class] = [CastString2Int(Road) for Road in FluxesSub[0].split(" ")] 
             self.ReadFluxesSubIncreasinglyIncludedIntersectionBool = True
+            Message = "{} Read Fluxes Sub Increasingly Included Intersection: True".format(self.CountFunctionsCalled)
+            for Class in self.IntClass2RoadsIncreasinglyIncludedIntersection.keys():
+                Message += "Class: {0} -> {1} Roads, ".format(Class,len(self.IntClass2RoadsIncreasinglyIncludedIntersection[Class]))
+            AddMessageToLog(Message,self.LogFile)
         except:
+            Message = "{} Read Fluxes Sub Increasingly Included Intersection: False".format(self.CountFunctionsCalled)
+            AddMessageToLog(Message,self.LogFile)
             print("FluxesSubFile not found")
 
 #--------- COMPLETE GEOJSON ------- ##
@@ -667,6 +757,7 @@ class DailyNetworkStats:
             NOTE:
                 Each road for each day will have the Int, Str, IntOrdered and StrOrdered Class.
         """
+        self.CountFunctionsCalled += 1
         if self.ReadGeojsonBool and self.ReadFluxesSubIncreasinglyIncludedIntersectionBool:
             print("Completing GeoJson with Class Info" )
             ClassOrderedForGeojsonRoads = np.zeros(len(self.GeoJson),dtype = int)
@@ -683,13 +774,17 @@ class DailyNetworkStats:
             self.GeoJson["IntClass_{}".format(self.StrDate)] = ClassOrderedForGeojsonRoads
             self.GeoJson.to_file(os.path.join(self.InputBaseDir,"BolognaMDTClassInfo.geojson"))
             self.GeoJsonWithClassBool = True
-            
+            Message = "{} GeoJson with Class Info: True".format(self.CountFunctionsCalled)
+            AddMessageToLog(Message,self.LogFile)
+        else:
+            Message = "{} GeoJson with Class Info: False".format(self.CountFunctionsCalled)
+            AddMessageToLog(Message,self.LogFile)
 
     def CompareOld2NewClass(self):
         """NOTE: Computing the intersection Matrix
                 The Intersection Diagonal is the fraction that do not change from N -> I
                 Upper Triangular Matrix is the fraction that change from N -> I (Is the flux we are interested in)
-        NOTE:
+            NOTE:
             The Iterative inclusion of subnetworks is done in the following way:
                 Let's call Road2Subnets -> Vector that contains the list of subnetworks that a road belongs to.
                 Example:
@@ -701,6 +796,7 @@ class DailyNetworkStats:
             Goal:    
                 Look at the fraction of roads that change from one class to another. -> |Intersection(N_j,O_i)|/|O_i|
         """
+        self.CountFunctionsCalled += 1
         if self.GeoJsonWithClassBool:
             print("Comparison of trajectories from Old to New Class {}".format(self.StrDate))
             # Compare from Subnetworks
@@ -715,6 +811,8 @@ class DailyNetworkStats:
                     FractionTransition = len(Intersection)/len(VecN) # |Intersection(N_i,O_j)|/|O_j|
                     DfComparison[Key_Incr].loc[Key_Norm] = FractionTransition
             DfComparison.to_csv(os.path.join(self.PlotDir,"Comparison_Network_Old2NewClass_FromRoads.csv"))
+            Message = "{} Comparison of trajectories from Old to New Class: True".format(self.CountFunctionsCalled)
+            AddMessageToLog(Message,self.LogFile)
         if self.ReadFcmBool and self.ReadFcmNewBool:
             print("Comparison of trajectories from Old to New Class {}".format(self.StrDate))
             # Compare from Fcm 
@@ -729,8 +827,15 @@ class DailyNetworkStats:
                     FractionTransition = len(Intersection)/len(VecN) # |Intersection(N_i,O_j)|/|O_j|
                     DfComparison[Key_Incr].loc[Key_Norm] = FractionTransition
             DfComparison.to_csv(os.path.join(self.PlotDir,"Comparison_Network_Old2NewClass_FromFcm.csv"))
-        
+            Message = "{} Comparison of trajectories from Old to New Class: True".format(self.CountFunctionsCalled)
+            AddMessageToLog(Message,self.LogFile)
+    
     def ReadVelocitySubnet(self):
+        """
+            Description:
+                Read the velocity subnetworks.
+        """
+        self.CountFunctionsCalled += 1
         if self.BoolStrClass2IntClass:
             try:
                 for Class in self.IntClass2StrClass.keys():
@@ -738,7 +843,12 @@ class DailyNetworkStats:
                     self.VelTimePercorrenceClass[Class] = pd.read_csv(self.RoadInClass2VelocityDir[Class],delimiter = ';')
                     self.VelTimePercorrenceClass[Class] = pl.from_pandas(self.VelTimePercorrenceClass[Class])
                 self.ReadVelocitySubnetBool = True
+                Message = "{} Read Velocity Subnet: True\n".format(self.CountFunctionsCalled)
+                Message += "\tInitialized VelTimePercorrenceClass: {IntClass:pl.Dataframe[id_poly,time_percorrence,av_speed]}\n"
+                AddMessageToLog(Message,self.LogFile)
             except:
+                Message = "{} Read Velocity Subnet: False".format(self.CountFunctionsCalled)
+                AddMessageToLog(Message,self.LogFile)
                 print("VelTimePercorrenceFile not found")
         else:
             print("Warning: No Initialization of VelTimePercorrenceClass due to lack of definition of IntClass2Str")
@@ -749,6 +859,7 @@ class DailyNetworkStats:
                 Convert the class column of the FcmNew to class_new and join it to the Fcm.
                 In this way we have in Fcm for each trajectory a new column with the class of the trajectory after having intersected the subnetworks..
         """
+        self.CountFunctionsCalled += 1
         if self.ReadFcmBool and self.ReadFcmNewBool:
             FcmNew = self.FcmNew.with_columns([self.FcmNew['class'].alias('class_new')])
             self.Fcm = self.Fcm.join(FcmNew[['id_act', 'class_new']], on='id_act', how='left')
@@ -756,6 +867,8 @@ class DailyNetworkStats:
                 print("1st join Fcm: ",self.Fcm.columns)
                 print("Date: ",self.StrDate)
             self.Fcm =self.Fcm.with_columns([self.Fcm['class'].alias('class_new')])
+            Message = "{} Add Fcm New to Fcm: True".format(self.CountFunctionsCalled)
+            AddMessageToLog(Message,self.LogFile)
             if verbose:
                 print("renamed: ",self.Fcm.columns)
         if self.ReadStatsBool and self.ReadFcmNewBool:
@@ -775,6 +888,7 @@ class DailyNetworkStats:
             Description:
                 Plots the subnetwork. Considers the case of intersections
         """
+        self.CountFunctionsCalled += 1
         if self.ReadFluxesSubIncreasinglyIncludedIntersectionBool and self.ReadGeojsonBool and self.BoolStrClass2IntClass:
             print("Plotting Daily Incremental Subnetworks in HTML")
             if not os.path.isfile(os.path.join(self.PlotDir,"Subnets_{}.html".format(self.StrDate))) or True:
@@ -811,9 +925,15 @@ class DailyNetworkStats:
                     # Save or display the map
                     mclass.save(os.path.join(self.PlotDir,"SubnetsIncrementalInclusion_{0}_{1}.html".format(self.StrDate,IntClass)))
                 m.save(os.path.join(self.PlotDir,"SubnetsIncrementalInclusion_{}.html".format(self.StrDate)))
+                Message = "{} Plotting Daily Incremental Subnetworks in HTML: True".format(self.CountFunctionsCalled)
+                AddMessageToLog(Message,self.LogFile)
             else:
+                Message = "{} Plotting Daily Incremental Subnetworks in HTML: Already Plotted".format(self.CountFunctionsCalled)
+                AddMessageToLog(Message,self.LogFile)
                 print("Subnets Increasingly already Plotted in HTML")
         else:
+            Message = "{} Plotting Daily Incremental Subnetworks in HTML: False".format(self.CountFunctionsCalled)
+            AddMessageToLog(Message,self.LogFile)
             print("No Subnetworks to Plot")
             return False
 
@@ -824,6 +944,7 @@ class DailyNetworkStats:
                 NOTE: 
                     Does not consider the intersection
         """
+        self.CountFunctionsCalled += 1
         if self.ReadFluxesSubBool and self.ReadGeojsonBool and self.BoolStrClass2IntClass:
 
             print("Plotting Daily Subnetworks in HTML")
@@ -858,14 +979,18 @@ class DailyNetworkStats:
                     mclass.save(os.path.join(self.PlotDir,"Subnets_{0}_{1}.html".format(self.StrDate,IntClass)))
                 # Save or display the map
                 m.save(os.path.join(self.PlotDir,"Subnets_{}.html".format(self.StrDate)))
+                Message = "{} Plotting Daily Subnetworks in HTML: True".format(self.CountFunctionsCalled)
+                AddMessageToLog(Message,self.LogFile)
             else:
+                Message = "{} Plotting Daily Subnetworks in HTML: Already Plotted".format(self.CountFunctionsCalled)
+                AddMessageToLog(Message,self.LogFile)
                 print("Subnets already Plotted in HTML")
         else:
+            Message = "{} Plotting Daily Subnetworks in HTML: False".format(self.CountFunctionsCalled)
+            AddMessageToLog(Message,self.LogFile)
             print("No Subnetworks to Plot")
             return False
         
-    
-
     def PlotFluxesHTML(self):
         '''
             Description:
@@ -875,6 +1000,7 @@ class DailyNetworkStats:
                     2) TF
                     3) TF + FT
         '''
+        self.CountFunctionsCalled += 1
         if self.ReadTime2FluxesBool:
             print("Plotting Daily Fluxes in HTML")
             if not os.path.isfile(os.path.join(self.PlotDir,"Fluxes_{}.html".format(self.StrDate))):
@@ -920,10 +1046,24 @@ class DailyNetworkStats:
                 m.save(os.path.join(self.PlotDir,"Fluxes_{}.html".format(self.StrDate)))
                 mTF.save(os.path.join(self.PlotDir,"TailFrontFluxes_{}.html".format(self.StrDate)))
                 mFT.save(os.path.join(self.PlotDir,"FrontTailFluxes_{}.html".format(self.StrDate)))
+                Message = "{} Plotting Daily Fluxes in HTML: True".format(self.CountFunctionsCalled)
+                AddMessageToLog(Message,self.LogFile)
             else:
+                Message = "{} Plotting Daily Fluxes in HTML: Already Plotted".format(self.CountFunctionsCalled)
+                AddMessageToLog(Message,self.LogFile)
                 print("Fluxes already Plotted in HTML")
+        else:
+            Message = "{} Plotting Daily Fluxes in HTML: False".format(self.CountFunctionsCalled)
+            AddMessageToLog(Message,self.LogFile)
+            print("No Fluxes to Plot")
     
     def PlotTimePercorrenceHTML(self):
+        """
+            Description:
+                Plots in .html the map of the bounding box considered.
+                For each class color the road subnetwork according to time of percorrence.
+        """
+        self.CountFunctionsCalled += 1
         if self.ReadGeojsonBool and self.ReadVelocitySubnetBool:
             print("Plotting Daily Fluxes in HTML")
             if not os.path.isfile(os.path.join(self.PlotDir,"AvSpeed_{}.html".format(self.StrDate))):            
@@ -968,9 +1108,16 @@ class DailyNetworkStats:
                 # Save or display the map
                 m.save(os.path.join(self.PlotDir,"AvSpeed_{}.html".format(self.StrDate)))
                 m1.save(os.path.join(self.PlotDir,"TimePercorrence_{}.html".format(self.StrDate)))
+                Message = "{} Plotting Daily Fluxes in HTML: True".format(self.CountFunctionsCalled)
+                AddMessageToLog(Message,self.LogFile)
             else:
+                Message = "{} Plotting Daily Fluxes in HTML: Already Plotted".format(self.CountFunctionsCalled)
+                AddMessageToLog(Message,self.LogFile)
                 print("AvSpeed already Plotted in HTML")
-
+        else:
+            Message = "{} Plotting Daily Fluxes in HTML: False".format(self.CountFunctionsCalled)
+            AddMessageToLog(Message,self.LogFile)
+            print("No AvSpeed to Plot")
 ## ------- FUNDAMENTAL DIAGRAM ------ ##
     def ComputeMFDVariablesClass(self):
         '''
@@ -988,10 +1135,18 @@ class DailyNetworkStats:
                 if os.path.isfile(os.path.join(self.PlotDir,"MFD_{}.csv".format(self.StrDate))):
                     self.MFD = pd.read_csv(os.path.join(self.PlotDir,"MFD_{}.csv".format(self.StrDate)))
                     self.MFD = pl.from_pandas(self.MFD)
+                    self.CountFunctionsCalled += 1
+                    Message = "{} Compute MFD Variables: True\n".format(self.CountFunctionsCalled)
+                    Message += "\tUpload self.MFD from CSV"
+                    AddMessageToLog(Message,self.LogFile)
                 else:
                     # ALL TOGETHER MFD
                     self.MFD,self.Fcm = ComputeMFDVariables(self.Fcm,self.MFD,self.TimeStampDate,self.dt,self.iterations)
                     self.MFD.write_csv(os.path.join(self.PlotDir,"MFD_{}.csv".format(self.StrDate)))
+                    self.CountFunctionsCalled += 1
+                    Message = "{} Compute MFD Variables: True\n".format(self.CountFunctionsCalled)
+                    Message += "\tComputed self.MFD "
+                    AddMessageToLog(Message,self.LogFile)
                 # PER CLASS
                 self.Class2MFD = {class_:Dict2PolarsDF({"time":[],"population":[],"speed_kmh":[],"av_speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64}) for class_ in self.IntClass2StrClass.keys()}
                 self.Class2MFDNew = {class_:Dict2PolarsDF({"time":[],"population":[],"speed_kmh":[],"av_speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64}) for class_ in self.IntClass2StrClass.keys()}
@@ -1004,6 +1159,8 @@ class DailyNetworkStats:
                         self.Class2MFD[Class] = pl.from_pandas(self.Class2MFD[Class])
                         self.Class2MFDNew[Class] = pd.read_csv(os.path.join(self.PlotDir,"Class2MFDNew_{0}_{1}.csv".format(Class,self.StrDate)))
                         self.Class2MFDNew[Class] = pl.from_pandas(self.Class2MFDNew[Class])
+                        # Log
+                        Upload = True
                     else:
                         print("Computing Class2MFD, Class2MFDNew")
                         Fcm2Class = self.Fcm.filter(pl.col("class") == Class)
@@ -1015,9 +1172,23 @@ class DailyNetworkStats:
                             PrintMFDDictInfo(self.Class2MFDNew[Class],StartingString = "Class 2 MFD New: ")
                         self.Class2MFD[Class].write_csv(os.path.join(self.PlotDir,"Class2MFD_{0}_{1}.csv".format(Class,self.StrDate)))
                         self.Class2MFDNew[Class].write_csv(os.path.join(self.PlotDir,"Class2MFDNew_{0}_{1}.csv".format(Class,self.StrDate)))
-    
+                        # Log
+                        Upload = False
+                if Upload:
+                    self.CountFunctionsCalled += 1
+                    Message = "{} Compute MFD Variables: True\n".format(self.CountFunctionsCalled)
+                    Message += "\tUpload ClassMFD, ClassMFDNew from CSV"
+                    AddMessageToLog(Message,self.LogFile)
+                else:
+                    self.CountFunctionsCalled += 1
+                    Message = "{} Compute MFD Variables: True\n".format(self.CountFunctionsCalled)
+                    Message += "\tComputed ClassMFD, ClassMFDNew"
+                    AddMessageToLog(Message,self.LogFile)
                 self.ComputedMFD = True    
             else:
+                self.CountFunctionsCalled += 1
+                Message = "{} Compute MFD Variables: False".format(self.CountFunctionsCalled)
+                AddMessageToLog(Message,self.LogFile)
                 pass
                 
         if self.ReadStatsBool:
@@ -1444,7 +1615,7 @@ class DailyNetworkStats:
                 ax.set_xlabel(self.Feature2Label[Feature])
                 ax.set_ylabel('Count')
                 ax.set_xlim(right = maxSpeed + self.Feature2ShiftBin[Feature])
-                ax.set_ylim(top = maxCount + self.Feature2ShiftCount[Feature],bottom = 1e-7)
+                ax.set_ylim(top = maxCount + self.Feature2ShiftCount[Feature],bottom = 1)
                 ax.set_xscale(self.Feature2ScaleBins[Feature])
                 ax.set_yscale(self.Feature2ScaleCount[Feature])
             legend_ = plt.legend(legend)
@@ -1489,7 +1660,9 @@ class DailyNetworkStats:
                         ax.scatter(x[1:],y)
                     if len(x[:1]) == len(self.Class2DictFittedData[IntClass][Feature]["fitted_data"]):
                         # Fit
-                        ax.plot(x[1:],np.array(self.Class2DictFittedData[IntClass][Feature]["fitted_data"]),label = self.Class2DictFittedData[IntClass][Feature]["best_fit"])
+                        Y2Plot = self.Class2DictFittedData[IntClass][Feature]["fitted_data"][np.array(self.Class2DictFittedData[IntClass][Feature]["fitted_data"]) > 0]
+                        X2Plot = x[1:][np.array(self.Class2DictFittedData[IntClass][Feature]["fitted_data"]) > 0]
+                        ax.plot(X2Plot,np.array(Y2Plot),label = self.Class2DictFittedData[IntClass][Feature]["best_fit"])
                     ax.set_xticks(np.arange(x[0],x[-1],self.Feature2IntervalBin[Feature]))
                     ax.set_yticks(np.arange(min(y),max(y),self.Feature2IntervalCount[Feature]))
                     ax.set_xlabel(self.Feature2Label[Feature])
@@ -1498,6 +1671,8 @@ class DailyNetworkStats:
                     ax.set_ylim(top = max(y) + self.Feature2ShiftCount[Feature])
                     ax.set_xscale(self.Feature2ScaleBins[Feature])
                     ax.set_yscale(self.Feature2ScaleCount[Feature])
+                    print("Class: ",IntClass," Feature: ",Feature," Day: ",self.StrDate)
+                    print("Number of fitted values less than 0: ",len(self.Class2DictFittedData[IntClass][Feature]["fitted_data"][np.array(self.Class2DictFittedData[IntClass][Feature]["fitted_data"]) < 0]))
                     plt.savefig(os.path.join(self.PlotDir,'{0}_Class_{1}_{2}.png'.format(self.Class2DictFittedData[IntClass][Feature]["best_fit"],IntClass,self.Column2SaveName[Feature])),dpi = 200)
                     plt.close()
         
@@ -1553,7 +1728,7 @@ def PlotSubnetHTML(ListDailyNetwork,Daily = True):
             filtered_gdf = DailyNetwork.GeoJson[DailyNetwork.GeoJson['index'].isin(index_list)]
             
             # Create a feature group for the current layer
-            layer_group = folium.FeatureGroup(name=f"Layer {Class_}").add_to(m)
+            layer_group = folium.FeatureGroup(name=f"Layer {class_}").add_to(m)
             
             # Add roads to the feature group with a unique color
             for _, road in filtered_gdf.iterrows():
