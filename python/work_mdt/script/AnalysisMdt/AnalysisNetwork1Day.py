@@ -148,21 +148,22 @@ def ReturnFitInfoFromDict(Fcm,InitialGuess,DictFittedData,InfoFittedParameters,F
             DictFittedData: dict -> {Feature: {"fitted_data": [],"best_fit": str}}
     """
     print("Return Fit Info From Dict:")
-#    if os.path.isfile(FitFile) and os.path.isfile(FittedDataFile):
-#        with open(FitFile,'r') as f:
-#            InfoFittedParameters = json.load(f)
-#        with open(FittedDataFile,'r') as f:
-#            DictFittedData = json.load(f)
-#    else:
-    for Feature in DictFittedData.keys():
-        y,x = np.histogram(Fcm[Feature].to_list(),bins = 50)
-        InfoFittedParameters, DictFittedData = FitAndPlot(x[1:],y,InitialGuess,Feature,InfoFittedParameters,DictFittedData)
-    with open(FitFile,'w') as f:
-        json.dump(InfoFittedParameters,f,cls=NumpyArrayEncoder,indent = 4)
-    with open(FittedDataFile,'w') as f:
-        json.dump(DictFittedData,f,cls=NumpyArrayEncoder,indent = 4)
-
-    return InfoFittedParameters,DictFittedData
+    if os.path.isfile(FitFile) and os.path.isfile(FittedDataFile):
+        with open(FitFile,'r') as f:
+            InfoFittedParameters = json.load(f)
+        with open(FittedDataFile,'r') as f:
+            DictFittedData = json.load(f)
+        Uploading = True
+    else:
+        for Feature in DictFittedData.keys():
+            y,x = np.histogram(Fcm[Feature].to_list(),bins = 50)
+            InfoFittedParameters, DictFittedData = FitAndPlot(x[1:],y,InitialGuess,Feature,InfoFittedParameters,DictFittedData)
+        with open(FitFile,'w') as f:
+            json.dump(InfoFittedParameters,f,cls=NumpyArrayEncoder,indent = 4)
+        with open(FittedDataFile,'w') as f:
+            json.dump(DictFittedData,f,cls=NumpyArrayEncoder,indent = 4)
+        Uploading = False
+    return InfoFittedParameters,DictFittedData,Uploading
 
 def AddMessageToLog(Message,LogFile):
     with open(LogFile,'a') as f:
@@ -439,6 +440,7 @@ class DailyNetworkStats:
             self.Fcm = self.Fcm.with_columns(pl.col("time").apply(lambda x: s2h(x), return_dtype=pl.Float64).alias("time_hours"))
             self.ReadFcmBool = True
             Message = "{} Read Fcm: True".format(self.CountFunctionsCalled)
+            Message += "\n\tInitialize self.Fcm"
             AddMessageToLog(Message,self.LogFile)
         else:
             Message = "{} Read Fcm: False".format(self.CountFunctionsCalled)
@@ -935,7 +937,6 @@ class DailyNetworkStats:
             Message = "{} Plotting Daily Incremental Subnetworks in HTML: False".format(self.CountFunctionsCalled)
             AddMessageToLog(Message,self.LogFile)
             print("No Subnetworks to Plot")
-            return False
 
     def PlotSubnetHTML(self):
         """
@@ -989,7 +990,6 @@ class DailyNetworkStats:
             Message = "{} Plotting Daily Subnetworks in HTML: False".format(self.CountFunctionsCalled)
             AddMessageToLog(Message,self.LogFile)
             print("No Subnetworks to Plot")
-            return False
         
     def PlotFluxesHTML(self):
         '''
@@ -1247,6 +1247,10 @@ class DailyNetworkStats:
                     self.MFD2Plot = json.load(f)
                 with open(os.path.join(self.PlotDir,"MinMaxPlot_{0}.json".format(self.StrDate)),'r') as f:
                     self.MinMaxPlot = json.load(f)
+                self.CountFunctionsCalled += 1
+                Message = "{} Plot MFD: True\n".format(self.CountFunctionsCalled)
+                Message += "\tUpload MFD2Plot"
+                AddMessageToLog(Message,self.LogFile)
             else:
                 print("Computing MFD Plot")
                     
@@ -1259,31 +1263,41 @@ class DailyNetworkStats:
                                                                             verbose = self.verbose,
                                                                             bins_ = 20)
                 
+                self.CountFunctionsCalled += 1
+                Message = "{} Plot MFD: True\n".format(self.CountFunctionsCalled)
+                Message += "\tComputed MFD2Plot"
+                AddMessageToLog(Message,self.LogFile)
                 PlotHysteresis(MFD = self.MFD,
                             Title = "Hysteresis Cycle Aggregated",
                             SaveDir = self.PlotDir,
                             NameFile = "Hysteresys.png")
+                self.CountFunctionsCalled += 1
+                Message = "\tComputed Hysteresis"
+                AddMessageToLog(Message,self.LogFile)
                 with open(os.path.join(self.PlotDir,"MFD2Plot_{0}.json".format(self.StrDate)),'w') as f:
                     json.dump(self.MFD2Plot,f,cls = NumpyArrayEncoder,indent=2)
                 with open(os.path.join(self.PlotDir,"MinMaxPlot_{0}.json".format(self.StrDate)),'w') as f:
                     json.dump(self.MinMaxPlot,f,cls = NumpyArrayEncoder,indent=2)
                 if self.verbose:
                     print("After GetMFDForPlot:\n")
-    #                print("\nMFD2Plot:\n",self.MFD2Plot)
-    #                print("\nMinMaxPlot:\n",self.MinMaxPlot)
-                # Plotting and Save Aggregated
                 SaveMFDPlot(self.MFD2Plot["bins_population"],
                             self.MFD2Plot["binned_av_speed"],
                             self.MFD2Plot["binned_sqrt_err_speed"],
                             RelativeChange,
                             self.PlotDir,
-                            NameFile = "MFD.png")            
+                            NameFile = "MFD.png") 
+                Message = "\tSaved MFD Plot"
+                AddMessageToLog(Message,self.LogFile)           
             if os.path.exists(os.path.join(self.PlotDir,"Class2MFD2Plot_{0}.json".format(self.StrDate))) and os.path.exists(os.path.join(self.PlotDir,"Class2MFDNew2Plot_{0}.json".format(self.StrDate))):
                 print("Loading Class2MFD2Plot and Class2MFDNew2Plot")
                 with open(os.path.join(self.PlotDir,"Class2MFD2Plot_{0}.json".format(self.StrDate)),'r') as f:
                     self.Class2MFD2Plot = json.load(f)
                 with open(os.path.join(self.PlotDir,"Class2MFDNew2Plot_{0}.json".format(self.StrDate)),'r') as f:
                     self.Class2MFDNew2Plot = json.load(f)
+                self.CountFunctionsCalled += 1
+                Message = "{} Plot Class2MFD: True\n".format(self.CountFunctionsCalled)
+                Message += "\tUpload Class2MFD2Plot and Class2MFDNew2Plot in csv"
+                AddMessageToLog(Message,self.LogFile)
             else:
                 print("Computing MFD Variables for Classes")
                 # PER CLASS 
@@ -1291,6 +1305,7 @@ class DailyNetworkStats:
                 self.MinMaxPlotPerClassNew = {Class: defaultdict() for Class in self.Class2MFDNew.keys()}       
                 self.Class2MFD2Plot = {Class:{"binned_av_speed": [], "binned_sqrt_err_speed": [], "bins_population": []} for Class in self.Class2MFD.keys()}
                 self.Class2MFDNew2Plot = {Class:{"binned_av_speed": [], "binned_sqrt_err_speed": [], "bins_population": []} for Class in self.Class2MFD.keys()}
+                Message = "{} Plot Class2MFD: True\n".format(self.CountFunctionsCalled)
                 for Class in self.Class2MFD.keys():
                     # Fill Average/Std Speed (to plot)
                     # OLD CLASSIFICATION
@@ -1301,6 +1316,7 @@ class DailyNetworkStats:
                                                                                                         case = None,
                                                                                                         verbose = self.verbose,
                                                                                                         bins_ = 20)
+
                     # NEW CLASSIFICATION
                     self.Class2MFDNew2Plot[Class], self.MinMaxPlotPerClassNew,RelativeChangeNew = GetMFDForPlot(MFD = self.Class2MFDNew[Class],
                                                                                                         MFD2Plot = self.Class2MFDNew2Plot[Class],
@@ -1309,6 +1325,8 @@ class DailyNetworkStats:
                                                                                                         case = None,
                                                                                                         verbose = self.verbose,
                                                                                                         bins_ = 20)
+                    Message += "\tComputed Class2MFD2Plot and Class2MFDNew2Plot Class {}\n".format(Class)
+                    AddMessageToLog(Message,self.LogFile)
                     
                     PlotHysteresis(MFD = self.Class2MFD[Class],
                                 Title = "Hysteresis Cycle Class {}".format(self.IntClass2StrClass[Class]),
@@ -1319,6 +1337,8 @@ class DailyNetworkStats:
                                 Title = "Hysteresis Cycle Class New {}".format(self.IntClass2StrClass[Class]),
                                 SaveDir = self.PlotDir,
                                 NameFile = "HysteresysClassNew_{}.png".format(self.IntClass2StrClass[Class]))
+                    Message += "\tPlot Hysteresis {}\n".format(Class)
+                    AddMessageToLog(Message,self.LogFile)
                     
                     with open(os.path.join(self.PlotDir,"Class2MFD2Plot_{0}.json".format(self.StrDate)),'w') as f:
                         json.dump(self.Class2MFD2Plot,f,cls = NumpyArrayEncoder,indent=2)
@@ -1348,6 +1368,8 @@ class DailyNetworkStats:
                                     SaveDir = self.PlotDir,
                                     Title = "Fondamental Diagram New {}".format(self.IntClass2StrClass[Class]),
                                     NameFile = "MFDNew_{}.png".format(Class))
+                        Message += "\tSaved MFD Plot Class {}\n".format(Class)
+                        AddMessageToLog(Message,self.LogFile)
                 else:
                     print("Warning: Fondamental Diagram Not Computed for Class Since IntClass2Str is Not Initialized")
 
@@ -1356,8 +1378,9 @@ class DailyNetworkStats:
         """
             NOTE: We compute for 96 bins (15 minutes each), the time of percorrence estimated as the lenght of the road divided by the average speed.
             NOTE: We consider the distribution for the network indipendently of the class.
-                                                and the subnetwork associated to the class. (This second is the one we look at to look for traffic)
+                and the subnetwork associated to the class. (This second is the one we look at to look for traffic)
         """
+        self.CountFunctionsCalled += 1
         if self.ReadVelocitySubnetBool:
             print("Plotting TimePercorrence Distribution")
             if (os.path.isfile(os.path.join(self.PlotDir,"Class2Time2Distr_{0}.json".format(self.StrDate))) and os.path.isfile(os.path.join(self.PlotDir,"Class2AvgTimePercorrence_{0}.json".format(self.StrDate)))):
@@ -1365,6 +1388,7 @@ class DailyNetworkStats:
                     self.Class2Time2Distr = json.load(f)
                 with open(os.path.join(self.PlotDir,"Class2AvgTimePercorrence_{0}.json".format(self.StrDate)),'r') as f:
                     self.Class2AvgTimePercorrence = json.load(f)
+                Upload = True
                 pass
             else:
                 self.Class2Time2Distr = {IntClass:[] for IntClass in self.IntClass2StrClass.keys()} # For key Shape (96,Number of Roads)
@@ -1378,7 +1402,15 @@ class DailyNetworkStats:
                     json.dump(self.Class2Time2Distr,f,cls = NumpyArrayEncoder,indent=2)
                 with open(os.path.join(self.PlotDir,"Class2AvgTimePercorrence_{0}.json".format(self.StrDate)),'w') as f:
                     json.dump(self.Class2AvgTimePercorrence,f,cls =NumpyArrayEncoder,indent=2)
-
+                Upload = False
+            if Upload:
+                Message = "{} Plotting TimePercorrence Distribution: True\n".format(self.CountFunctionsCalled)
+                Message += "\tUpload Class2Time2Distr, Class2AvgTimePercorrence"
+                AddMessageToLog(Message,self.LogFile)
+            else:
+                Message = "{} Plotting TimePercorrence Distribution: True\n".format(self.CountFunctionsCalled)
+                Message += "\tComputed Class2Time2Distr, Class2AvgTimePercorrence"
+                AddMessageToLog(Message,self.LogFile)
             self.TimePercorrenceBool = True
 
 
@@ -1391,6 +1423,7 @@ class DailyNetworkStats:
 
         Output: dict: {velocity:'velocity class in words: (slowest,...quickest)]}
         '''
+        self.CountFunctionsCalled += 1
         if self.ReadFcmCentersBool:
             number_classes = len(self.FcmCenters["class"]) 
             for i in range(number_classes):
@@ -1406,8 +1439,13 @@ class DailyNetworkStats:
                     else:
                         self.IntClass2StrClass[list(self.FcmCenters["class"])[i]] = '{} quickest'.format(number_classes - i)             
                         self.StrClass2IntClass['{} quickest'.format(number_classes - i)] = list(self.FcmCenters["class"])[i]
-        self.BoolStrClass2IntClass = True
-    
+            self.BoolStrClass2IntClass = True
+            Message = "{} Create Dictionary IntClass2StrClass: True".format(self.CountFunctionsCalled)
+            AddMessageToLog(Message,self.LogFile)
+        else:
+            self.BoolStrClass2IntClass = False
+            Message = "{} Create Dictionary IntClass2StrClass: False".format(self.CountFunctionsCalled)
+            AddMessageToLog(Message,self.LogFile)
     def CreateDictClass2FitInit(self):
         """
             NOTE: DictInitialGuess Must Be Initialized and Have the Form Specified Below
@@ -1436,6 +1474,7 @@ class DailyNetworkStats:
                 length depend linearly on time via velocity distribution that within a class is homogeneous.
                 (Maxwellian -> delta Dirac like distribution)
         """
+        self.CountFunctionsCalled += 1
         if self.BoolStrClass2IntClass:
             print("Initialize The Fitting Parameters Initial Guess And Windows")
             self.Class2InitialGuess = {IntClass: self.DictInitialGuess for IntClass in self.IntClass2StrClass.keys()}
@@ -1509,6 +1548,8 @@ class DailyNetworkStats:
                                                                                                                     IntClass)
                         else:
                             print("Warning: Initial Guess Not Initialized for Class {0} and Feature {1} Day: {2}".format(IntClass,Feature,self.StrDate))
+            Message = "{} Create Dictionary Class2InitialGuess: True".format(self.CountFunctionsCalled)
+            AddMessageToLog(Message,self.LogFile)
             # Initialize The Guess Without Classes
             for Function2Test in self.DictInitialGuess: 
                 for Feature in self.DictInitialGuess[Function2Test]:
@@ -1566,7 +1607,8 @@ class DailyNetworkStats:
                                                                                                     self.Fcm,
                                                                                                     Feature,
                                                                                                     None)
-            
+            Message = "{} Create Class Dictionary DictInitialGuess: True".format(self.CountFunctionsCalled)
+            AddMessageToLog(Message,self.LogFile)
 ## DISTRIBUTIONS
     def PlotDailySpeedDistr(self,LableSave = "Aggregated"):
         """
@@ -1581,13 +1623,23 @@ class DailyNetworkStats:
         print('all different groups colored differently')
         # Inititialize Fit for all different classes
         self.CreateDictClass2FitInit()
-        self.InfoFittedParameters,self.DictFittedData = ReturnFitInfoFromDict(Fcm = self.Fcm,
+        self.InfoFittedParameters,self.DictFittedData,Upload = ReturnFitInfoFromDict(Fcm = self.Fcm,
                                                                             InitialGuess = self.DictInitialGuess,
                                                                             DictFittedData = self.DictFittedData,
                                                                             InfoFittedParameters = self.InfoFittedParameters,
                                                                             Feature2Label = self.Feature2Label,
                                                                             FitFile = os.path.join(self.PlotDir,'Fit_Aggregated.json'),
                                                                             FittedDataFile = os.path.join(self.PlotDir,'FittedData_Aggregated.json'))
+        if Upload:
+            self.CountFunctionsCalled += 1
+            Message = "{} Plot Daily Speed Distr: True\n".format(self.CountFunctionsCalled)
+            Message += "\tUpload self.InfoFittedParameters,self.DictFittedData"
+            AddMessageToLog(Message,self.LogFile)
+        else:
+            self.CountFunctionsCalled += 1
+            Message = "{} Plot Daily Speed Distr: True\n".format(self.CountFunctionsCalled)
+            Message += "\tComputed Fitted Data"
+            AddMessageToLog(Message,self.LogFile)
         for Feature in self.DictFittedData.keys():
             fig,ax = plt.subplots(1,1,figsize= (15,12))
             legend = []
@@ -1623,6 +1675,7 @@ class DailyNetworkStats:
             frame.set_facecolor('white')
             plt.savefig(os.path.join(self.PlotDir,'{0}_{1}.png'.format(LableSave,self.Column2SaveName[Feature])),dpi = 200)
             plt.close()
+            Message = "\tPlot {} Distribution: True\n".format(Feature)
 
 
 
@@ -1640,7 +1693,7 @@ class DailyNetworkStats:
         self.Class2DictFittedData = {IntClass: {Feature: {"best_fit":[], "fitted_data":[]} for Feature in list(self.Features2Fit)} for IntClass in self.IntClass2StrClass.keys()}
         self.Class2InfoFittedParameters = {IntClass: {Function2Fit: {Feature:{"fit":None,"StdError":None} for Feature in self.DictInitialGuess[Function2Fit].keys()} for Function2Fit in self.DictInitialGuess.keys()} for IntClass in self.IntClass2StrClass.keys()}
         for IntClass in self.IntClass2StrClass:
-            self.Class2InfoFittedParameters[IntClass],self.Class2DictFittedData[IntClass] = ReturnFitInfoFromDict(Fcm = self.Fcm.filter(pl.col("class") == IntClass),
+            self.Class2InfoFittedParameters[IntClass],self.Class2DictFittedData[IntClass],Upload = ReturnFitInfoFromDict(Fcm = self.Fcm.filter(pl.col("class") == IntClass),
                                                                                                                 InitialGuess = self.Class2InitialGuess[IntClass],
                                                                                                                 DictFittedData = self.Class2DictFittedData[IntClass],
                                                                                                                 InfoFittedParameters = self.Class2InfoFittedParameters[IntClass],
@@ -1648,6 +1701,16 @@ class DailyNetworkStats:
                                                                                                                 FitFile = os.path.join(self.PlotDir,'Fit_Class_{0}.json'.format(IntClass)),
                                                                                                                 FittedDataFile = os.path.join(self.PlotDir,'FittedData_Class_{0}.json'.format(IntClass)))
 
+        if Upload:
+            self.CountFunctionsCalled += 1
+            Message = "{} Plot Distr Per Class: True\n".format(self.CountFunctionsCalled)
+            Message += "\tUpload Class2DictFittedData, Class2InfoFittedParameters"
+            AddMessageToLog(Message,self.LogFile)
+        else:
+            self.CountFunctionsCalled += 1
+            Message = "{} Plot Distr Per Class: True\n".format(self.CountFunctionsCalled)
+            Message += "\tComputed Class2DictFittedData, Class2InfoFittedParameters"
+            AddMessageToLog(Message,self.LogFile)
         for Feature in self.DictFittedData.keys():
             for IntClass in self.IntClass2StrClass:
                 fig,ax = plt.subplots(1,1,figsize= (15,12))
@@ -1675,6 +1738,7 @@ class DailyNetworkStats:
                     print("Number of fitted values less than 0: ",len(self.Class2DictFittedData[IntClass][Feature]["fitted_data"][np.array(self.Class2DictFittedData[IntClass][Feature]["fitted_data"]) < 0]))
                     plt.savefig(os.path.join(self.PlotDir,'{0}_Class_{1}_{2}.png'.format(self.Class2DictFittedData[IntClass][Feature]["best_fit"],IntClass,self.Column2SaveName[Feature])),dpi = 200)
                     plt.close()
+                    Message = "\tPlot {0} Distribution Class {1}: True\n".format(Feature,IntClass)
         
 
 ## ------------------- PRINT UTILITIES ---------------- #
