@@ -131,9 +131,8 @@ def Main(config,StrDate):
 def MainComparison(ListNetworkDays,PlotDirAggregated,verbose):
     NetAllDays = NetworkAllDays(ListNetworkDays,PlotDirAggregated,verbose)
     # Create Fcm for All -> Distribution lenght and time (Power law )
-    NetAllDays.ConcatenatePerClass()
-    # Create Fcm for All -> Distribution lenght and time (Exponential with all mixed Heterogeneous classes)
-    NetAllDays.ConcatenateAllFcms()
+    NetAllDays.ConcatenateFcm()
+    NetAllDays.ComputeMFDAllDays()
     # All Days Plot Distribution Velocity Aggregated
     NetAllDays.PlotDistributionAggregatedAllDays()
     NetAllDays.PlotDistributionAggregatedAllDaysPerClass()
@@ -198,4 +197,6 @@ if __name__ == "__main__":
             ListNetworkDays.append(Network)
     
     # All Days Mobility Analysis
+    if parallel:
+        Network = ListNetworkDays[0]
     MainComparison(ListNetworkDays,Network.PlotDirAggregated,Network.verbose)

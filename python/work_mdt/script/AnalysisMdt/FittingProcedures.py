@@ -223,7 +223,7 @@ def FitAndPlot(x,y_measured,DictInitialGuess,Feature,InfoFit,DictFittedData):
             print("InfoFit After Fitting:\n",InfoFit)
     for Function2Fit in DictInitialGuess.keys():
         InfError = 10000000000
-        BestFit = None        
+        BestFitFunction = None        
         if Feature in DictInitialGuess[Function2Fit].keys(): 
             Error = InfoFit[Function2Fit][Feature]['StdError']
             if Error is not None:
@@ -239,7 +239,12 @@ def FitAndPlot(x,y_measured,DictInitialGuess,Feature,InfoFit,DictFittedData):
             b = BestFitParameters[0][1]
             DictFittedData[Feature]["best_fit"] = BestFitFunction
             DictFittedData[Feature]["fitted_data"] = list(Name2Function[BestFitFunction](x,A,b))
-    return InfoFit,DictFittedData
+            DictFittedData[Feature]["parameters"] = BestFitParameters
+    if BestFitFunction is None:
+        SuccessFit = False
+    else:
+        SuccessFit = True
+    return InfoFit,DictFittedData,SuccessFit,BestFitFunction
 
 
 if FoundPyMC3:

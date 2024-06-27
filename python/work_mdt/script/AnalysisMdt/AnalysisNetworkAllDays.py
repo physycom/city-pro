@@ -1,4 +1,5 @@
 from AnalysisNetwork1Day import *
+from analysisPlot import *
 from collections import defaultdict
 import numpy as np
 
@@ -16,28 +17,30 @@ def ComputeAggregatedMFDVariables(ListDailyNetwork,MFDAggregated):
     """
     LocalDayCount = 0
     # AGGREGATE MFD FOR ALL DAYS
-    for MobDate in self.ListDailyNetwork:
+    for MobDate in ListDailyNetwork:
         if LocalDayCount == 0:
             MFDAggregated = MobDate.MFD
             MFDAggregated["count_days"] = list(np.zeros(len(MFDAggregated["time"])))
+            MFDAggregated["total_number_people"] = list(np.zeros(len(MFDAggregated["time"])))
             LocalDayCount += 1
-        else:
+        else:            
             for t in range(len(MobDate.MFD["time"])):
-                SpeedAtTime = MobDate.MFD["speed_kmh"][t]
+                WeightedSpeedAtTime = MobDate.MFD["speed_kmh"][t]*MobDate.MFD["population"][t]
                 PopulationAtTime = MobDate.MFD["population"][t]
-                SpeedAtTimeS = MobDate.MFD["av_speed"][t]
-                if PopulationAtTime != 0 and SpeedAtTime !=0:
-                    MFDAggregated["speed_kmh"][t] += MobDate.MFD["speed_kmh"][t]
-                    MFDAggregated["population"][t] += MobDate.MFD["population"][t]
+                WeightedSpeedAtTimeS = MobDate.MFD["av_speed"][t]*MobDate.MFD["population"][t]
+                if PopulationAtTime != 0 and WeightedSpeedAtTime !=0:
+                    MFDAggregated["speed_kmh"][t] += WeightedSpeedAtTime
+                    MFDAggregated["population"][t] += PopulationAtTime
                     MFDAggregated["count_days"][t] += 1
-                    MFDAggregated["av_speed"][t] += MobDate.MFD["av_speed"][t]
+                    MFDAggregated["av_speed"][t] += WeightedSpeedAtTimeS
+                    MFDAggregated["total_number_people"][t] += PopulationAtTime
                 else:
                     pass
     for t in range(len(MFDAggregated["time"])):
         if MFDAggregated["count_days"][t] != 0:
-            MFDAggregated["speed_kmh"][t] = MFDAggregated["speed_kmh"][t]/MFDAggregated["count_days"][t]
-            MFDAggregated["population"][t] = MFDAggregated["population"][t]/MFDAggregated["count_days"][t]
-            MFDAggregated["av_speed"][t] = MFDAggregated["av_speed"][t]/MFDAggregated["count_days"][t]
+            MFDAggregated["speed_kmh"][t] = MFDAggregated["speed_kmh"][t]/(MFDAggregated["count_days"][t]*MFDAggregated["total_number_people"][t])
+            MFDAggregated["population"][t] = MFDAggregated["population"][t]/(MFDAggregated["count_days"][t]*MFDAggregated["total_number_people"][t])
+            MFDAggregated["av_speed"][t] = MFDAggregated["av_speed"][t]/(MFDAggregated["count_days"][t]*MFDAggregated["total_number_people"][t])
         else:
             pass
     MFDAggregated = Dict2PolarsDF(MFDAggregated,schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64})
@@ -52,6 +55,7 @@ class NetworkAllDays:
         self.ConcatenatePerClassBool = False
         self.CreateClass2SubNetAllDaysBool = False
         self.ComputedMFDAggregatedVariablesBool = False
+        self.AddStrClassColumn2FcmBool = False
         # Settings
         self.verbose = verbose
         self.PlotDir = PlotDir
@@ -64,6 +68,8 @@ class NetworkAllDays:
         self.Day2IntClass2StrClass = {MobDate.StrDate:defaultdict(dict) for MobDate in self.ListDailyNetwork}
         self.Day2StrClass2IntClass = {MobDate.StrDate:defaultdict(dict) for MobDate in self.ListDailyNetwork}
         self.DictClass2AvSpeed = {MobDate.StrDate:defaultdict(dict) for MobDate in self.ListDailyNetwork}
+        #
+        self.AggregationLevel = ["holidays","not_holidays","aggregated"]
         self.StrDates = [] 
         for MobDate in self.ListDailyNetwork:
             self.StrDates.append(MobDate.StrDate)         
@@ -90,6 +96,8 @@ class NetworkAllDays:
                     self.StrClass2MFDNewAggregated[StrClass] = {Key: [] for Key in MobDate.MFD.keys()}
                     self.StrClass2MFDAggregated2Plot[StrClass] = {Key: [] for Key in MobDate.MFD2Plot.keys()}
                     self.StrClass2MFDNewAggregated2Plot[StrClass] = {Key: [] for Key in MobDate.MFD2Plot.keys()}
+                self.config = MobDate.config
+
         self.StrDay2Color = {StrDay: self.ListColors[i] for i,StrDay in enumerate(self.StrDates)}
         self.MinMaxPlotPerClass = {StrClass: defaultdict() for StrClass in self.ListStrClassReference}
         self.MinMaxPlotPerClassNew = {StrClass: defaultdict() for StrClass in self.ListStrClassReference}
@@ -99,9 +107,13 @@ class NetworkAllDays:
             for Feature in self.Day2Feature2MaxBins[Day].keys():
                 for Bins in self.Day2Feature2MaxBins[Day][Feature].keys():
                     self.Feature2MaxBins[Feature][Bins] = max(self.Feature2MaxBins[Feature][Bins],self.Day2Feature2MaxBins[Day][Feature][Bins])
-        
+        self.StrDateHolidays = self.config["holiday_dates"]
         # Map The Classes among different days according to the closest average speed        
+        self.LogFile = os.path.join(self.PlotDir,"LogFile.txt")
+        self.CountFunctions = 0
+        self.AddStrClassColumn2Fcm()
         self.AssociateAvSpeed2StrClass()
+        self.InitFitInfo()
 
     def InitListStrClassReference(self):
         RefIntClass2StrClass = {}
@@ -112,12 +124,32 @@ class NetworkAllDays:
             if len(MobDate.StrClass2IntClass) > NumberClasses:
                 NumberClasses = len(MobDate.StrClass2IntClass)
                 self.DayReferenceClasses = MobDate.StrDate
-                ReferenceFcmCenters = MobDate.FcmCenters
-                RefIntClass2StrClass = MobDate.IntClass2StrClass
+                self.ReferenceFcmCenters = MobDate.FcmCenters
+                self.RefIntClass2StrClass = MobDate.IntClass2StrClass
             else:
                 pass
-        self.ListStrClassReference = list(RefIntClass2StrClass.keys())
+        self.ListStrClassReference = list(self.RefIntClass2StrClass.keys())
+        self.CountFunctions += 1
+        Message = "Function: InitListStrClassReference\n"
+        Message += "\tListStrClassReference: {}".format(self.ListStrClassReference)
+        AddMessageToLog(Message,self.LogFile)
 
+# USEFUL DICTIONARIES FOR COMPAriSON AMOnG DIFFErent DAYS    
+    def AddStrClassColumn2Fcm(self):
+        """
+            NOTE: Fondmental for the MFD, Fitting and Aggregation Descriptions
+            Description:
+                Adds to each Fcm the right Class
+
+        """
+        for MobDate in self.ListDailyNetwork:
+            StrDate = MobDate.StrDate
+            MobDate.Fcm = MobDate.Fcm.with_columns(pl.col("class").apply(lambda x: self.Day2IntClass2StrClass[StrDate][x], return_dtype=pl.Utf8).alias("str_class"))
+            MobDate.Fcm = MobDate.Fcm.with_columns(pl.col("class_new").apply(lambda x: self.Day2IntClass2StrClass[StrDate][x], return_dtype=pl.Utf8).alias("str_class_new"))
+        self.CountFunctions += 1
+        Message = "AddStrClassColumn2Fcm: True\n"
+        self.AddStrClassColumn2FcmBool = True
+        AddMessageToLog(Message,self.LogFile)
 
     def AssociateAvSpeed2StrClass(self):
         """
@@ -158,7 +190,7 @@ class NetworkAllDays:
                 IntClassBestMatch = 0
                 MinDifferenceInSpeed = 100000
                 # Choose the speed that is closest to the reference
-                for class_ref,Df_ref in ReferenceFcmCenters.group_by("class"):
+                for class_ref,Df_ref in self.ReferenceFcmCenters.group_by("class"):
                     if np.abs(Df["av_speed"].to_list()[0] - Df_ref["av_speed"].to_list()[0]) < MinDifferenceInSpeed:
                         MinDifferenceInSpeed = np.abs(Df["av_speed"].to_list()[0] - Df_ref["av_speed"].to_list()[0])
                         IntClassBestMatch = class_ref
@@ -169,8 +201,8 @@ class NetworkAllDays:
             # {StrDay: {IntClassStrDay: IntClassRefDay}}
             for Class in self.DictClass2AvSpeed[MobDate.StrDate].keys():
                 # {StrDay: {IntClassStrDay: StrClassRefDay}}
-                self.Day2IntClass2StrClass[MobDate.StrDate][Class] = RefIntClass2StrClass[self.DictClass2AvSpeed[MobDate.StrDate][Class]]
-                self.Day2StrClass2IntClass[MobDate.StrDate][RefIntClass2StrClass[self.DictClass2AvSpeed[MobDate.StrDate][Class]]] = Class
+                self.Day2IntClass2StrClass[MobDate.StrDate][Class] = self.RefIntClass2StrClass[self.DictClass2AvSpeed[MobDate.StrDate][Class]]
+                self.Day2StrClass2IntClass[MobDate.StrDate][self.RefIntClass2StrClass[self.DictClass2AvSpeed[MobDate.StrDate][Class]]] = Class
         if self.verbose:
             print("Day to StrClass to intClass:\n",self.Day2StrClass2IntClass)
             print("Day to IntClass to StrClass:\n",self.Day2IntClass2StrClass)
@@ -180,109 +212,165 @@ class NetworkAllDays:
                 MobDate.FcmCenters = MobDate.FcmCenters.with_columns(pl.when(pl.col("class") == Class).then(self.Day2IntClass2StrClass[MobDate.StrDate][Class]).otherwise("11").alias("str_class"))
                 MobDate.Fcm = MobDate.Fcm.with_columns(pl.when(pl.col("class") == Class).then(self.Day2StrClass2IntClass[MobDate.StrDate][self.Day2IntClass2StrClass[MobDate.StrDate][Class]]).otherwise("11").alias("str_class"))
         self.AssociateAvSpeed2StrClassBool = True
+        self.CountFunctions += 1
+        Message = "Associate Days Classes to common StrClass:\n"
+        Message += "\tself.Day2IntClass2StrClass\n" 
+        for Day in self.Day2IntClass2StrClass.keys():
+            Message += "\t\t <{}".format(Day)
+            for Class in self.Day2IntClass2StrClass[Day].keys():
+                Message += ":< {}".format(Class)
+                Message += ": {}".format(self.Day2IntClass2StrClass[Day][Class])
+            Message += ">"
+        Message += ">"
+        AddMessageToLog(Message,self.LogFile)
+        Message = "\tself.Day2StrClass2IntClass\n"
+        for Day in self.Day2StrClass2IntClass.keys():
+            Message += "\t\t <{}".format(Day)
+            for Class in self.Day2StrClass2IntClass[Day].keys():
+                Message += ":< {}".format(Class)
+                Message += ": {}".format(self.Day2StrClass2IntClass[Day][Class])
+            Message += ">"
+        Message = "\tself.DictClass2AvSpeed\n"
+        AddMessageToLog(Message,self.LogFile)
+        for StrClass in self.DictClass2AvSpeed.keys():
+            Message += "\t\t <{}".format(StrClass)
+            for AvSpeed in self.DictClass2AvSpeed[StrClass].keys():
+                Message += ":< {}".format(AvSpeed)
+            Message += ">"
+        AddMessageToLog(Message,self.LogFile)
 
-    def ConcatenateAllFcms(self):
+    def InitFitInfo(self):
+        """
+            This function initializes the dictionaries that will contain the information about the fit.
+        """
+        if self.AssociateAvSpeed2StrClassBool:
+            # FIT
+            self.Day2Dict2InitialGuess = {MobDate.StrDate:defaultdict(dict) for MobDate in self.ListDailyNetwork}
+            self.Day2DictFittedData = {MobDate.StrDate:defaultdict(dict) for MobDate in self.ListDailyNetwork}
+            self.Day2InfoFittedParameters = {MobDate.StrDate:defaultdict(dict) for MobDate in self.ListDailyNetwork}     
+            self.Day2Class2DictFittedData = {MobDate.StrDate:{StrClass: defaultdict(dict) for StrClass in self.Day2StrClass2IntClass[MobDate.StrDate]} for MobDate in self.ListDailyNetwork}       
+            self.Day2Class2InfoFittedParameters = {MobDate.StrDate:{StrClass: defaultdict(dict) for StrClass in self.Day2StrClass2IntClass[MobDate.StrDate]} for MobDate in self.ListDailyNetwork}
+            for MobDate in self.ListDailyNetwork:
+                # FIT Features
+                self.Day2Dict2InitialGuess[MobDate.StrDate] = MobDate.DictInitialGuess
+                self.Day2Dict2InitialGuess[MobDate.StrDate][MobDate.StrDate] = MobDate.Class2DictInitialGuess
+                self.Day2DictFittedData[MobDate.StrDate] = MobDate.DictFittedData
+                self.Day2InfoFittedParameters[MobDate.StrDate] = MobDate.InfoFittedParameters
+                # Per Class
+                for StrClass in self.Day2StrClass2IntClass[MobDate.StrDate]:
+                    IntClass = self.Day2StrClass2IntClass[MobDate.StrDate][StrClass]
+                    self.Day2Class2DictFittedData[MobDate.StrDate][StrClass] = MobDate.Class2DictFittedData[IntClass]
+                    self.Day2Class2InfoFittedParameters[MobDate.StrDate][StrClass] = MobDate.Class2InfoFittedParameters[IntClass]
+
+        else:
+            raise ValueError("AssociateAvSpeed2StrClassBool is False. Please run AssociateAvSpeed2StrClass()")
+    
+    def ComparedDaysFit(self):
+        """
+            Create the Dataframe that contains information about:
+                1. Parameters
+                2. Best Fit Function
+        """
+        if self.AssociateAvSpeed2StrClassBool:
+            DictFitKeys = ["parameters","best_fit"]
+            Columns = ["time","lenght","av_speed","speed_kmh","lenght_km","time_hours"]
+            ColumnsDictFittedData = [Feature + "_{}".format() for FI in DictFitKeys for Feature in Columns]
+            Index = self.StrDates
+            self.DF_FitAggregated = pl.DataFrame(ColumnsDictFittedData,Index)
+            self.StrClass2DF_Fit = {StrClass:self.DF_FitAggregated for StrClass in self.ListStrClassReference}
+            for MobDate in self.ListDailyNetwork:
+                for Feature in Columns:
+                    for FitKey in DictFitKeys:
+                        self.DF_FitAggregated[Feature+"_{}".format(FitKey)].loc[MobDate.StrDate] = MobDate.Day2DictFittedData[MobDate.StrDate][Feature][FitKey]
+            self.CountFunctions += 1
+            Message = "ComparedDaysFit\n"
+            Message += "\tself.DF_FitAggregated"
+            AddMessageToLog(Message,self.LogFile)
+            self.DF_FitAggregated.write_csv(os.path.join(self.PlotDir,"FitAllDays.csv"))
+            # Per Class
+            for StrClass in self.ListStrClassReference:
+                for MobDate in self.ListDailyNetwork:
+                    DayIntClass = self.Day2StrClass2IntClass[MobDate.StrDate][StrClass]  
+                    for Feature in Columns:
+                        for FitKey in DictFitKeys:
+                            self.StrClass2DF_Fit[StrClass][Feature+"_{}".format(FitKey)].loc[MobDate.StrDate] = MobDate.Day2Class2DictFittedData[MobDate.StrDate][DayIntClass][Feature][FitKey]
+                self.StrClass2DF_Fit[StrClass].write_csv(os.path.join(self.PlotDir,"FitAllDays_{}.csv".format(StrClass)))
+            self.CountFunctions += 1
+            Message += "\tself.StrClass2DF_Fit"
+            AddMessageToLog(Message,self.LogFile)
+
+
+    def ConcatenateFcm(self):
         """
             Description:
-                Concatenate all fcms in self.ListDailyNetwork by label: [lenght, time]
-        """
-        self.ConcatenatedFcm = None
-        for DailyMob in self.ListDailyNetwork:
-            if self.ConcatenatedFcm is None:
-                if DailyMob.ReadFcmNewBool and DailyMob.ReadFcmBool:
-                    self.ConcatenatedFcm = DailyMob.Fcm
-                if self.verbose:
-                    print("Concatenated Fcm:\n{}".format(self.ConcatenatedFcm.columns))
-                    print("Day:\n",DailyMob.StrDate)
-            else:
-                if self.verbose:
-                    print("Concatenated Fcm:\n{}".format(self.ConcatenatedFcm.columns))
-                    print("Fcm:\n",DailyMob.Fcm.columns)
-                    print("Day:\n",DailyMob.StrDate)
-                if DailyMob.ReadFcmNewBool and DailyMob.ReadFcmBool:
-                    self.ConcatenatedFcm = pl.concat([self.ConcatenatedFcm,DailyMob.Fcm])
-
-
-
-    def ConcatenatePerClass(self):
-        """
+                Contains information about Speed,Time,... for the different aggregation levels.
+                Aggregation in [holidays, not_holidays, aggregated]
+                They are useful for statistics on the distribution of the features.
             Output:
-                Class2Fcm =
-                {Strclass: {time: [timetraj0,...,timetrajN]
-                         lenght: [lenghttraj0,...,lenghttrajN]
-                         }
-                }
+                Aggregation2Fcm =
+                {Aggregation: FcmConcatenated By Aggregated Days}
+                Aggregation2Class2Fcm = {Aggregation: {StrClass: FcmConcatenated By Aggregated Days}}
+
                 Day2Class2Fcm = {day: {Strclass: {time: [timetraj0,...,timetrajN], lenght: [lenghttraj0,...,lenghttrajN]}}}
             NOTE: The class are grouped by the speed. From AssociateAvSpeed2StrClass()
         """
-        # If Classes are Categorized
-        if self.AssociateAvSpeed2StrClassBool:
-            self.Class2Fcm = {StrClass: {"time":[],"lenght":[],"av_speed":[],"speed_kmh":[],"lenght_km":[],"time_hours":[]} for StrClass in self.Day2StrClass2IntClass[self.DayReferenceClasses].keys()}
-            self.Day2Class2Fcm = {MobDate.StrDate: {StrClass: {"time":[],"lenght":[],"av_speed":[],"speed_kmh":[],"lenght_km":[],"time_hours":[]} for StrClass in self.Day2StrClass2IntClass[MobDate.StrDate].keys()} for MobDate in self.ListDailyNetwork}
-            for MobDate in self.ListDailyNetwork:
-                for StrClass in self.ListStrClassReference:
-                    # Append time and lenght of the Iterated Day
-                    self.Class2Fcm[StrClass]["time"].extend(MobDate.Fcm.filter(pl.col("str_class") == StrClass)["time"].to_list())
-                    self.Class2Fcm[StrClass]["lenght"].extend(MobDate.Fcm.filter(pl.col("str_class") == StrClass)["lenght"].to_list())
-                    self.Class2Fcm[StrClass]["av_speed"].extend(MobDate.Fcm.filter(pl.col("str_class") == StrClass)["av_speed"].to_list())
-                    self.Class2Fcm[StrClass]["speed_kmh"].extend(MobDate.Fcm.filter(pl.col("str_class") == StrClass)["speed_kmh"].to_list())
-                    self.Class2Fcm[StrClass]["lenght_km"].extend(MobDate.Fcm.filter(pl.col("str_class") == StrClass)["lenght_km"].to_list())
-                    self.Class2Fcm[StrClass]["time_hours"].extend(MobDate.Fcm.filter(pl.col("str_class") == StrClass)["time_hours"].to_list())
-                    self.Day2Class2Fcm[MobDate.StrDate][StrClass]["time"].extend(MobDate.Fcm.filter(pl.col("str_class") == StrClass)["time"].to_list())
-                    self.Day2Class2Fcm[MobDate.StrDate][StrClass]["lenght"].extend(MobDate.Fcm.filter(pl.col("str_class") == StrClass)["lenght"].to_list())
-                    self.Day2Class2Fcm[MobDate.StrDate][StrClass]["av_speed"].extend(MobDate.Fcm.filter(pl.col("str_class") == StrClass)["av_speed"].to_list())
-                    self.Day2Class2Fcm[MobDate.StrDate][StrClass]["speed_kmh"].extend(MobDate.Fcm.filter(pl.col("str_class") == StrClass)["speed_kmh"].to_list())
-                    self.Day2Class2Fcm[MobDate.StrDate][StrClass]["lenght_km"].extend(MobDate.Fcm.filter(pl.col("str_class") == StrClass)["lenght_km"].to_list())
-                    self.Day2Class2Fcm[MobDate.StrDate][StrClass]["time_hours"].extend(MobDate.Fcm.filter(pl.col("str_class") == StrClass)["time_hours"].to_list())
-#        if self.verbose:
-#            print("Class2Fcm:\n",self.Class2Fcm)
-        self.ConcatenatePerClassBool = True
+        if self.AddStrClassColumn2FcmBool:
+            # If Classes are Categorized
+            self.CountFunctions += 1
+            self.Aggregation2Fcm = {Aggregation: pl.DataFrame() for Aggregation in self.AggregationLevel}
+            self.Aggregation2Class2Fcm = {Aggregation: {StrClass: pl.DataFrame() for StrClass in self.Day2StrClass2IntClass[self.DayReferenceClasses].keys()} for Aggregation in self.AggregationLevel}
+            if self.AssociateAvSpeed2StrClassBool:
+                for Aggregation in self.AggregationLevel:
+                    for MobDate in self.ListDailyNetwork:
+                        self.Aggregation2Fcm[Aggregation] = pl.concat([self.Aggregation2Fcm[Aggregation],MobDate.Fcm])
+                        for StrClass in self.ListStrClassReference:
+                        # Append time and lenght of the Iterated Day
+                            self.Aggregation2Class2Fcm[Aggregation] = pl.concat([self.Aggregation2Class2Fcm[Aggregation],MobDate.Fcm.filter(pl.col("str_class") == StrClass)])
+                self.ConcatenatePerClassBool = True
+                Message = "ConcatenatePerClass: True\n self.Aggregation2Fcm\n"
+                for Aggregation in self.Aggregation2Fcm.keys():
+                    Message += "\tAggregation: {}".format(Aggregation)
+                    Message += "-> Number of Trajectories: {}".format(len(self.Aggregation2Fcm[Aggregation]))
+                    AddMessageToLog(Message,self.LogFile)
+                Message = "ConcatenatePerClass: self.Aggregation2Class2Fcm\n"
+                for Aggregation in self.Aggregation2Class2Fcm.keys():
+                    for StrClass in self.Aggregation2Class2Fcm[Aggregation].keys():
+                        Message += "\tAggregation: {}".format(Aggregation)
+                        Message += "\tStrClass: {}".format(StrClass)
+                        Message += "-> Number of Trajectories: {}".format(len(self.Aggregation2Class2Fcm[Aggregation][StrClass]))
+                    AddMessageToLog(Message,self.LogFile)
+            else:
+                Message = "ConcatenatePerClass: False"
 ## Put together space and time for all days for each class.
-## Compare them by the average velocity in self.Day2StrClass2IntClass[MobDate.StrDate]
-##
-    def SetlenghtTimeCommonBins(self,bins = 100):
+
+    def ComputeMFDAllDays(self):
         """
-            Set the lenght and time common bins:
-                1. lenghtTimeBins -> {Class: {"time": {"xmax": 0, "xmin": 0, "ymax": 0, "ymin": 0}, "lenght": {"xmax": 0, "xmin": 0, "ymax": 0, "ymin": 0}}
-                2. MaxlenghtTimeBins -> {"time": {"xmax": 0, "xmin": 0, "ymax": 0, "ymin": 0}, "lenght": {"xmax": 0, "xmin": 0, "ymax": 0, "ymin": 0}}
-            NOTE:
-                This Aligns the distribution of time and lenghts among all classes
-                It is essential to have comparable plots among all days.
-        
+            Description:
+                Compute the MFD averaged with all days data.
         """
-        if self.ConcatenatePerClassBool:
-            Labels = ["time","lenght","av_speed","speed_kmh","lenght_km","time_hours"]
-            self.lenghtTimeBins = {Class: {"time": {"xmax": 0, "xmin": 0, "ymax": 0, "ymin": 0}, 
-                                           "lenght": {"xmax": 0, "xmin": 0, "ymax": 0, "ymin": 0},
-                                           "av_speed": {"xmax": 0, "xmin": 0, "ymax": 0, "ymin": 0},
-                                           "speed_kmh": {"xmax": 0, "xmin": 0, "ymax": 0, "ymin": 0},
-                                           "time_hours": {"xmax": 0, "xmin": 0, "ymax": 0, "ymin": 0},
-                                           "lenght_km": {"xmax": 0, "xmin": 0, "ymax": 0, "ymin": 0}
-                                           } for Class in self.Class2Fcm.keys()
-                                    }
-            self.MaxlenghtTimeBins = {"time": {"xmax": 0, "xmin": 0, "ymax": 0, "ymin": 0},
-                                      "lenght": {"xmax": 0, "xmin": 0, "ymax": 0, "ymin": 0},
-                                      "av_speed": {"xmax": 0, "xmin": 0, "ymax": 0, "ymin": 0},
-                                      "speed_kmh": {"xmax": 0, "xmin": 0, "ymax": 0, "ymin": 0},
-                                      "time_hours": {"xmax": 0, "xmin": 0, "ymax": 0, "ymin": 0},
-                                      "lenght_km": {"xmax": 0, "xmin": 0, "ymax": 0, "ymin": 0}
-                                      }
-            for Label in Labels:
-                self.MaxlenghtTimeBins[Label]["xmax"] = max(np.histogram(self.ConcatenatedFcm[Label].to_list(),bins = bins)[1])
-                self.MaxlenghtTimeBins[Label]["xmin"] = min(np.histogram(self.ConcatenatedFcm[Label].to_list(),bins = bins)[1])
-                self.MaxlenghtTimeBins[Label]["ymax"] = max(np.histogram(self.ConcatenatedFcm[Label].to_list(),bins = bins)[0])
-                self.MaxlenghtTimeBins[Label]["ymin"] = min(np.histogram(self.ConcatenatedFcm[Label].to_list(),bins = bins)[0])
-                for Class in self.Class2Fcm.keys():
-                    print("Class:\n",Class)
-                    print("Label:\n",Label)
-                    print("len(self.Class2Fcm[Class][Label]):\n",len(self.Class2Fcm[Class][Label]))
-                    print("len(self.Class2Fcm[Class]):\n",len(self.Class2Fcm[Class]))
-                    print("type(self.Class2Fcm[Class][Label]):\n",type(self.Class2Fcm[Class][Label]))
-                    print("self.Class2Fcm[Class][Label]:\n",np.shape(self.Class2Fcm[Class][Label]))
-                    self.lenghtTimeBins[Class][Label]["xmax"] = max(np.histogram(self.Class2Fcm[Class][Label],bins = bins)[1])
-                    self.lenghtTimeBins[Class][Label]["xmin"] = min(np.histogram(self.Class2Fcm[Class][Label],bins = bins)[1])
-                    self.lenghtTimeBins[Class][Label]["ymax"] = max(np.histogram(self.Class2Fcm[Class][Label],bins = bins)[0])
-                    self.lenghtTimeBins[Class][Label]["ymin"] = min(np.histogram(self.Class2Fcm[Class][Label],bins = bins)[0])
+        self.Aggregation2MFD = {Aggregation:{MobDate.StrDate:MobDate.MFD for MobDate in self.ListDailyNetwork} for Aggregation in self.AggregationLevel}
+        self.Aggregation2MFDNew = {Aggregation:{MobDate.StrDate:MobDate.MFDNew for MobDate in self.ListDailyNetwork} for Aggregation in self.AggregationLevel}
+        self.Aggregation2Class2MFD = {Aggregation:{StrClass:{MobDate.StrDate:MobDate.MFD for MobDate in self.ListDailyNetwork} for StrClass in self.ListStrClassReference} for Aggregation in self.AggregationLevel}
+        self.Aggregation2Class2MFDNew = {Aggregation:{StrClass:{MobDate.StrDate:MobDate.MFDNew for MobDate in self.ListDailyNetwork} for StrClass in self.ListStrClassReference} for Aggregation in self.AggregationLevel}
+        self.Aggregation2MFD2Plot = {Aggregation:{"binned_av_speed":[],"binned_sqrt_err_speed":[],"bins_population":[]} for Aggregation in self.AggregationLevel}
+        for Aggregation in self.AggregationLevel:
+            self.Aggregation2MFD[Aggregation] = ComputeAggregatedMFDVariables(self.ListDailyNetwork,self.Aggregation2MFD[Aggregation])
+        for Aggregation in self.AggregationLevel:
+            for StrClass in self.ListStrClassReference:
+                self.Aggregation2Class2MFD[Aggregation][StrClass] = ComputeAggregatedMFDVariables(self.ListDailyNetwork,self.Aggregation2Class2MFD[Aggregation][StrClass])
+        self.CountFunctions += 1
+        Message = "ComputeMFDAllDays: True\n"
+        Message += "\tself.Aggregation2MFD\n"
+        for Aggregation in self.Aggregation2MFD.keys():
+            Message += "\tAggregation: {}".format(Aggregation)
+            Message += "-> Number of Trajectories: {}".format(len(self.Aggregation2MFD[Aggregation]))
+        AddMessageToLog(Message,self.LogFile)
+        Message = "ComputeMFDAllDays: self.Aggregation2Class2MFD\n"
+        for Aggregation in self.Aggregation2Class2MFD.keys():
+            for StrClass in self.Aggregation2Class2MFD[Aggregation].keys():
+                Message += "\tAggregation: {}".format(Aggregation)
+                Message += "\tStrClass: {}".format(StrClass)
+                Message += "-> Number of Trajectories: {}".format(len(self.Aggregation2Class2MFD[Aggregation][StrClass]))
 
     # Plot of Distribution of Time, Lenght, Av_Speed, Speed_kmh, Lenght_km, Time_hours for all days
     def PlotDistributionAggregatedAllDaysPerClass(self,bins = 100):
@@ -297,7 +385,6 @@ class NetworkAllDays:
         else:
             pass
         if self.ConcatenatePerClassBool:
-            self.SetlenghtTimeCommonBins()
             legend_ = []
             for StrClass in self.ListStrClassReference:
                 fig, ax = plt.subplots(1,1,figsize = (10,8))
@@ -322,7 +409,6 @@ class NetworkAllDays:
             Each plot contains the curves of the distrubution of time and lenght and av_speed for each class.
         """
         if self.ConcatenatePerClassBool:
-            self.SetlenghtTimeCommonBins()
             legend_ = []
             for StrClass in self.ListStrClassReference:
                 fig, ax = plt.subplots(1,1,figsize = (10,8))
@@ -353,7 +439,6 @@ class NetworkAllDays:
         else:
             pass
         if self.ConcatenatePerClassBool:
-            self.SetlenghtTimeCommonBins()
             for Feature in self.Column2Label.keys():
                 fig, ax = plt.subplots(1,1,figsize = (10,8))
                 count,bins_ = np.histogram(self.ConcatenatedFcm[Feature],bins = bins)
@@ -379,7 +464,6 @@ class NetworkAllDays:
             print("No plot Average, lack of concatenated fcm")
         else:
             if self.ConcatenatePerClassBool:
-                self.SetlenghtTimeCommonBins()
                 legend_ = []
                 for NetDay in self.ListDailyNetwork:
                     for Feature in self.Column2Label.keys():

@@ -28,6 +28,7 @@ import warnings
 from FittingProcedures import *
 from MFDAnalysis import *
 from CastVariables import *
+from analysisPlot import *
 
 # Ignore all warnings
 warnings.filterwarnings("ignore")
@@ -53,15 +54,17 @@ def PlotTimePercorrenceDistribution(RoadsTimeVel,Time2Distr,AvgTimePercorrence,S
         Input:
             RoadsTimeVel: pl.DataFrame -> DataFrame with the Roads Time Velocities 
     """
+    Slicing = 8
     fig,ax = plt.subplots(1,1,figsize = (10,10))
     for time,RTV in RoadsTimeVel.groupby("start_bin"):
-        ValidTime = RTV.filter(pl.col("time_percorrence")>0).to_list()
-        Time2Distr.append(ValidTime)
-        AvgTimePercorrence.append(np.mean(ValidTime["time_percorrence"]))
+        ValidTime = RTV.filter(pl.col("time_percorrence")>0)
+        Time2Distr.append(ValidTime["time_percorrence"].to_list())
+        AvgTimePercorrence.append(np.mean(ValidTime["time_percorrence"].to_list()))
         StartInterval = datetime.datetime.fromtimestamp(time)
         StrTimesLabel.append(StartInterval.strftime("%Y-%m-%d %H:%M:%S").split(" ")[1])
     ax.plot(StrTimesLabel, AvgTimePercorrence)
-    ax.boxplot(Time2Distr,tick_labels = StrTimesLabel)
+    ax.boxplot(Time2Distr,labels = StrTimesLabel,sym='')
+    ax.set_xticklabels(StrTimesLabel[::Slicing],rotation = 90)
     ax.set_title("Time Percorrence Distribution")
     ax.set_xlabel("Time")
     ax.set_ylabel("Time Percorrence")
@@ -127,7 +130,7 @@ def FillInitGuessIntervalMxGs(DictInitGuessInterval,Fcm,Feature,IntClass):
     else:
         LocalMeanMs = Fcm.filter(pl.col("class") == IntClass)[Feature].mean()
         LocalStdMs = Fcm.filter(pl.col("class") == IntClass)[Feature].std()
-    DictInitGuessInterval["initial_guess"] = [LocalMeanMs,LocalStdMs]
+    DictInitGuessInterval["initial_guess"] = [LocalStdMs,LocalMeanMs]
     return DictInitGuessInterval
 
 def ReturnFitInfoFromDict(Fcm,InitialGuess,DictFittedData,InfoFittedParameters,Feature2Label,FitFile,FittedDataFile):
@@ -148,22 +151,36 @@ def ReturnFitInfoFromDict(Fcm,InitialGuess,DictFittedData,InfoFittedParameters,F
             DictFittedData: dict -> {Feature: {"fitted_data": [],"best_fit": str}}
     """
     print("Return Fit Info From Dict:")
-    if os.path.isfile(FitFile) and os.path.isfile(FittedDataFile):
-        with open(FitFile,'r') as f:
-            InfoFittedParameters = json.load(f)
-        with open(FittedDataFile,'r') as f:
-            DictFittedData = json.load(f)
-        Uploading = True
-    else:
-        for Feature in DictFittedData.keys():
-            y,x = np.histogram(Fcm[Feature].to_list(),bins = 50)
-            InfoFittedParameters, DictFittedData = FitAndPlot(x[1:],y,InitialGuess,Feature,InfoFittedParameters,DictFittedData)
-        with open(FitFile,'w') as f:
-            json.dump(InfoFittedParameters,f,cls=NumpyArrayEncoder,indent = 4)
-        with open(FittedDataFile,'w') as f:
-            json.dump(DictFittedData,f,cls=NumpyArrayEncoder,indent = 4)
-        Uploading = False
-    return InfoFittedParameters,DictFittedData,Uploading
+#    if os.path.isfile(FitFile) and os.path.isfile(FittedDataFile):
+#        with open(FitFile,'r') as f:
+#            InfoFittedParameters = json.load(f)
+#        with open(FittedDataFile,'r') as f:
+#            DictFittedData = json.load(f)
+#       for Feature in DictFittedData.keys():
+#           with open(FitFile+"{}.json".format(Feature),'r') as f:
+#               InfoFittedParameters = json.load(f)
+#           with open(FittedDataFile+"{}.json".format(Feature),'r') as f:
+#               DictFittedData = json.load(f)
+#        Uploading = True
+#        SuccessFit = True
+#    else:
+    for Feature in DictFittedData.keys():
+        y,x = np.histogram(Fcm[Feature].to_list(),bins = 50)
+        if Feature == "speed_kmh" or Feature == "av_speed":
+            y = y/np.sum(y)
+        InfoFittedParameters, DictFittedData,SuccessFit,FunctionFitted = FitAndPlot(x[1:],y,InitialGuess,Feature,InfoFittedParameters,DictFittedData)
+        if SuccessFit:
+            with open(FitFile+"{}.json".format(Feature),'w') as f:
+                json.dump(InfoFittedParameters[FunctionFitted][Feature],f,cls=NumpyArrayEncoder,indent = 4)
+            with open(FittedDataFile+"{}.json".format(Feature),'w') as f:
+                json.dump(DictFittedData[Feature],f,cls=NumpyArrayEncoder,indent = 4)
+
+    with open(FitFile,'w') as f:
+        json.dump(InfoFittedParameters,f,cls=NumpyArrayEncoder,indent = 4)
+    with open(FittedDataFile,'w') as f:
+        json.dump(DictFittedData,f,cls=NumpyArrayEncoder,indent = 4)
+    Uploading = False
+    return InfoFittedParameters,DictFittedData,Uploading,SuccessFit
 
 def AddMessageToLog(Message,LogFile):
     with open(LogFile,'a') as f:
@@ -303,7 +320,7 @@ class DailyNetworkStats:
                                     }
                                 }
 
-        self.DictFittedData = {Feature: {"best_fit":[], "fitted_data":[]} for Feature in list(self.Features2Fit)}
+        self.DictFittedData = {Feature: {"best_fit":[], "fitted_data":[],"parameters":[]} for Feature in list(self.Features2Fit)}
         self.InfoFittedParameters =  {Function2Fit: {Feature:{"fit":None,"StdError":None} for Feature in self.DictInitialGuess[Function2Fit].keys()} for Function2Fit in self.DictInitialGuess.keys()}
         self.InfoFit = config["info_fit"]
         ## BIN SETTINGS
@@ -891,52 +908,18 @@ class DailyNetworkStats:
                 Plots the subnetwork. Considers the case of intersections
         """
         self.CountFunctionsCalled += 1
-        if self.ReadFluxesSubIncreasinglyIncludedIntersectionBool and self.ReadGeojsonBool and self.BoolStrClass2IntClass:
-            print("Plotting Daily Incremental Subnetworks in HTML")
-            if not os.path.isfile(os.path.join(self.PlotDir,"Subnets_{}.html".format(self.StrDate))) or True:
-                print("Save in: ",os.path.join(self.PlotDir,"SubnetsIncrementalInclusion_{}.html".format(self.StrDate)))
-                # Create a base map
-                m = folium.Map(location=[self.centroid.x, self.centroid.y], zoom_start=12)
-                # Iterate through the Dictionary of list of poly_lid
-                for IntClass in self.IntClass2StrClass.keys():
-                    mclass = folium.Map(location=[self.centroid.x, self.centroid.y], zoom_start=12)
-#                    for index_list in self.IntClass2RoadsIncreasinglyIncludedIntersection[IntClass]:
-                    # Filter GeoDataFrame for roads with indices in the current list
-                    filtered_gdf = self.GeoJson.groupby("IntClassOrdered_{}".format(self.StrDate)).get_group(IntClass)
-#                    index_list = self.IntClass2RoadsIncreasinglyIncludedIntersection[IntClass]
-#                    filtered_gdf = self.GeoJson[self.GeoJson['poly_lid'].isin(index_list)]
-                    # Create a feature group for the current layer
-                    layer_group = folium.FeatureGroup(name="Layer {}".format(IntClass)).add_to(m)
-                    layer_group_class = folium.FeatureGroup(name="Layer {}".format(IntClass)).add_to(mclass)
-                    # Add roads to the feature group with a unique color
-                    if self.verbose:
-                        print("Class: ",IntClass," Number of Roads: ",len(filtered_gdf),"Color: ",self.Class2Color[self.IntClass2StrClass[IntClass]])
-                        print("filtered_gdf:",filtered_gdf.head())
-                    
-                    for _, road in filtered_gdf.iterrows():
-                        if road.geometry is not None:
-                            folium.GeoJson(road.geometry, style_function=lambda x: {'color': self.Class2Color[self.IntClass2StrClass[IntClass]]}).add_to(layer_group)
-                            folium.GeoJson(road.geometry, style_function=lambda x: {'color': self.Class2Color[self.IntClass2StrClass[IntClass]]}).add_to(layer_group_class)
-                    
-                    # Add the feature group to the map
-                    layer_group.add_to(m)
-                    layer_group_class.add_to(mclass)
-                    # Add layer control to the map
-                    folium.LayerControl().add_to(m)
-                    folium.LayerControl().add_to(mclass)
-                    # Save or display the map
-                    mclass.save(os.path.join(self.PlotDir,"SubnetsIncrementalInclusion_{0}_{1}.html".format(self.StrDate,IntClass)))
-                m.save(os.path.join(self.PlotDir,"SubnetsIncrementalInclusion_{}.html".format(self.StrDate)))
-                Message = "{} Plotting Daily Incremental Subnetworks in HTML: True".format(self.CountFunctionsCalled)
-                AddMessageToLog(Message,self.LogFile)
-            else:
-                Message = "{} Plotting Daily Incremental Subnetworks in HTML: Already Plotted".format(self.CountFunctionsCalled)
-                AddMessageToLog(Message,self.LogFile)
-                print("Subnets Increasingly already Plotted in HTML")
-        else:
-            Message = "{} Plotting Daily Incremental Subnetworks in HTML: False".format(self.CountFunctionsCalled)
-            AddMessageToLog(Message,self.LogFile)
-            print("No Subnetworks to Plot")
+        Message = PlotIncrementSubnetHTML(self.GeoJson,
+                                self.IntClass2StrClass,
+                                self.centroid,
+                                self.PlotDir,
+                                self.StrDate,
+                                self.ReadFluxesSubIncreasinglyIncludedIntersectionBool,
+                                self.ReadGeojsonBool,
+                                self.Class2Color,
+                                "SubnetsIncrementalInclusion",
+                                self.verbose)
+        Message = "{} ".format(self.CountFunctionsCalled) + Message
+        AddMessageToLog(Message,self.LogFile)
 
     def PlotSubnetHTML(self):
         """
@@ -946,50 +929,18 @@ class DailyNetworkStats:
                     Does not consider the intersection
         """
         self.CountFunctionsCalled += 1
-        if self.ReadFluxesSubBool and self.ReadGeojsonBool and self.BoolStrClass2IntClass:
-
-            print("Plotting Daily Subnetworks in HTML")
-            if not os.path.isfile(os.path.join(self.PlotDir,"Subnets_{}.html".format(self.StrDate))) or True:
-                # Create a base map
-                m = folium.Map(location=[self.centroid.x, self.centroid.y], zoom_start=12)
-                # Iterate through the Dictionary of list of poly_lid
-                for IntClass in self.IntClass2StrClass.keys():
-                    mclass = folium.Map(location=[self.centroid.x, self.centroid.y], zoom_start=12)
-#                    for index_list in self.IntClass2Roads[IntClass]:
-                    if isinstance(index_list,int):
-                        index_list = [index_list]
-                    # Filter GeoDataFrame for roads with indices in the current list
-                    filtered_gdf = self.GeoJson.groupby("IntClass_{}".format(self.StrDate)).get_group(IntClass)
-#                    index_list = self.IntClass2Roads[IntClass]
-#                    filtered_gdf = self.GeoJson[self.GeoJson['poly_lid'].isin(index_list)]
-                    # Create a feature group for the current layer
-                    layer_group = folium.FeatureGroup(name=f"Layer {IntClass}").add_to(m)
-                    layer_group_class = folium.FeatureGroup(name=f"Layer {IntClass}").add_to(mclass)
-                    # Add roads to the feature group with a unique color
-                    for _, road in filtered_gdf.iterrows():
-                        color = 'blue'  # Choose a color for the road based on index or any other criterion
-                        if road.geometry is not None:
-                            folium.GeoJson(road.geometry, style_function=lambda x: {'color': self.Class2Color[self.IntClass2StrClass[IntClass]]}).add_to(layer_group)
-                    
-                    # Add the feature group to the map
-                    layer_group.add_to(m)
-                    layer_group_class.add_to(mclass)
-                    # Add layer control to the map
-                    folium.LayerControl().add_to(m)
-                    folium.LayerControl().add_to(mclass)
-                    mclass.save(os.path.join(self.PlotDir,"Subnets_{0}_{1}.html".format(self.StrDate,IntClass)))
-                # Save or display the map
-                m.save(os.path.join(self.PlotDir,"Subnets_{}.html".format(self.StrDate)))
-                Message = "{} Plotting Daily Subnetworks in HTML: True".format(self.CountFunctionsCalled)
-                AddMessageToLog(Message,self.LogFile)
-            else:
-                Message = "{} Plotting Daily Subnetworks in HTML: Already Plotted".format(self.CountFunctionsCalled)
-                AddMessageToLog(Message,self.LogFile)
-                print("Subnets already Plotted in HTML")
-        else:
-            Message = "{} Plotting Daily Subnetworks in HTML: False".format(self.CountFunctionsCalled)
-            AddMessageToLog(Message,self.LogFile)
-            print("No Subnetworks to Plot")
+        Message = PlotSubnetHTML(self.GeoJson,
+                                 self.IntClass2StrClass,
+                                 self.centroid,
+                                 self.PlotDir,
+                                 self.StrDate,
+                                 self.ReadFluxesSubBool,
+                                 self.ReadGeojsonBool,
+                                 self.BoolStrClass2IntClass,
+                                 self.Class2Color,
+                                 self.verbose)
+        Message = "{} ".format(self.CountFunctionsCalled) + Message
+        AddMessageToLog(Message,self.LogFile)
         
     def PlotFluxesHTML(self):
         '''
@@ -1001,61 +952,17 @@ class DailyNetworkStats:
                     3) TF + FT
         '''
         self.CountFunctionsCalled += 1
-        if self.ReadTime2FluxesBool:
-            print("Plotting Daily Fluxes in HTML")
-            if not os.path.isfile(os.path.join(self.PlotDir,"Fluxes_{}.html".format(self.StrDate))):
-                # Create a base map
-                m = folium.Map(location=[self.centroid.x, self.centroid.y], zoom_start=12)
-                mFT = folium.Map(location=[self.centroid.x, self.centroid.y], zoom_start=12)
-                mTF = folium.Map(location=[self.centroid.x, self.centroid.y], zoom_start=12)
-                TF = self.TimedFluxes
-                min_val = min(TF["total_fluxes"])
-                max_val = max(TF["total_fluxes"])
-                TF = TF.with_columns(pl.col("total_fluxes").apply(lambda x: NormalizeWidthForPlot(x,min_val,max_val), return_dtype=pl.Int64).alias("width_total_fluxes"))
-                TF = TF.with_columns(pl.col("n_traj_FT").apply(lambda x: NormalizeWidthForPlot(x,min_val,max_val), return_dtype=pl.Int64).alias("width_n_traj_FT"))
-                TF = TF.with_columns(pl.col("n_traj_TF").apply(lambda x: NormalizeWidthForPlot(x,min_val,max_val), return_dtype=pl.Int64).alias("width_n_traj_TF"))
-                CopyGdf = self.GeoJson
-                CopyGdf = CopyGdf.merge(TF.to_pandas(),how = 'left',left_on = 'poly_lid',right_on = 'id_local')
-                # Iterate through the Dictionary of list of poly_lid            
-                for t,tdf in TF.group_by("time"):
-                    # Filter GeoDataFrame for roads with indices in the current list
-                    # Create a feature group for the current layer
-                    layer_group = folium.FeatureGroup(name=f"Layer {t}").add_to(m)
-                    layer_groupFT = folium.FeatureGroup(name=f"Layer {t}").add_to(m)
-                    layer_groupTF = folium.FeatureGroup(name=f"Layer {t}").add_to(m)
-                    # Add roads to the feature group with a unique color
-                    color = 'blue'  # Choose a color for the road based on index or any other criterion
-                    print(CopyGdf.columns)
-                    for idx, row in CopyGdf.iterrows(): 
-                        folium.GeoJson(row.geometry, style_function=lambda x: {'color': color,"weight":row["width_total_fluxes"]}).add_to(layer_group)
-                        folium.GeoJson(row.geometry, style_function=lambda x: {'color': color,"weight":row["width_n_traj_TF"]}).add_to(layer_groupTF)
-                        folium.GeoJson(row.geometry, style_function=lambda x: {'color': color,"weight":row["width_n_traj_FT"]}).add_to(layer_groupFT)
-                    
-                    # Add the feature group to the map
-                    layer_group.add_to(m)
-                    layer_group.add_to(mTF)
-                    layer_group.add_to(mFT)
-
-
-                # Add layer control to the map
-                folium.LayerControl().add_to(m)
-                folium.LayerControl().add_to(mTF)
-                folium.LayerControl().add_to(mFT)
-
-                # Save or display the map
-                m.save(os.path.join(self.PlotDir,"Fluxes_{}.html".format(self.StrDate)))
-                mTF.save(os.path.join(self.PlotDir,"TailFrontFluxes_{}.html".format(self.StrDate)))
-                mFT.save(os.path.join(self.PlotDir,"FrontTailFluxes_{}.html".format(self.StrDate)))
-                Message = "{} Plotting Daily Fluxes in HTML: True".format(self.CountFunctionsCalled)
-                AddMessageToLog(Message,self.LogFile)
-            else:
-                Message = "{} Plotting Daily Fluxes in HTML: Already Plotted".format(self.CountFunctionsCalled)
-                AddMessageToLog(Message,self.LogFile)
-                print("Fluxes already Plotted in HTML")
-        else:
-            Message = "{} Plotting Daily Fluxes in HTML: False".format(self.CountFunctionsCalled)
-            AddMessageToLog(Message,self.LogFile)
-            print("No Fluxes to Plot")
+        Message = PlotFluxesHTML(self.GeoJson,
+                       self.TimedFluxes,
+                       self.centroid,
+                       self.StrDate,
+                       self.PlotDir,
+                       self.ReadTime2FluxesBool,
+                       "Fluxes",
+                       "TailFrontFluxes",
+                       "FrontTailFluxes")
+        Message = "{} ".format(self.CountFunctionsCalled) + Message
+        AddMessageToLog(Message,self.LogFile)
     
     def PlotTimePercorrenceHTML(self):
         """
@@ -1064,60 +971,19 @@ class DailyNetworkStats:
                 For each class color the road subnetwork according to time of percorrence.
         """
         self.CountFunctionsCalled += 1
-        if self.ReadGeojsonBool and self.ReadVelocitySubnetBool:
-            print("Plotting Daily Fluxes in HTML")
-            if not os.path.isfile(os.path.join(self.PlotDir,"AvSpeed_{}.html".format(self.StrDate))):            
-                # Create a base map
-                m = folium.Map(location=[self.centroid.x, self.centroid.y], zoom_start=12)
-                m1 = folium.Map(location=[self.centroid.x, self.centroid.y], zoom_start=12)
-                for time,RTV in RoadsTimeVel.groupby("start_bin"):
-                    layer_group = folium.FeatureGroup(name=f"Layer {time}").add_to(m)
-                    layer_group1 = folium.FeatureGroup(name=f"Layer {time}").add_to(m)
-                    for Class in self.IntClass2BestFit.keys():
-                        RoadsTimeVel = self.VelTimePercorrenceClass[Class]
-                        RoadsTimeVel["av_speed"] = [x if x!=-1 else 0 for x in RoadsTimeVel["av_speed"]]
-                        RoadsTimeVel["time_percorrence"] = [x if x!=-1 else 0 for x in RoadsTimeVel["time_percorrence"]]
-                        min_val = min(RoadsTimeVel["av_speed"])
-                        max_val = max(RoadsTimeVel["av_speed"])
-                        RoadsTimeVel = RoadsTimeVel.with_columns(pl.col("av_speed").apply(lambda x: NormalizeWidthForPlot(x,min_val,max_val), return_dtype=pl.Int64).alias("width_speed"))
-                        min_val = min(RoadsTimeVel["time_percorrence"])
-                        max_val = max(RoadsTimeVel["time_percorrence"])
-                        RoadsTimeVel = RoadsTimeVel.with_columns(pl.col("time_percorrence").apply(lambda x: NormalizeWidthForPlot(x,min_val,max_val), return_dtype=pl.Int64).alias("width_time"))
-                        # Hey, cool, I wrote this bug!
-                        # Add roads to the feature group with a unique color
-                        list_colored_roads_speed = RTV.loc[RTV["av_speed"]!=0]["poly_id"]
-                        filtered_gdf = self.GeoJson[self.GeoJson['poly_lid'].isin(list_colored_roads_speed)]
-                        filtered_gdf["width_speed"] = RoadsTimeVel["width_speed"]
-                        filtered_gdf["width_time"] = RoadsTimeVel["width_time"]
-                        for idx, row in filtered_gdf.iterrows(): 
-                            folium.GeoJson(row.geometry,style_function=lambda x: {
-                                            'color': self.Class2Color[Class],
-                                            'weight': row['width_speed']}).add_to(layer_group)                    
-                            folium.GeoJson(row.geometry,style_function=lambda x: {
-                                            'color': self.Class2Color[Class],
-                                            'weight': row['width_time']}).add_to(layer_group1)                    
-
-                        # Add the feature group to the map
-                        layer_group.add_to(m)
-                        layer_group.add_to(m1)
-
-                    # Add layer control to the map
-                    folium.LayerControl().add_to(m)
-                    folium.LayerControl().add_to(m1)
-
-                # Save or display the map
-                m.save(os.path.join(self.PlotDir,"AvSpeed_{}.html".format(self.StrDate)))
-                m1.save(os.path.join(self.PlotDir,"TimePercorrence_{}.html".format(self.StrDate)))
-                Message = "{} Plotting Daily Fluxes in HTML: True".format(self.CountFunctionsCalled)
-                AddMessageToLog(Message,self.LogFile)
-            else:
-                Message = "{} Plotting Daily Fluxes in HTML: Already Plotted".format(self.CountFunctionsCalled)
-                AddMessageToLog(Message,self.LogFile)
-                print("AvSpeed already Plotted in HTML")
-        else:
-            Message = "{} Plotting Daily Fluxes in HTML: False".format(self.CountFunctionsCalled)
-            AddMessageToLog(Message,self.LogFile)
-            print("No AvSpeed to Plot")
+        Message = PlotTimePercorrenceHTML(self.GeoJson,
+                                self.VelTimePercorrenceClass,
+                                self.IntClass2BestFit,
+                                self.ReadGeojsonBool,
+                                self.ReadVelocitySubnetBool,
+                                self.centroid,
+                                self.PlotDir,
+                                self.StrDate,
+                                self.Class2Color,
+                                "AvSpeed","TimePercorrence",
+                                self.verbose)
+        Message = "{} ".format(self.CountFunctionsCalled) + Message
+        AddMessageToLog(Message,self.LogFile)
 ## ------- FUNDAMENTAL DIAGRAM ------ ##
     def ComputeMFDVariablesClass(self):
         '''
@@ -1394,8 +1260,8 @@ class DailyNetworkStats:
                 self.Class2Time2Distr = {IntClass:[] for IntClass in self.IntClass2StrClass.keys()} # For key Shape (96,Number of Roads)
                 self.Class2AvgTimePercorrence = {IntClass:[] for IntClass in self.IntClass2StrClass.keys()} # For key Shape (96,)
                 # Per Class
-                File2Save = os.path.join(self.PlotDir,"TimePercorrenceDistribution_Class_{0}_{1}.png".format(self.IntClass,self.StrDate))
                 for IntClass in self.IntClass2StrClass.keys():
+                    File2Save = os.path.join(self.PlotDir,"TimePercorrenceDistribution_Class_{0}_{1}.png".format(IntClass,self.StrDate))
                     StrTimesLabel = []
                     self.Class2Time2Distr[IntClass],self.Class2AvgTimePercorrence[IntClass] = PlotTimePercorrenceDistribution(self.VelTimePercorrenceClass[IntClass],self.Class2Time2Distr[IntClass],self.Class2AvgTimePercorrence[IntClass],StrTimesLabel,File2Save)
                 with open(os.path.join(self.PlotDir,"Class2Time2Distr_{0}.json".format(self.StrDate)),'w') as f:
@@ -1607,6 +1473,8 @@ class DailyNetworkStats:
                                                                                                     self.Fcm,
                                                                                                     Feature,
                                                                                                     None)
+            with open(os.path.join(self.PlotDir,"DictInitialGuess_{0}.json".format(self.StrDate)),'w') as f:
+                json.dump(self.DictInitialGuess,f,cls = NumpyArrayEncoder,indent=2)
             Message = "{} Create Class Dictionary DictInitialGuess: True".format(self.CountFunctionsCalled)
             AddMessageToLog(Message,self.LogFile)
 ## DISTRIBUTIONS
@@ -1623,13 +1491,13 @@ class DailyNetworkStats:
         print('all different groups colored differently')
         # Inititialize Fit for all different classes
         self.CreateDictClass2FitInit()
-        self.InfoFittedParameters,self.DictFittedData,Upload = ReturnFitInfoFromDict(Fcm = self.Fcm,
+        self.InfoFittedParameters,self.DictFittedData,Upload,SuccessFit = ReturnFitInfoFromDict(Fcm = self.Fcm,
                                                                             InitialGuess = self.DictInitialGuess,
                                                                             DictFittedData = self.DictFittedData,
                                                                             InfoFittedParameters = self.InfoFittedParameters,
                                                                             Feature2Label = self.Feature2Label,
-                                                                            FitFile = os.path.join(self.PlotDir,'Fit_Aggregated.json'),
-                                                                            FittedDataFile = os.path.join(self.PlotDir,'FittedData_Aggregated.json'))
+                                                                            FitFile = os.path.join(self.PlotDir,'Fit_Aggregated'),
+                                                                            FittedDataFile = os.path.join(self.PlotDir,'FittedData_Aggregated'))
         if Upload:
             self.CountFunctionsCalled += 1
             Message = "{} Plot Daily Speed Distr: True\n".format(self.CountFunctionsCalled)
@@ -1645,6 +1513,8 @@ class DailyNetworkStats:
             legend = []
             aggregation = False
             n,bins = np.histogram(self.Fcm[Feature].to_list(),bins = 50)
+            if Feature == "av_speed" or Feature == "speed_kmh":
+                n = n/np.sum(n)
             maxCount = 0
             maxSpeed = bins[-1]
             self.Feature2MaxBins[Feature]["bins"] = maxSpeed
@@ -1652,6 +1522,8 @@ class DailyNetworkStats:
             for IntClass in self.IntClass2StrClass:
             # Plot each feature separately
                 y,x = np.histogram(self.Fcm.filter(pl.col("class") == IntClass)[Feature].to_list(),bins = 50)
+                if Feature == "av_speed" or Feature == "speed_kmh":
+                    y = y/np.sum(y)
                 if max(y)>maxCount:
                     maxCount = max(y)
                     # Data
@@ -1667,7 +1539,7 @@ class DailyNetworkStats:
                 ax.set_xlabel(self.Feature2Label[Feature])
                 ax.set_ylabel('Count')
                 ax.set_xlim(right = maxSpeed + self.Feature2ShiftBin[Feature])
-                ax.set_ylim(top = maxCount + self.Feature2ShiftCount[Feature],bottom = 1)
+                ax.set_ylim(bottom = 1,top = maxCount + self.Feature2ShiftCount[Feature])
                 ax.set_xscale(self.Feature2ScaleBins[Feature])
                 ax.set_yscale(self.Feature2ScaleCount[Feature])
             legend_ = plt.legend(legend)
@@ -1676,6 +1548,8 @@ class DailyNetworkStats:
             plt.savefig(os.path.join(self.PlotDir,'{0}_{1}.png'.format(LableSave,self.Column2SaveName[Feature])),dpi = 200)
             plt.close()
             Message = "\tPlot {} Distribution: True\n".format(Feature)
+            Message += "\t\tFitting Function {0}\n".format(self.DictFittedData[Feature]["best_fit"])
+            AddMessageToLog(Message,self.LogFile)
 
 
 
@@ -1690,16 +1564,16 @@ class DailyNetworkStats:
 
         """
         self.InfoDayFit = {IntClass: {} for IntClass in self.IntClass2StrClass.keys()}
-        self.Class2DictFittedData = {IntClass: {Feature: {"best_fit":[], "fitted_data":[]} for Feature in list(self.Features2Fit)} for IntClass in self.IntClass2StrClass.keys()}
+        self.Class2DictFittedData = {IntClass: {Feature: {"best_fit":[], "fitted_data":[],"parameters:":[]} for Feature in list(self.Features2Fit)} for IntClass in self.IntClass2StrClass.keys()}
         self.Class2InfoFittedParameters = {IntClass: {Function2Fit: {Feature:{"fit":None,"StdError":None} for Feature in self.DictInitialGuess[Function2Fit].keys()} for Function2Fit in self.DictInitialGuess.keys()} for IntClass in self.IntClass2StrClass.keys()}
         for IntClass in self.IntClass2StrClass:
-            self.Class2InfoFittedParameters[IntClass],self.Class2DictFittedData[IntClass],Upload = ReturnFitInfoFromDict(Fcm = self.Fcm.filter(pl.col("class") == IntClass),
+            self.Class2InfoFittedParameters[IntClass],self.Class2DictFittedData[IntClass],Upload,SuccessFit = ReturnFitInfoFromDict(Fcm = self.Fcm.filter(pl.col("class") == IntClass),
                                                                                                                 InitialGuess = self.Class2InitialGuess[IntClass],
                                                                                                                 DictFittedData = self.Class2DictFittedData[IntClass],
                                                                                                                 InfoFittedParameters = self.Class2InfoFittedParameters[IntClass],
                                                                                                                 Feature2Label = self.Feature2Label,
-                                                                                                                FitFile = os.path.join(self.PlotDir,'Fit_Class_{0}.json'.format(IntClass)),
-                                                                                                                FittedDataFile = os.path.join(self.PlotDir,'FittedData_Class_{0}.json'.format(IntClass)))
+                                                                                                                FitFile = os.path.join(self.PlotDir,'Fit_Class_{0}'.format(IntClass)),
+                                                                                                                FittedDataFile = os.path.join(self.PlotDir,'FittedData_Class_{0}'.format(IntClass)))
 
         if Upload:
             self.CountFunctionsCalled += 1
@@ -1716,30 +1590,54 @@ class DailyNetworkStats:
                 fig,ax = plt.subplots(1,1,figsize= (15,12))
                 df = self.Fcm.filter(pl.col("class") == IntClass)
                 y,x = np.histogram(df[Feature].to_list(),bins = 50)
+                if Feature == "av_speed" or Feature == "speed_kmh":
+                    y = y/np.sum(y)
 # ALREADY COMPUTED WITH ReturnFitInfoFromDict
 #                self.Class2DictFittedData[IntClass],self.Class2InfoFittedParameters[IntClass] = FitAndPlot(x[1:],y,self.DictInitialGuess,Feature,self.Class2DictFittedData[IntClass],self.Class2InfoFittedParameters[IntClass])                
                 if IntClass!=10 and IntClass!=11:
+                    LocalBoolScatPlot = False
+                    LocalBoolPlot = False
+                    LocalFittedData = np.array(self.Class2DictFittedData[IntClass][Feature]["fitted_data"])
+                    LocalMask = LocalFittedData > 0
                     if "speed" in Feature:
-                        ax.scatter(x[1:],y)
+                        LocalMask1 = y > 0
+                        ScatterY2Plot = y[LocalMask1]
+                        ScatterX2Plot = x[1:][LocalMask1]
+                        print("{0} {1} ScatterY2Plot: ".format(Feature,IntClass),ScatterY2Plot)
+                        if len(ScatterY2Plot)>0:
+                            ax.scatter(ScatterX2Plot,ScatterY2Plot)
+                            LocalBoolScatPlot = True
                     if len(x[:1]) == len(self.Class2DictFittedData[IntClass][Feature]["fitted_data"]):
-                        # Fit
-                        Y2Plot = self.Class2DictFittedData[IntClass][Feature]["fitted_data"][np.array(self.Class2DictFittedData[IntClass][Feature]["fitted_data"]) > 0]
-                        X2Plot = x[1:][np.array(self.Class2DictFittedData[IntClass][Feature]["fitted_data"]) > 0]
-                        ax.plot(X2Plot,np.array(Y2Plot),label = self.Class2DictFittedData[IntClass][Feature]["best_fit"])
-                    ax.set_xticks(np.arange(x[0],x[-1],self.Feature2IntervalBin[Feature]))
-                    ax.set_yticks(np.arange(min(y),max(y),self.Feature2IntervalCount[Feature]))
-                    ax.set_xlabel(self.Feature2Label[Feature])
-                    ax.set_ylabel('Count')
-                    ax.set_xlim(right = max(x) + self.Feature2ShiftBin[Feature])
-                    ax.set_ylim(top = max(y) + self.Feature2ShiftCount[Feature])
-                    ax.set_xscale(self.Feature2ScaleBins[Feature])
-                    ax.set_yscale(self.Feature2ScaleCount[Feature])
-                    print("Class: ",IntClass," Feature: ",Feature," Day: ",self.StrDate)
-                    print("Number of fitted values less than 0: ",len(self.Class2DictFittedData[IntClass][Feature]["fitted_data"][np.array(self.Class2DictFittedData[IntClass][Feature]["fitted_data"]) < 0]))
-                    plt.savefig(os.path.join(self.PlotDir,'{0}_Class_{1}_{2}.png'.format(self.Class2DictFittedData[IntClass][Feature]["best_fit"],IntClass,self.Column2SaveName[Feature])),dpi = 200)
-                    plt.close()
-                    Message = "\tPlot {0} Distribution Class {1}: True\n".format(Feature,IntClass)
-        
+                        # Fit                        
+                        Y2Plot = LocalFittedData[LocalMask]
+                        X2Plot = x[1:][np.array(self.Class2DictFittedData[IntClass][Feature]["fitted_data"]) > 0.9]
+                        if len(Y2Plot)>0:
+                            ax.plot(X2Plot,np.array(Y2Plot),label = self.Class2DictFittedData[IntClass][Feature]["best_fit"])
+                            LocalBoolPlot = True
+                    if isinstance(self.Class2DictFittedData[IntClass][Feature]["best_fit"],str): 
+                        if LocalBoolScatPlot or LocalBoolPlot:
+                            ax.set_xticks(np.arange(x[0],x[-1],self.Feature2IntervalBin[Feature]))
+                            ax.set_yticks(np.arange(min(y),max(y),self.Feature2IntervalCount[Feature]))
+                            ax.set_xlabel(self.Feature2Label[Feature])
+                            ax.set_ylabel('Count')
+                            ax.set_xlim(left = 0,right = max(x) + self.Feature2ShiftBin[Feature])
+                            ax.set_ylim(bottom = 1,top = max(y) + self.Feature2ShiftCount[Feature])
+                            ax.set_xscale(self.Feature2ScaleBins[Feature])
+                            ax.set_yscale(self.Feature2ScaleCount[Feature])
+                            if len(LocalMask) == len(LocalFittedData):
+                                print("Class: ",IntClass," Feature: ",Feature," Day: ",self.StrDate)
+                                print("Number of fitted values less than 0: ",len(LocalFittedData) - len(LocalFittedData[LocalMask]))
+                            plt.savefig(os.path.join(self.PlotDir,'{0}_Class_{1}_{2}.png'.format(self.Class2DictFittedData[IntClass][Feature]["best_fit"],IntClass,self.Column2SaveName[Feature])),dpi = 200)
+                            plt.close()
+                        Message = "\tPlot {0} Distribution Class {1}: True\n".format(Feature,IntClass)
+                        Message = "\t\tFitting Function {0}".format(self.Class2DictFittedData[IntClass][Feature]["best_fit"])
+                        AddMessageToLog(Message,self.LogFile)  
+
+                    else:
+                        print("Warning: Best Fit Not Found for Class {0} and Feature {1} Day: {2}".format(IntClass,Feature,self.StrDate))
+                        Message = "\tPlot {0} Distribution Class {1}: False\n".format(Feature,IntClass)
+                        Message = "\t\tBest Fit Not Found"
+                        AddMessageToLog(Message,self.LogFile)        
 
 ## ------------------- PRINT UTILITIES ---------------- #
     def PrintTimeInfo(self):
