@@ -82,10 +82,13 @@ def PlotIncrementSubnetHTML(GeoJson,IntClass2StrClass,centroid,PlotDir,StrDate,R
             # Create a base map
             m = folium.Map(location=[centroid.x, centroid.y], zoom_start=12)
             # Iterate through the Dictionary of list of poly_lid
-            for IntClass in IntClass2StrClass.keys():
+            for IntClass in np.unique(GeoJson["IntClassOrdered_{}".format(StrDate)]):
                 mclass = folium.Map(location=[centroid.x, centroid.y], zoom_start=12)
 #                    for index_list in self.IntClass2RoadsIncreasinglyIncludedIntersection[IntClass]:
                 # Filter GeoDataFrame for roads with indices in the current list
+                print("IntClass: ",IntClass)
+                print("Available IntClassOrdered_{}".format(StrDate))
+                print(np.unique(GeoJson["IntClassOrdered_{}".format(StrDate)]))
                 filtered_gdf = GeoJson.groupby("IntClassOrdered_{}".format(StrDate)).get_group(IntClass)
 #                    index_list = self.IntClass2RoadsIncreasinglyIncludedIntersection[IntClass]
 #                    filtered_gdf = self.GeoJson[self.GeoJson['poly_lid'].isin(index_list)]
@@ -127,7 +130,7 @@ def PlotSubnetHTML(GeoJson,IntClass2StrClass,centroid,PlotDir,StrDate,ReadFluxes
             # Create a base map
             m = folium.Map(location=[centroid.x, centroid.y], zoom_start=12)
             # Iterate through the Dictionary of list of poly_lid
-            for IntClass in IntClass2StrClass.keys():
+            for IntClass in np.unique(GeoJson["IntClassOrdered_{}".format(StrDate)]):
                 mclass = folium.Map(location=[centroid.x, centroid.y], zoom_start=12)
 #                    for index_list in self.IntClass2Roads[IntClass]:
                 if isinstance(index_list,int):

@@ -124,21 +124,21 @@ def Main(config,StrDate):
     # HYSTERESIS DIAGRAM
     Network.ReadFluxes()
 ## +++++++++++++++++ PLOT TRAJECTORIES STATS +++++++++++++++++++++++++++
-    Network.PlotDailySpeedDistr("Aggregated")
+    Network.PlotDailyDistr("Aggregated")
     Network.PlotDistrPerClass()
 ## +++++++++++++++ FITTING PROCEDURES +++++++++++++++++++++++++++++
     return Network
 def MainComparison(ListNetworkDays,PlotDirAggregated,verbose):
     NetAllDays = NetworkAllDays(ListNetworkDays,PlotDirAggregated,verbose)
+    # Save the Fits of All Days in a unique file
+    NetAllDays.ComparedDaysFit()
     # Create Fcm for All -> Distribution lenght and time (Power law )
     NetAllDays.ConcatenateFcm()
+    # Compute MFD
     NetAllDays.ComputeMFDAllDays()
     # All Days Plot Distribution Velocity Aggregated
-    NetAllDays.PlotDistributionAggregatedAllDays()
-    NetAllDays.PlotDistributionAggregatedAllDaysPerClass()
-    # Comparison of Distribution Time lenght (Among Days)
-    NetAllDays.PlotDistributionComparisonAllDays()
-    NetAllDays.PlotDistributionComparisonAllDaysPerClass()
+    NetAllDays.PlotDistrAggregatedAllDays()
+    NetAllDays.PlotDistrAggregatedAllDaysPerClass()
     # All Days Plot Distribution Velocity Comparison
     NetAllDays.CreateClass2SubNetAllDays()
     NetAllDays.PlotClass2SubNetAllDays()
@@ -175,7 +175,7 @@ if __name__ == "__main__":
         exit("Missing Dates To Analyze")
     
     ListNetworkDays = []
-    parallel = True
+    parallel = False
     print("Dates to Analyze:\n",StrDates)
     if parallel:
         args = [(config,StrDate) for StrDate in StrDates]

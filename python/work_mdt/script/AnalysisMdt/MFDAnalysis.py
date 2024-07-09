@@ -6,6 +6,9 @@ import matplotlib.pyplot as plt
 def Dict2PolarsDF(Dict,schema):
     return pl.DataFrame(Dict,schema=schema)
 
+
+
+
 # MFD RELATED FUNCTIONS
 def ComputeMFDVariables(Df,MFD,TimeStampDate,dt,iterations,verbose = False):
     """
