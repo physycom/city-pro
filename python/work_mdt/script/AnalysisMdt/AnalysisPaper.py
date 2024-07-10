@@ -114,9 +114,9 @@ def Main(config,StrDate):
     Network.ReadTimedFluxes()
     # PLOT SUBNETS
 #    Network.PlotSubnetHTML()
-    Network.PlotIncrementSubnetHTML()   
+#    Network.PlotIncrementSubnetHTML()   
 #        Network.PlotFluxesHTML()
-#        Network.PlotTimePercorrenceHTML()     
+#    Network.PlotTimePercorrenceHTML()     
     # FUNDAMENTAL DIAGRAM
     Network.ReadVelocitySubnet()
     Network.PlotTimePercorrenceDistributionAllClasses()

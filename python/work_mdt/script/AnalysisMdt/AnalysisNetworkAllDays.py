@@ -4,47 +4,6 @@ from collections import defaultdict
 import numpy as np
 
 
-def ComputeAggregatedMFDVariables(ListDailyNetwork,MFDAggregated):
-    """
-        Description:
-            Every Day I count for each hour, how many people and the speed of the 
-            1. Network -> MFDAggregated = {"population":[],"time":[],"speed_kmh":[]}
-            2. SubNetwork -> Class2MFDAggregated = {StrClass: {"population":[sum_i pop_{t0,dayi},...,sum_i pop_{iteration,dayi}],"time":[t0,...,iteration],"speed_kmh":[sum_i speed_{t0,dayi},...,sum_i speed_{iteration,dayi}]}}
-            NOTE: time is pl.DateTime
-        NOTE: Each Time interval has its own average speed and population. For 15 minutes,
-            since iteration in 1 Day Analysis is set in that way. 
-        NOTE: If at time t there is no population, the speed is set to 0.
-    """
-    LocalDayCount = 0
-    # AGGREGATE MFD FOR ALL DAYS
-    for MobDate in ListDailyNetwork:
-        if LocalDayCount == 0:
-            MFDAggregated = MobDate.MFD
-            MFDAggregated["count_days"] = list(np.zeros(len(MFDAggregated["time"])))
-            MFDAggregated["total_number_people"] = list(np.zeros(len(MFDAggregated["time"])))
-            LocalDayCount += 1
-        else:            
-            for t in range(len(MobDate.MFD["time"])):
-                WeightedSpeedAtTime = MobDate.MFD["speed_kmh"][t]*MobDate.MFD["population"][t]
-                PopulationAtTime = MobDate.MFD["population"][t]
-                WeightedSpeedAtTimeS = MobDate.MFD["av_speed"][t]*MobDate.MFD["population"][t]
-                if PopulationAtTime != 0 and WeightedSpeedAtTime !=0:
-                    MFDAggregated["speed_kmh"][t] += WeightedSpeedAtTime
-                    MFDAggregated["population"][t] += PopulationAtTime
-                    MFDAggregated["count_days"][t] += 1
-                    MFDAggregated["av_speed"][t] += WeightedSpeedAtTimeS
-                    MFDAggregated["total_number_people"][t] += PopulationAtTime
-                else:
-                    pass
-    for t in range(len(MFDAggregated["time"])):
-        if MFDAggregated["count_days"][t] != 0:
-            MFDAggregated["speed_kmh"][t] = MFDAggregated["speed_kmh"][t]/(MFDAggregated["count_days"][t]*MFDAggregated["total_number_people"][t])
-            MFDAggregated["population"][t] = MFDAggregated["population"][t]/(MFDAggregated["count_days"][t]*MFDAggregated["total_number_people"][t])
-            MFDAggregated["av_speed"][t] = MFDAggregated["av_speed"][t]/(MFDAggregated["count_days"][t]*MFDAggregated["total_number_people"][t])
-        else:
-            pass
-    MFDAggregated = Dict2PolarsDF(MFDAggregated,schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64})
-    return MFDAggregated
 
 
 class NetworkAllDays:
@@ -87,10 +46,9 @@ class NetworkAllDays:
                 self.ListColors = MobDate.ListColors
                 # Fitting Parameters
                 self.DictInitialGuess = MobDate.DictInitialGuess
-                self.Class2DictInitialGuess = MobDate.Class2DictInitialGuess
+                self.Class2DictInitialGuess = MobDate.Class2InitialGuess
                 self.Features2Fit = MobDate.Features2Fit
                 # PLot Parameters
-                self.Column2Label = MobDate.Column2Label
                 self.Feature2Label = MobDate.Feature2Label
                 self.Column2SaveName = MobDate.Column2SaveName
                 self.Column2Legend = MobDate.Column2Legend
@@ -431,9 +389,16 @@ class NetworkAllDays:
                 Message = "{0} Plot {1} all Day Distr: True\n".format(self.CountFunctions,Aggregation)
                 Message += "\tComputed Fitted Data"
                 AddMessageToLog(Message,self.LogFile)
+
+
+            self.Aggregation2Feature2Class2FcmDistr = {Aggregation:{Feature: SplitFcmByClass(self.Aggregation2DictFittedData[Aggregation][Feature],Feature,self.ReferenceFcmCenters) for Feature in self.DictFittedData.keys()}    for Aggregation in self.AggregationLevel}
+            InfoPlotDistrFeat = {"figsize":(4,4),"minx":0,"miny":0,"maxx":0,"maxy":0}
+            # Compute the MinMax for the Plot
+            self.Aggregation2InfoPlotDistrFeat = {Feature: {ComputeMinMaxPlotGivenFeature(self.Feature2Class2FcmDistr[Feature],InfoPlotDistrFeat)} for Feature in self.DictFittedData.keys()}
             
             for Aggregation in self.AggregationLevel:
                 for Feature in self.Aggregation2DictFittedData[Aggregation].keys():
+
                     fig,ax = plt.subplots(1,1,figsize= (15,12))
                     legend = []
                     aggregation = False

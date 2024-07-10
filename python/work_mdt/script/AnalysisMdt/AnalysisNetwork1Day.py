@@ -29,6 +29,9 @@ from FittingProcedures import *
 from MFDAnalysis import *
 from CastVariables import *
 from analysisPlot import *
+from InfoFitMdtDataset import *
+from JsonFunctions import *
+from LoggingInfo import *
 import matplotlib.ticker as ticker
 
 # Ignore all warnings
@@ -41,13 +44,6 @@ else:
     except Exception as e:
         print("No Plot Settings File Found")
 
-class NumpyArrayEncoder(json.JSONEncoder):
-    """ Custom encoder for numpy data types """
-    def default(self, obj):
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()  # Convert ndarray to list
-        # Let the base class default method raise the TypeError
-        return json.JSONEncoder.default(self, obj) 
 
 def GetLengthPartitionInGeojSon(GeoJson,Lengths):
     Length2Roads = {Length: [] for Length in Lengths}
@@ -57,145 +53,9 @@ def GetLengthPartitionInGeojSon(GeoJson,Lengths):
                 Length2Roads[Lengths[i]].append(int(road["poly_lid"]))
     return Length2Roads
 
-def PlotTimePercorrenceDistribution(RoadsTimeVel,Time2Distr,AvgTimePercorrence,StrTimesLabel,File2Save):    
-    """
-        Input:
-            RoadsTimeVel: pl.DataFrame -> DataFrame with the Roads Time Velocities 
-    """
-    Slicing = 8
-    fig,ax = plt.subplots(1,1,figsize = (10,10))
-    RoadsTimeVel = RoadsTimeVel.sort("start_bin")
-    for time,RTV in RoadsTimeVel.groupby("start_bin"):
-        ValidTime = RTV.filter(pl.col("time_percorrence")>0)
-        Time2Distr.append(ValidTime["time_percorrence"].to_list())
-        AvgTimePercorrence.append(np.mean(ValidTime["time_percorrence"].to_list()))
-        StartInterval = datetime.datetime.fromtimestamp(time)
-        StrTimesLabel.append(StartInterval.strftime("%Y-%m-%d %H:%M:%S").split(" ")[1])
-    ax.plot(StrTimesLabel, AvgTimePercorrence)
-    ax.boxplot(Time2Distr,sym='')
-#    ax.set_xticks(range(len(StrTimesLabel)))
-#    ax.xaxis.set_major_locator(ticker.FixedLocator(StrTimesLabel[::Slicing]))
-    ax.set_xticks(range(len(StrTimesLabel))[::Slicing])  # Set the ticks to correspond to the labels
-    ax.set_xticklabels(StrTimesLabel[::Slicing], rotation=90)  # Set the labels with rotation    ax.set_title("Time Percorrence Distribution")
-    ax.set_xlabel("Time")
-    ax.set_ylabel("Time Percorrence")
-    plt.savefig(File2Save,dpi = 200)
-    return Time2Distr,AvgTimePercorrence
 
 
-# PRINT
-def PrintMFDDictInfo(MFD,StartingString = "Class 2 MFD: "):
-    print(StartingString)
-    print(MFD)
 
-# FIT AND DICT
-
-def FillInitGuessIntervalPlExp(DictInitGuessInterval,MaxCount,Avg,StartWindow,EndWindow,Function2Test):
-    """
-        Input:
-            - DictInitGuessInterval: dict -> Dictionary with initial_guess and interval
-                NOTE: Usage In Program:
-                    1) Class2InitialGuess[IntClass][Function2Test][Feature]
-                    2) DictInitialGuess[Function2Test][Feature]
-            - MaxCount: int -> Maximum Count of the Class
-            - Avg: float -> Average of the Class
-            - StartWindow: int -> Start Window in Seconds
-            - EndWindow: int -> End Window in Seconds
-                NOTE: Usage in Program:
-                    For (time,lenght):
-                        1) LocalDict2Params[StrClass]["MaxCount"]
-                        2) LocalDict2Params[StrClass]["Avg"]
-                        3) LocalDict2Params[StrClass]["StartWindowS"]
-                        4) LocalDict2Params[StrClass]["EndWindowS"]
-                    For (time_hours,lenght_km):
-                        1) LocalDict2Params[StrClass]["MaxCount"]
-                        2) LocalDict2Params[StrClass]["Avg"]/(SecondsInHour-MetersInKm)
-                        3) LocalDict2Params[StrClass]["StartWindowS"]/(SecondsInHour-MetersInKm)
-                        4) LocalDict2Params[StrClass]["EndWindowS"]/(SecondsInHour-MetersInKm)
-            - Function2Test: str -> Function to Test (exponential,powerlaw)
-
-            LocalDict2Params: dict -> Dictionary with parameters for the class
-
-    """
-    if Function2Test == "exponential":
-        DictInitGuessInterval["initial_guess"] = [MaxCount,Avg]
-        DictInitGuessInterval["interval"] = [StartWindow,EndWindow]        
-    elif Function2Test == "powerlaw":
-        DictInitGuessInterval["initial_guess"] = [MaxCount*StartWindow,-1]
-        DictInitGuessInterval["interval"] = [StartWindow,EndWindow]    
-    return DictInitGuessInterval
-
-def FillInitGuessIntervalMxGs(DictInitGuessInterval,Fcm,Feature,IntClass):
-    """
-        Input:
-            - DictInitGuessInterval: dict -> Dictionary with initial_guess and interval
-                NOTE: Usage In Program:
-                    1) Class2InitialGuess[IntClass][Function2Test][Feature]
-                    2) DictInitialGuess[Function2Test][Feature]
-            - Fcm: pl.DataFrame -> DataFrame with the FCM
-            - Feature: str -> Feature to Test
-    """
-    if IntClass is None:
-        LocalMeanMs = np.mean(Fcm[Feature].to_list())
-        LocalStdMs = np.std(Fcm[Feature].to_list())
-    else:
-        LocalMeanMs = Fcm.filter(pl.col("class") == IntClass)[Feature].mean()
-        LocalStdMs = Fcm.filter(pl.col("class") == IntClass)[Feature].std()
-    DictInitGuessInterval["initial_guess"] = [LocalStdMs,LocalMeanMs]
-    return DictInitGuessInterval
-
-def ReturnFitInfoFromDict(Fcm,InitialGuess,DictFittedData,InfoFittedParameters,Feature2Label,FitFile,FittedDataFile):
-    """
-        Input:
-            Fcm: pl.DataFrame -> Fcm Dataframe
-            InfoFittedParameters: dict -> {Feature: {Function: [A,b]}}
-            DictFittedData: dict -> {Feature: {"fitted_data": [],"best_fit": str}}
-            InitialGuess: dict -> {"exponential":{"time":{"initial_guess":[],"interval":[]},"time_hours":{"initial_guess":[],"interval":[]}},
-            Feature2Label: dict -> {Feature: Label}
-            FitFile: str -> Path to the Fit File
-            FittedDataFile: str -> Path to the Fitted Data File
-        Description:
-            For each Feature of ColumnLabel: ['time','lenght','av_speed','time_hours','lenght_km','speed_kmh']
-            Fit the distribution of the feature and plot the distribution.
-        Output:
-            InfoFittedParameters: dict -> {Feature: {Function: [A,b]}}
-            DictFittedData: dict -> {Feature: {"fitted_data": [],"best_fit": str}}
-    """
-    print("Return Fit Info From Dict:")
-#    if os.path.isfile(FitFile) and os.path.isfile(FittedDataFile):
-#        with open(FitFile,'r') as f:
-#            InfoFittedParameters = json.load(f)
-#        with open(FittedDataFile,'r') as f:
-#            DictFittedData = json.load(f)
-#       for Feature in DictFittedData.keys():
-#           with open(FitFile+"{}.json".format(Feature),'r') as f:
-#               InfoFittedParameters = json.load(f)
-#           with open(FittedDataFile+"{}.json".format(Feature),'r') as f:
-#               DictFittedData = json.load(f)
-#        Uploading = True
-#        SuccessFit = True
-#    else:
-    for Feature in DictFittedData.keys():
-        y,x = np.histogram(Fcm[Feature].to_list(),bins = 50)
-        if Feature == "speed_kmh" or Feature == "av_speed":
-            y = y/np.sum(y)
-        InfoFittedParameters, DictFittedData,SuccessFit,FunctionFitted = FitAndPlot(x[1:],y,InitialGuess,Feature,InfoFittedParameters,DictFittedData)
-        if SuccessFit:
-            with open(FitFile+"{}.json".format(Feature),'w') as f:
-                json.dump(InfoFittedParameters[FunctionFitted][Feature],f,cls=NumpyArrayEncoder,indent = 4)
-            with open(FittedDataFile+"{}.json".format(Feature),'w') as f:
-                json.dump(DictFittedData[Feature],f,cls=NumpyArrayEncoder,indent = 4)
-
-    with open(FitFile,'w') as f:
-        json.dump(InfoFittedParameters,f,cls=NumpyArrayEncoder,indent = 4)
-    with open(FittedDataFile,'w') as f:
-        json.dump(DictFittedData,f,cls=NumpyArrayEncoder,indent = 4)
-    Uploading = False
-    return InfoFittedParameters,DictFittedData,Uploading,SuccessFit
-
-def AddMessageToLog(Message,LogFile):
-    with open(LogFile,'a') as f:
-        f.write(Message+'\n')
 
 class DailyNetworkStats:
     '''
@@ -1260,12 +1120,12 @@ class DailyNetworkStats:
         self.CountFunctionsCalled += 1
         if self.ReadVelocitySubnetBool:
             print("Plotting TimePercorrence Distribution")
-            if (os.path.isfile(os.path.join(self.PlotDir,"Class2Time2Distr_{0}.json".format(self.StrDate))) and os.path.isfile(os.path.join(self.PlotDir,"Class2AvgTimePercorrence_{0}.json".format(self.StrDate)))):
-                with open(os.path.join(self.PlotDir,"Class2Time2Distr_{0}.json".format(self.StrDate)),'r') as f:
-                    self.Class2Time2Distr = json.load(f)
-                with open(os.path.join(self.PlotDir,"Class2AvgTimePercorrence_{0}.json".format(self.StrDate)),'r') as f:
-                    self.Class2AvgTimePercorrence = json.load(f)
-                Upload = True
+            ListNames = ["Class2Time2Distr_{0}.json".format(self.StrDate),"Class2AvgTimePercorrence_{0}.json".format(self.StrDate)]
+            ListFileNames = GenerateListFilesCommonBaseDir(self.PlotDir,ListNames)
+            ListDict,Upload = UploadDictsFromListFilesJson(ListFileNames)
+            if Upload:
+                self.Class2Time2Distr = ListDict[0]
+                self.Class2AvgTimePercorrence = ListDict[1]
                 pass
             else:
                 self.Class2Time2Distr = {IntClass:[] for IntClass in self.IntClass2StrClass.keys()} # For key Shape (96,Number of Roads)
@@ -1279,19 +1139,13 @@ class DailyNetworkStats:
                                                                                                                               self.Class2AvgTimePercorrence[IntClass],
                                                                                                                               StrTimesLabel,
                                                                                                                               File2Save)
-                with open(os.path.join(self.PlotDir,"Class2Time2Distr_{0}.json".format(self.StrDate)),'w') as f:
-                    json.dump(self.Class2Time2Distr,f,cls = NumpyArrayEncoder,indent=2)
-                with open(os.path.join(self.PlotDir,"Class2AvgTimePercorrence_{0}.json".format(self.StrDate)),'w') as f:
-                    json.dump(self.Class2AvgTimePercorrence,f,cls =NumpyArrayEncoder,indent=2)
+                
+                SaveProcedure(ListKeys = ["Class2Time2Distr","Class2AvgTimePercorrence"],
+                             ListDicts = [self.Class2Time2Distr,self.Class2AvgTimePercorrence],
+                             ListFormats = [self.StrDate],
+                             Extension = ".json")
                 Upload = False
-            if Upload:
-                Message = "{} Plotting TimePercorrence Distribution: True\n".format(self.CountFunctionsCalled)
-                Message += "\tUpload Class2Time2Distr, Class2AvgTimePercorrence"
-                AddMessageToLog(Message,self.LogFile)
-            else:
-                Message = "{} Plotting TimePercorrence Distribution: True\n".format(self.CountFunctionsCalled)
-                Message += "\tComputed Class2Time2Distr, Class2AvgTimePercorrence"
-                AddMessageToLog(Message,self.LogFile)
+            MessagePlotTimePercorrenceDistributionAllClasses(self.CountFunctionsCalled,self.LogFile,Upload)
             self.TimePercorrenceBool = True
             self.PlotTimePercorrenceConditionalLengthRoad()
 
@@ -1308,14 +1162,17 @@ class DailyNetworkStats:
                     StrTimesLabel = []
                     File2Save = os.path.join(self.PlotDir,"TimePercorrenceDistribution_Class_{0}_{1}_Length_{2}.png".format(IntClass,self.StrDate,round(Length,2)))
                     Length2VelTimePerccorenceClass = self.VelTimePercorrenceClass[IntClass].filter(pl.col("poly_id").is_in(Roads))
-                    print(Length2VelTimePerccorenceClass)
-                    self.Length2Class2Time2Distr[Length][IntClass],self.Length2Class2AvgTimePercorrence[Length][IntClass] = PlotTimePercorrenceDistribution(Length2VelTimePerccorenceClass,
-                                                self.Length2Class2Time2Distr[Length][IntClass],
-                                                self.Length2Class2AvgTimePercorrence[Length][IntClass],
-                                                StrTimesLabel,
-                                                File2Save)
+                    if len(Roads)>0:
+                        self.Length2Class2Time2Distr[Length][IntClass],self.Length2Class2AvgTimePercorrence[Length][IntClass] = PlotTimePercorrenceDistribution(Length2VelTimePerccorenceClass,
+                                                    self.Length2Class2Time2Distr[Length][IntClass],
+                                                    self.Length2Class2AvgTimePercorrence[Length][IntClass],
+                                                    StrTimesLabel,
+                                                    File2Save)
 
-                    Upload = False
+                        Upload = False
+                    else:
+                        # Do not need to add any road inside the length partition
+                        pass
                 else:
                     Upload = True
                     with open(os.path.join(self.PlotDir,"Length2Class2Time2Distr_{0}.json".format(self.StrDate)),'w') as f:
@@ -1529,6 +1386,7 @@ class DailyNetworkStats:
             Message = "{} Create Class Dictionary DictInitialGuess: True".format(self.CountFunctionsCalled)
             AddMessageToLog(Message,self.LogFile)
 ## DISTRIBUTIONS
+
     def PlotDailyDistr(self,LableSave = "Aggregated"):
         """
             Input:
@@ -1551,60 +1409,33 @@ class DailyNetworkStats:
                                                                             Feature2Label = self.Feature2Label,
                                                                             FitFile = os.path.join(self.PlotDir,'Fit_Aggregated'),
                                                                             FittedDataFile = os.path.join(self.PlotDir,'FittedData_Aggregated'))
-        if self.verbose:
-            print("++++++++++++++++++++")
-        if Upload:
-            self.CountFunctionsCalled += 1
-            Message = "{} Plot Daily Speed Distr: True\n".format(self.CountFunctionsCalled)
-            Message += "\tUpload self.InfoFittedParameters,self.DictFittedData"
-            AddMessageToLog(Message,self.LogFile)
-        else:
-            self.CountFunctionsCalled += 1
-            Message = "{} Plot Daily Speed Distr: True\n".format(self.CountFunctionsCalled)
-            Message += "\tComputed Fitted Data"
-            AddMessageToLog(Message,self.LogFile)
+        self.CountFunctionsCalled += 1
+        MessagePlotDailyDistr(self.CountFunctionsCalled,self.LogFile,Upload)
+        # Compute the Fcm Partition For Each Feature
+        self.Feature2Class2FcmDistr = {Feature: SplitFcmByClass(self.Fcm,Feature,self.IntClass2StrClass) for Feature in self.DictFittedData.keys()}
+        InfoPlotDistrFeat = {"figsize":(4,4),"minx":0,"miny":0,"maxx":0,"maxy":0}
+        # Compute the MinMax for the Plot
+        self.InfoPlotDistrFeat = {Feature: {ComputeMinMaxPlotGivenFeature(self.Feature2Class2FcmDistr[Feature],InfoPlotDistrFeat)} for Feature in self.DictFittedData.keys()}
         for Feature in self.DictFittedData.keys():
-            fig,ax = plt.subplots(1,1,figsize= (15,12))
-            legend = []
-            aggregation = False
-            n,bins = np.histogram(self.Fcm[Feature].to_list(),bins = 50)
-            if Feature == "av_speed" or Feature == "speed_kmh":
-                n = n/np.sum(n)
-            maxCount = 0
-            maxSpeed = bins[-1]
-            self.Feature2MaxBins[Feature]["bins"] = maxSpeed
-            self.Feature2MaxBins[Feature]["count"] = maxCount
-            for IntClass in self.IntClass2StrClass:
-            # Plot each feature separately
-                y,x = np.histogram(self.Fcm.filter(pl.col("class") == IntClass)[Feature].to_list(),bins = 50)
-                if Feature == "av_speed" or Feature == "speed_kmh":
-                    y = y/np.sum(y)
-                if max(y)>maxCount:
-                    maxCount = max(y)
-                    # Data
-                ax.scatter(x[1:],y)
-                av_speed = np.mean(self.Fcm.filter(pl.col("class") == IntClass)[Feature].to_list())
-                legend.append(str(self.IntClass2StrClass[IntClass]) + " " + self.Column2Legend[Feature] + " " + str(round(av_speed,3)))
-                # Fit
-                if len(x[1:]) == len(self.DictFittedData[Feature]["fitted_data"]):
-                    ax.plot(x[1:],np.array(self.DictFittedData[Feature]["fitted_data"]),label = self.DictFittedData[Feature]["best_fit"])
-                    legend.append(str(self.IntClass2StrClass[IntClass]) + " " + self.Column2Legend[Feature] + " " + str(round(av_speed,3)))
-                ax.set_xticks(np.arange(bins[0],bins[-1],self.Feature2IntervalBin[Feature]))
-                ax.set_yticks(np.arange(min(n),max(n),self.Feature2IntervalCount[Feature]))
-                ax.set_xlabel(self.Feature2Label[Feature])
-                ax.set_ylabel('Count')
-                ax.set_xlim(right = maxSpeed + self.Feature2ShiftBin[Feature])
-                ax.set_ylim(bottom = 1,top = maxCount + self.Feature2ShiftCount[Feature])
-                ax.set_xscale(self.Feature2ScaleBins[Feature])
-                ax.set_yscale(self.Feature2ScaleCount[Feature])
-            legend_ = plt.legend(legend)
-            frame = legend_.get_frame()
-            frame.set_facecolor('white')
-            plt.savefig(os.path.join(self.PlotDir,'{0}_{1}.png'.format(LableSave,self.Column2SaveName[Feature])),dpi = 200)
+            fig,ax = PlotFeatureDistrSeparatedByClass(self.Feature2Class2FcmDistr[Feature],
+                                                Feature,
+                                                self.InfoPlotDistrFeat[Feature],
+                                                self.IntClass2StrClass,
+                                                self.DictFittedData,
+                                                self.Column2Legend,
+                                                self.Feature2IntervalBin,
+                                                self.Feature2IntervalCount,
+                                                self.Feature2Label,
+                                                self.Feature2ShiftBin,
+                                                self.Feature2ShiftCount,
+                                                self.Feature2ScaleBins,
+                                                self.Feature2ScaleCount)
+            fig.savefig(os.path.join(self.PlotDir,'{0}_{1}.png'.format(LableSave,self.Column2SaveName[Feature])),dpi = 200)
             plt.close()
             Message = "\tPlot {} Distribution: True\n".format(Feature)
             Message += "\t\tFitting Function {0}\n".format(self.DictFittedData[Feature]["best_fit"])
             AddMessageToLog(Message,self.LogFile)
+
 
 
 

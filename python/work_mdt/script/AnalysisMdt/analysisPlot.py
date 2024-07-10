@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import os
 import folium
 import polars as pl
+from collections import defaultdict
+from MFDAnalysis import *
 from CastVariables import *
 ##----------------------------------- PLOT VELOCITIES -----------------------------------##
 
@@ -36,7 +38,7 @@ def QuiverPopulationVelocityClass(population,velocity,save_dir,day,idx,dict_name
         plt.savefig(os.path.join(save_dir,'Hysteresis_{0}_Class_{1}.png'.format(day,dict_name[idx])),dpi = 200)
     plt.show()
 
-def MFDByClass(population,velocity,dict_name,idx,save_dir,verbose = False): 
+def MFDByClass(population,velocity,dict_name,idx,save_dir,day,verbose = False): 
 
     nx,binsPop = np.histogram(population,range = (min(population),max(population)))
     y_avg = np.zeros(len(binsPop))
@@ -60,12 +62,108 @@ def MFDByClass(population,velocity,dict_name,idx,save_dir,verbose = False):
 
 
 ##----------------------------------- PLOT TIMES -----------------------------------##
+def PlotTimePercorrenceDistribution(RoadsTimeVel,Time2Distr,AvgTimePercorrence,StrTimesLabel,File2Save):    
+    """
+        Input:
+            RoadsTimeVel: pl.DataFrame -> DataFrame with the Roads Time Velocities 
+        Description:
+            Time2Distr: array -> Array with the Time Percorrence Distribution (should be list of 96 values, Number of roads available)
+            AvgTimePercorrence: array -> Array with the Average Time Percorrence (should be list of 96 values)
+        NOTE: In the case I do not have information about a street of the subnet I will not have any information about the time_percorrence
+    """
+    Slicing = 8
+    fig,ax = plt.subplots(1,1,figsize = (10,10))
+    RoadsTimeVel = RoadsTimeVel.sort("start_bin")
+    for time,RTV in RoadsTimeVel.groupby("start_bin"):
+        ValidTime = RTV.filter(pl.col("time_percorrence")>0)
+        Time2Distr.append(ValidTime["time_percorrence"].to_list())
+        AvgTimePercorrence.append(np.mean(ValidTime["time_percorrence"].to_list()))
+        StartInterval = datetime.datetime.fromtimestamp(time)
+        StrTimesLabel.append(StartInterval.strftime("%Y-%m-%d %H:%M:%S").split(" ")[1])
+    ax.plot(StrTimesLabel, AvgTimePercorrence)
+    ax.boxplot(Time2Distr,sym='')
+    ax.set_xticks(range(len(StrTimesLabel))[::Slicing])  # Set the ticks to correspond to the labels
+    ax.set_xticklabels(StrTimesLabel[::Slicing], rotation=90)  # Set the labels with rotation    ax.set_title("Time Percorrence Distribution")
+    ax.set_xlabel("Time")
+    ax.set_ylabel("Time Percorrence")
+    plt.savefig(File2Save,dpi = 200)
+    return Time2Distr,AvgTimePercorrence
 
 
 
 
-##----------------------------------- PLOT DISTANCES -----------------------------------##
+##----------------------------------- PLOT DISTRIBUTIONS -----------------------------------##
+def SplitFcmByClass(Fcm,Feature,IntClass2StrClass):
+    Class2FcmDistr = defaultdict()
+    for IntClass in IntClass2StrClass:
+        y,x = np.histogram(Fcm.filter(pl.col("class") == IntClass)[Feature].to_list(),bins = 50)
+        if Feature == "av_speed" or Feature == "speed_kmh":
+            y = y/np.sum(y)
+        Class2FcmDistr[IntClass] = {"x":x,"y":y,"maxx":max(x),"maxy":max(y),"minx":min(x),"miny":min(y),"mean":np.mean(Fcm.filter(pl.col("class") == IntClass)[Feature].to_list())}
+    return Class2FcmDistr
 
+def ComputeMinMaxPlotGivenFeature(Class2FcmDistr,InfoPlotDistrFeat):
+    maxx = 0
+    maxy = 0
+    minx = 10000000
+    miny = 10000000
+    for IntClass in Class2FcmDistr.keys():
+        if maxx < Class2FcmDistr[IntClass]["maxx"]:
+            maxx = Class2FcmDistr[IntClass]["maxx"]
+        if maxy < Class2FcmDistr[IntClass]["maxy"]:
+            maxy = Class2FcmDistr[IntClass]["maxy"]
+        if minx > Class2FcmDistr[IntClass]["minx"]:
+            minx = Class2FcmDistr[IntClass]["minx"]
+        if miny > Class2FcmDistr[IntClass]["miny"]:
+            miny = Class2FcmDistr[IntClass]["miny"]
+    InfoPlotDistrFeat["maxx"] = maxx
+    InfoPlotDistrFeat["maxy"] = maxy
+    InfoPlotDistrFeat["minx"] = minx
+    InfoPlotDistrFeat["miny"] = miny
+    return InfoPlotDistrFeat
+
+def PlotFeatureDistrSeparatedByClass(Class2FcmDistr,InfoPlotDistrFeat,Feature,IntClass2StrClass,DictFittedData,Column2Legend,Feature2IntervalBin,Feature2IntervalCount,Feature2Label,Feature2ShiftBin,Feature2ShiftCount,Feature2ScaleBins,Feature2ScaleCount):
+    """
+        Class2FcmDistr: dict -> {IntClass: {"x":x,"y":y,"maxx":max(x),"maxy":max(y),"minx":min(x),"miny":min(y),"mean":np.mean(Fcm.filter(pl.col("class") == IntClass)[Feature].to_list())}}
+        InfoPlotDistrFeat: dict -> {"maxx":0,"maxy":0,"minx":10000000,"miny":10000000}
+        Feature: str -> Feature to Plot
+        IntClass2StrClass: dict -> {IntClass: StrClass}
+        DictFittedData: dict -> {Feature: {"fitted_data": [],"best_fit": str}}
+        Column2Legend: dict -> {Feature: Legend}
+        Feature2IntervalBin: dict -> {Feature: IntervalBin}
+        Feature2IntervalCount: dict -> {Feature: IntervalCount}
+        Feature2Label: dict -> {Feature: Label}
+        Feature2ShiftBin: dict -> {Feature: ShiftBin}
+        Feature2ShiftCount: dict -> {Feature: ShiftCount}
+        Feature2ScaleBins: dict -> {Feature: ScaleBins}
+        Feature2ScaleCount: dict -> {Feature: ScaleCount}
+        PlotDir: str -> Path to Save the Plot
+    """
+    fig,ax = plt.subplots(1,1,InfoPlotDistrFeat["figsize"])
+    legend = []
+#    Class2FcmDistr = SplitFcmByClass(Fcm,Feature,IntClass2StrClass)
+    for IntClass in Class2FcmDistr.keys():
+        # Scatter Points
+        ax.scatter(Class2FcmDistr[IntClass]["x"][1:],Class2FcmDistr[IntClass]["y"])
+        legend.append(str(IntClass2StrClass[IntClass]) + " " + Column2Legend[Feature] + " " + str(round(Class2FcmDistr[IntClass]["mean"],3)))
+        # Fit
+        if len(Class2FcmDistr[IntClass]["x"][1:]) == len(DictFittedData[Feature]["fitted_data"]):
+            ax.plot(Class2FcmDistr[IntClass]["x"][1:],np.array(DictFittedData[Feature]["fitted_data"]),label = DictFittedData[Feature]["best_fit"])
+            legend.append(str(IntClass2StrClass[IntClass]) + " " + Column2Legend[Feature] + " " + str(round(Class2FcmDistr[IntClass]["mean"],3)))
+        ax.set_xticks(np.arange(InfoPlotDistrFeat["minx"],InfoPlotDistrFeat["maxx"],Feature2IntervalBin[Feature]))
+        ax.set_yticks(np.arange(InfoPlotDistrFeat["miny"],InfoPlotDistrFeat["maxy"],Feature2IntervalCount[Feature]))
+        ax.set_xlabel(Feature2Label[Feature])
+        ax.set_ylabel('Count')
+        ax.set_xlim(right = InfoPlotDistrFeat["maxx"] + Feature2ShiftBin[Feature])
+        ax.set_ylim(bottom = 1,top = InfoPlotDistrFeat["maxy"] + Feature2ShiftCount[Feature])
+        ax.set_xscale(Feature2ScaleBins[Feature])
+        ax.set_yscale(Feature2ScaleCount[Feature])
+    legend_ = plt.legend(legend)
+    frame = legend_.get_frame()
+    frame.set_facecolor('white')
+    return fig,ax
+
+        
 
 
 
@@ -287,3 +385,47 @@ def PlotTimePercorrenceHTML(GeoJson,VelTimePercorrenceClass,IntClass2BestFit,Rea
         Message = "Plotting Daily Fluxes in HTML: False"
         print("No AvSpeed to Plot")
     return Message
+
+
+# -------------------------- SPECIFIC ALL DAYS ----------------------------#
+def ComputeAggregatedMFDVariables(ListDailyNetwork,MFDAggregated):
+    """
+        Description:
+            Every Day I count for each hour, how many people and the speed of the 
+            1. Network -> MFDAggregated = {"population":[],"time":[],"speed_kmh":[]}
+            2. SubNetwork -> Class2MFDAggregated = {StrClass: {"population":[sum_i pop_{t0,dayi},...,sum_i pop_{iteration,dayi}],"time":[t0,...,iteration],"speed_kmh":[sum_i speed_{t0,dayi},...,sum_i speed_{iteration,dayi}]}}
+            NOTE: time is pl.DateTime
+        NOTE: Each Time interval has its own average speed and population. For 15 minutes,
+            since iteration in 1 Day Analysis is set in that way. 
+        NOTE: If at time t there is no population, the speed is set to 0.
+    """
+    LocalDayCount = 0
+    # AGGREGATE MFD FOR ALL DAYS
+    for MobDate in ListDailyNetwork:
+        if LocalDayCount == 0:
+            MFDAggregated = MobDate.MFD
+            MFDAggregated["count_days"] = list(np.zeros(len(MFDAggregated["time"])))
+            MFDAggregated["total_number_people"] = list(np.zeros(len(MFDAggregated["time"])))
+            LocalDayCount += 1
+        else:            
+            for t in range(len(MobDate.MFD["time"])):
+                WeightedSpeedAtTime = MobDate.MFD["speed_kmh"][t]*MobDate.MFD["population"][t]
+                PopulationAtTime = MobDate.MFD["population"][t]
+                WeightedSpeedAtTimeS = MobDate.MFD["av_speed"][t]*MobDate.MFD["population"][t]
+                if PopulationAtTime != 0 and WeightedSpeedAtTime !=0:
+                    MFDAggregated["speed_kmh"][t] += WeightedSpeedAtTime
+                    MFDAggregated["population"][t] += PopulationAtTime
+                    MFDAggregated["count_days"][t] += 1
+                    MFDAggregated["av_speed"][t] += WeightedSpeedAtTimeS
+                    MFDAggregated["total_number_people"][t] += PopulationAtTime
+                else:
+                    pass
+    for t in range(len(MFDAggregated["time"])):
+        if MFDAggregated["count_days"][t] != 0:
+            MFDAggregated["speed_kmh"][t] = MFDAggregated["speed_kmh"][t]/(MFDAggregated["count_days"][t]*MFDAggregated["total_number_people"][t])
+            MFDAggregated["population"][t] = MFDAggregated["population"][t]/(MFDAggregated["count_days"][t]*MFDAggregated["total_number_people"][t])
+            MFDAggregated["av_speed"][t] = MFDAggregated["av_speed"][t]/(MFDAggregated["count_days"][t]*MFDAggregated["total_number_people"][t])
+        else:
+            pass
+    MFDAggregated = Dict2PolarsDF(MFDAggregated,schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64})
+    return MFDAggregated
