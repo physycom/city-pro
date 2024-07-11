@@ -58,3 +58,4 @@ html/
 latex/
 screen_logs/
 vcpkg/
+*Class2
