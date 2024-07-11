@@ -94,13 +94,18 @@ def PlotTimePercorrenceDistribution(RoadsTimeVel,Time2Distr,AvgTimePercorrence,S
 
 ##----------------------------------- PLOT DISTRIBUTIONS -----------------------------------##
 def SplitFcmByClass(Fcm,Feature,IntClass2StrClass):
-    Class2FcmDistr = defaultdict()
+    Class2FcmDistr = defaultdict(dict)
+    IntClass2Feat2AvgVar = defaultdict(dict)
     for IntClass in IntClass2StrClass:
         y,x = np.histogram(Fcm.filter(pl.col("class") == IntClass)[Feature].to_list(),bins = 50)
         if Feature == "av_speed" or Feature == "speed_kmh":
             y = y/np.sum(y)
         Class2FcmDistr[IntClass] = {"x":x,"y":y,"maxx":max(x),"maxy":max(y),"minx":min(x),"miny":min(y),"mean":np.mean(Fcm.filter(pl.col("class") == IntClass)[Feature].to_list())}
-    return Class2FcmDistr
+        IntClass2Feat2AvgVar[IntClass] = {"avg":np.mean(Fcm.filter(pl.col("class") == IntClass)[Feature].to_list()),"var":np.var(Fcm.filter(pl.col("class") == IntClass)[Feature].to_list())}
+    print("Class2FcmDistr Feature: ",Feature)
+    for IntClass in IntClass2StrClass:
+        print("Class: ",IntClass," mean: ",Class2FcmDistr[IntClass]["mean"])
+    return Class2FcmDistr,IntClass2Feat2AvgVar
 
 def ComputeMinMaxPlotGivenFeature(Class2FcmDistr,InfoPlotDistrFeat):
     maxx = 0
@@ -122,6 +127,22 @@ def ComputeMinMaxPlotGivenFeature(Class2FcmDistr,InfoPlotDistrFeat):
     InfoPlotDistrFeat["miny"] = miny
     return InfoPlotDistrFeat
 
+def ScatterAndPlotLegend(ax,Class2FcmDistr,Feature,IntClass2StrClass,DictFittedData,Column2Legend,IntClass,legend):
+    ax.scatter(Class2FcmDistr[IntClass]["x"][1:],Class2FcmDistr[IntClass]["y"])
+    legend.append(str(IntClass2StrClass[IntClass]) + " " + Column2Legend[Feature] + " " + str(round(Class2FcmDistr[IntClass]["mean"],3)))
+    # Fit
+    if len(Class2FcmDistr[IntClass]["x"][1:]) == len(DictFittedData[Feature]["fitted_data"]):
+        ax.plot(Class2FcmDistr[IntClass]["x"][1:],np.array(DictFittedData[Feature]["fitted_data"]),label = DictFittedData[Feature]["best_fit"])
+        legend.append(str(IntClass2StrClass[IntClass]) + " " + Column2Legend[Feature] + " " + str(round(Class2FcmDistr[IntClass]["mean"],3)))
+    return ax,legend
+
+def ScatterAndPlotSingleClass(ax,Class2FcmDistr,Feature,DictFittedData,IntClass):
+    ax.scatter(Class2FcmDistr[IntClass]["x"][1:],Class2FcmDistr[IntClass]["y"])
+    # Fit
+    if len(Class2FcmDistr[IntClass]["x"][1:]) == len(DictFittedData[Feature]["fitted_data"]):
+        ax.plot(Class2FcmDistr[IntClass]["x"][1:],np.array(DictFittedData[Feature]["fitted_data"]),label = DictFittedData[Feature]["best_fit"])
+    return ax
+
 def PlotFeatureDistrSeparatedByClass(Class2FcmDistr,InfoPlotDistrFeat,Feature,IntClass2StrClass,DictFittedData,Column2Legend,Feature2IntervalBin,Feature2IntervalCount,Feature2Label,Feature2ShiftBin,Feature2ShiftCount,Feature2ScaleBins,Feature2ScaleCount):
     """
         Class2FcmDistr: dict -> {IntClass: {"x":x,"y":y,"maxx":max(x),"maxy":max(y),"minx":min(x),"miny":min(y),"mean":np.mean(Fcm.filter(pl.col("class") == IntClass)[Feature].to_list())}}
@@ -139,17 +160,12 @@ def PlotFeatureDistrSeparatedByClass(Class2FcmDistr,InfoPlotDistrFeat,Feature,In
         Feature2ScaleCount: dict -> {Feature: ScaleCount}
         PlotDir: str -> Path to Save the Plot
     """
-    fig,ax = plt.subplots(1,1,InfoPlotDistrFeat["figsize"])
+    fig,ax = plt.subplots(1,1,figsize = InfoPlotDistrFeat["figsize"])
     legend = []
 #    Class2FcmDistr = SplitFcmByClass(Fcm,Feature,IntClass2StrClass)
     for IntClass in Class2FcmDistr.keys():
         # Scatter Points
-        ax.scatter(Class2FcmDistr[IntClass]["x"][1:],Class2FcmDistr[IntClass]["y"])
-        legend.append(str(IntClass2StrClass[IntClass]) + " " + Column2Legend[Feature] + " " + str(round(Class2FcmDistr[IntClass]["mean"],3)))
-        # Fit
-        if len(Class2FcmDistr[IntClass]["x"][1:]) == len(DictFittedData[Feature]["fitted_data"]):
-            ax.plot(Class2FcmDistr[IntClass]["x"][1:],np.array(DictFittedData[Feature]["fitted_data"]),label = DictFittedData[Feature]["best_fit"])
-            legend.append(str(IntClass2StrClass[IntClass]) + " " + Column2Legend[Feature] + " " + str(round(Class2FcmDistr[IntClass]["mean"],3)))
+        ax,legend = ScatterAndPlotLegend(ax,Class2FcmDistr,Feature,IntClass2StrClass,DictFittedData,Column2Legend,IntClass,legend)
         ax.set_xticks(np.arange(InfoPlotDistrFeat["minx"],InfoPlotDistrFeat["maxx"],Feature2IntervalBin[Feature]))
         ax.set_yticks(np.arange(InfoPlotDistrFeat["miny"],InfoPlotDistrFeat["maxy"],Feature2IntervalCount[Feature]))
         ax.set_xlabel(Feature2Label[Feature])
@@ -163,7 +179,23 @@ def PlotFeatureDistrSeparatedByClass(Class2FcmDistr,InfoPlotDistrFeat,Feature,In
     frame.set_facecolor('white')
     return fig,ax
 
-        
+def PlotFeatureSingleClass(Class2FcmDistr,InfoPlotDistrFeat,Feature,DictFittedData,Feature2IntervalBin,Feature2IntervalCount,Feature2Label,Feature2ShiftBin,Feature2ShiftCount,Feature2ScaleBins,Feature2ScaleCount,IntClass):     
+    fig,ax = plt.subplots(1,1,figsize = InfoPlotDistrFeat["figsize"])
+    legend = []
+    # Scatter Points
+    ax = ScatterAndPlotSingleClass(ax,Class2FcmDistr,Feature,DictFittedData,IntClass)
+    ax.set_xticks(np.arange(InfoPlotDistrFeat["minx"],InfoPlotDistrFeat["maxx"],Feature2IntervalBin[Feature]))
+    ax.set_yticks(np.arange(InfoPlotDistrFeat["miny"],InfoPlotDistrFeat["maxy"],Feature2IntervalCount[Feature]))
+    ax.set_xlabel(Feature2Label[Feature])
+    ax.set_ylabel('Count')
+    ax.set_xlim(right = InfoPlotDistrFeat["maxx"] + Feature2ShiftBin[Feature])
+    ax.set_ylim(bottom = 1,top = InfoPlotDistrFeat["maxy"] + Feature2ShiftCount[Feature])
+    ax.set_xscale(Feature2ScaleBins[Feature])
+    ax.set_yscale(Feature2ScaleCount[Feature])
+    legend_ = plt.legend(legend)
+    frame = legend_.get_frame()
+    frame.set_facecolor('white')
+    return fig,ax
 
 
 

@@ -128,15 +128,17 @@ def Main(config,StrDate):
     Network.PlotDistrPerClass()
 ## +++++++++++++++ FITTING PROCEDURES +++++++++++++++++++++++++++++
     return Network
-def MainComparison(ListNetworkDays,PlotDirAggregated,verbose):
-    NetAllDays = NetworkAllDays(ListNetworkDays,PlotDirAggregated,verbose)
+def MainComparison(ListNetworkDays,PlotDirAggregated,config,verbose):
+    NetAllDays = NetworkAllDays(ListNetworkDays,PlotDirAggregated,config,verbose)
     # Save the Fits of All Days in a unique file
     NetAllDays.ComparedDaysFit()
+    NetAllDays.GenerateAndSaveTabAvSpeed()
     # Create Fcm for All -> Distribution lenght and time (Power law )
     NetAllDays.ConcatenateFcm()
     # Compute MFD
     NetAllDays.ComputeMFDAllDays()
     # All Days Plot Distribution Velocity Aggregated
+    NetAllDays.PlotGridDistrFeat()
     NetAllDays.PlotDistrAggregatedAllDays()
     NetAllDays.PlotDistrAggregatedAllDaysPerClass()
     # All Days Plot Distribution Velocity Comparison
@@ -175,7 +177,7 @@ if __name__ == "__main__":
         exit("Missing Dates To Analyze")
     
     ListNetworkDays = []
-    parallel = False
+    parallel = True
     print("Dates to Analyze:\n",StrDates)
     if parallel:
         args = [(config,StrDate) for StrDate in StrDates]
@@ -199,4 +201,4 @@ if __name__ == "__main__":
     # All Days Mobility Analysis
     if parallel:
         Network = ListNetworkDays[0]
-    MainComparison(ListNetworkDays,Network.PlotDirAggregated,Network.verbose)
+    MainComparison(ListNetworkDays,Network.PlotDirAggregated,config,Network.verbose)

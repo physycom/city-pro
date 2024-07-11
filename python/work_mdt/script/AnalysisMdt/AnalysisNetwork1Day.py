@@ -1412,14 +1412,20 @@ class DailyNetworkStats:
         self.CountFunctionsCalled += 1
         MessagePlotDailyDistr(self.CountFunctionsCalled,self.LogFile,Upload)
         # Compute the Fcm Partition For Each Feature
-        self.Feature2Class2FcmDistr = {Feature: SplitFcmByClass(self.Fcm,Feature,self.IntClass2StrClass) for Feature in self.DictFittedData.keys()}
+        self.Feature2Class2FcmDistr = defaultdict()
+        self.Feature2IntClass2Feat2AvgVar = defaultdict()
+        for Feature in self.DictFittedData.keys():
+            Class2FcmDistr,IntClass2Feat2AvgVar = SplitFcmByClass(self.Fcm,Feature,self.IntClass2StrClass) 
+            self.Feature2Class2FcmDistr[Feature] = Class2FcmDistr
+            self.Feature2IntClass2Feat2AvgVar[Feature] = IntClass2Feat2AvgVar
         InfoPlotDistrFeat = {"figsize":(4,4),"minx":0,"miny":0,"maxx":0,"maxy":0}
         # Compute the MinMax for the Plot
-        self.InfoPlotDistrFeat = {Feature: {ComputeMinMaxPlotGivenFeature(self.Feature2Class2FcmDistr[Feature],InfoPlotDistrFeat)} for Feature in self.DictFittedData.keys()}
+        self.InfoPlotDistrFeat = {Feature: ComputeMinMaxPlotGivenFeature(self.Feature2Class2FcmDistr[Feature],InfoPlotDistrFeat) for Feature in self.DictFittedData.keys()}
+        self.Feature2DistributionPlot = {Feature: {"fig":None,"ax":None} for Feature in self.DictFittedData.keys()}
         for Feature in self.DictFittedData.keys():
             fig,ax = PlotFeatureDistrSeparatedByClass(self.Feature2Class2FcmDistr[Feature],
-                                                Feature,
                                                 self.InfoPlotDistrFeat[Feature],
+                                                Feature,
                                                 self.IntClass2StrClass,
                                                 self.DictFittedData,
                                                 self.Column2Legend,
@@ -1430,6 +1436,8 @@ class DailyNetworkStats:
                                                 self.Feature2ShiftCount,
                                                 self.Feature2ScaleBins,
                                                 self.Feature2ScaleCount)
+            self.Feature2DistributionPlot[Feature]["fig"] = fig
+            self.Feature2DistributionPlot[Feature]["ax"] = ax
             fig.savefig(os.path.join(self.PlotDir,'{0}_{1}.png'.format(LableSave,self.Column2SaveName[Feature])),dpi = 200)
             plt.close()
             Message = "\tPlot {} Distribution: True\n".format(Feature)
@@ -1463,18 +1471,8 @@ class DailyNetworkStats:
                                                                                                                 FitFile = os.path.join(self.PlotDir,'Fit_Class_{0}'.format(IntClass)),
                                                                                                                 FittedDataFile = os.path.join(self.PlotDir,'FittedData_Class_{0}'.format(IntClass)))
 
-            if self.verbose:
-                print("++++++++++++++++++++")
-        if Upload:
-            self.CountFunctionsCalled += 1
-            Message = "{} Plot Distr Per Class: True\n".format(self.CountFunctionsCalled)
-            Message += "\tUpload Class2DictFittedData, Class2InfoFittedParameters"
-            AddMessageToLog(Message,self.LogFile)
-        else:
-            self.CountFunctionsCalled += 1
-            Message = "{} Plot Distr Per Class: True\n".format(self.CountFunctionsCalled)
-            Message += "\tComputed Class2DictFittedData, Class2InfoFittedParameters"
-            AddMessageToLog(Message,self.LogFile)
+        self.CountFunctionsCalled += 1
+        MessagePlotSingleClass0(Upload,self.CountFunctionsCalled,self.LogFile)
         for Feature in self.DictFittedData.keys():
             for IntClass in self.IntClass2StrClass:
                 fig,ax = plt.subplots(1,1,figsize= (15,12))
@@ -1482,52 +1480,21 @@ class DailyNetworkStats:
                 y,x = np.histogram(df[Feature].to_list(),bins = 50)
                 if Feature == "av_speed" or Feature == "speed_kmh":
                     y = y/np.sum(y)
-# ALREADY COMPUTED WITH ReturnFitInfoFromDict
-#                self.Class2DictFittedData[IntClass],self.Class2InfoFittedParameters[IntClass] = FitAndPlot(x[1:],y,self.DictInitialGuess,Feature,self.Class2DictFittedData[IntClass],self.Class2InfoFittedParameters[IntClass])                
-                if IntClass!=10 and IntClass!=11:
-                    LocalBoolScatPlot = False
-                    LocalBoolPlot = False
-                    LocalFittedData = np.array(self.Class2DictFittedData[IntClass][Feature]["fitted_data"])
-                    LocalMask = LocalFittedData > 0
-                    if "speed" in Feature:
-                        LocalMask1 = y > 0
-                        ScatterY2Plot = y[LocalMask1]
-                        ScatterX2Plot = x[1:][LocalMask1]
-                        print("{0} {1} ScatterY2Plot: ".format(Feature,IntClass),ScatterY2Plot)
-                        if len(ScatterY2Plot)>0:
-                            ax.scatter(ScatterX2Plot,ScatterY2Plot)
-                            LocalBoolScatPlot = True
-                    if len(x[:1]) == len(self.Class2DictFittedData[IntClass][Feature]["fitted_data"]):
-                        # Fit                        
-                        Y2Plot = LocalFittedData[LocalMask]
-                        X2Plot = x[1:][np.array(self.Class2DictFittedData[IntClass][Feature]["fitted_data"]) > 0.9]
-                        if len(Y2Plot)>0:
-                            ax.plot(X2Plot,np.array(Y2Plot),label = self.Class2DictFittedData[IntClass][Feature]["best_fit"])
-                            LocalBoolPlot = True
-                    if isinstance(self.Class2DictFittedData[IntClass][Feature]["best_fit"],str): 
-                        if LocalBoolScatPlot or LocalBoolPlot:
-                            ax.set_xticks(np.arange(x[0],x[-1],self.Feature2IntervalBin[Feature]))
-                            ax.set_yticks(np.arange(min(y),max(y),self.Feature2IntervalCount[Feature]))
-                            ax.set_xlabel(self.Feature2Label[Feature])
-                            ax.set_ylabel('Count')
-                            ax.set_xlim(left = 0,right = max(x) + self.Feature2ShiftBin[Feature])
-                            ax.set_ylim(bottom = 1,top = max(y) + self.Feature2ShiftCount[Feature])
-                            ax.set_xscale(self.Feature2ScaleBins[Feature])
-                            ax.set_yscale(self.Feature2ScaleCount[Feature])
-                            if len(LocalMask) == len(LocalFittedData):
-                                print("Class: ",IntClass," Feature: ",Feature," Day: ",self.StrDate)
-                                print("Number of fitted values less than 0: ",len(LocalFittedData) - len(LocalFittedData[LocalMask]))
-                            plt.savefig(os.path.join(self.PlotDir,'{0}_Class_{1}_{2}.png'.format(self.Class2DictFittedData[IntClass][Feature]["best_fit"],IntClass,self.Column2SaveName[Feature])),dpi = 200)
-                            plt.close()
-                        Message = "\tPlot {0} Distribution Class {1}: True\n".format(Feature,IntClass)
-                        Message = "\t\tFitting Function {0}".format(self.Class2DictFittedData[IntClass][Feature]["best_fit"])
-                        AddMessageToLog(Message,self.LogFile)  
-
-                    else:
-                        print("Warning: Best Fit Not Found for Class {0} and Feature {1} Day: {2}".format(IntClass,Feature,self.StrDate))
-                        Message = "\tPlot {0} Distribution Class {1}: False\n".format(Feature,IntClass)
-                        Message = "\t\tBest Fit Not Found"
-                        AddMessageToLog(Message,self.LogFile)        
+                fig,ax = PlotFeatureSingleClass(self.Feature2Class2FcmDistr[Feature],
+                                        self.InfoPlotDistrFeat[Feature],
+                                        Feature,
+                                        self.Class2DictFittedData[IntClass],
+                                        self.Feature2IntervalBin,
+                                        self.Feature2IntervalCount,
+                                        self.Feature2Label,
+                                        self.Feature2ShiftBin,
+                                        self.Feature2ShiftCount,
+                                        self.Feature2ScaleBins,
+                                        self.Feature2ScaleCount,
+                                        IntClass)
+                fig.savefig(os.path.join(self.PlotDir,'{0}_Class_{1}_{2}.png'.format(self.Class2DictFittedData[IntClass][Feature]["best_fit"],IntClass,self.Column2SaveName[Feature])),dpi = 200)
+                plt.close()
+                MessagePlotSingleClass1(Feature,IntClass,self.Class2DictFittedData,self.Class2InfoFittedParameters,self.LogFile)
 
 ## ------------------- PRINT UTILITIES ---------------- #
     def PrintTimeInfo(self):
