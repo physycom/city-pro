@@ -32,6 +32,7 @@ from analysisPlot import *
 from InfoFitMdtDataset import *
 from JsonFunctions import *
 from LoggingInfo import *
+from UsefulStructures import *
 import matplotlib.ticker as ticker
 
 # Ignore all warnings
@@ -165,34 +166,14 @@ class DailyNetworkStats:
         # FEATURES
         self.Features = ["av_speed","lenght","time","av_accel"]
         self.Features2Fit = ["av_speed","lenght","time","speed_kmh","lenght_km","time_hours"]
-        # OUTPUT DICTIONARIES
+        # OUTPUT DICTIONARIES FIT
         self.Feature2Label = {"av_speed":'average speed (m/s)',"speed_kmh":'average speed (km/h)',"av_accel":"average acceleration (m/s^2)","lenght":'lenght (m)',"lenght_km": 'lenght (km)',"time_hours":'time (h)',"time":'time (s)'}
-        self.Column2SaveName = {"av_speed":"average_speed","speed_kmh":'average_speed_kmh',"av_accel":"average_acceleration","lenght":"lenght","lenght_km": 'lenght_km',"time_hours":"time_hours","time":"time"}
-        self.Column2Legend = {"av_speed":"speed (m/s)","speed_kmh":'speed (km/h)',"av_accel":"acceleration (m/s^2)","lenght":"lenght (m)","lenght_km": 'lenght (km)',"time_hours":"time (h)","time":"time (s)"} 
+        self.Feature2SaveName = {"av_speed":"average_speed","speed_kmh":'average_speed_kmh',"av_accel":"average_acceleration","lenght":"lenght","lenght_km": 'lenght_km',"time_hours":"time_hours","time":"time"}
+        self.Feature2Legend = {"av_speed":"speed (m/s)","speed_kmh":'speed (km/h)',"av_accel":"acceleration (m/s^2)","lenght":"lenght (m)","lenght_km": 'lenght (km)',"time_hours":"time (h)","time":"time (s)"} 
         self.Feature2MaxBins = {"av_speed":{"bins":0,"count":0},"speed_kmh":{"bins":0,"count":0},"av_accel":{"bins":0,"count":0},"lenght":{"bins":0,"count":0},"lenght_km": {"bins":0,"count":0},"time_hours":{"bins":0,"count":0},"time":{"bins":0,"count":0}}
-        self.DictInitialGuess = {"maxwellian":{
-                                    "av_speed":{"initial_guess":[0,0],"interval":[]},
-                                    "speed_kmh":{"initial_guess":[0,0],"interval":[]}},
-                                "gaussian":{
-                                    "av_speed":{"initial_guess":[0,0],"interval":[]},
-                                    "speed_kmh":{"initial_guess":[0,0],"interval":[]}
-                                    },      
-                                "powerlaw":{                          
-                                    "lenght":{"initial_guess":[0,0],"interval":[]},
-                                    "lenght_km":{"initial_guess":[0,0],"interval":[]},
-                                    "time_hours":{"initial_guess":[0,0],"interval":[]},
-                                    "time":{"initial_guess":[0,0],"interval":[]}
-                                    },
-                                "exponential":{
-                                    "lenght":{"initial_guess":[0,0],"interval":[]},
-                                    "lenght_km":{"initial_guess":[0,0],"interval":[]},
-                                    "time_hours":{"initial_guess":[0,0],"interval":[]},
-                                    "time":{"initial_guess":[0,0],"interval":[]}
-                                    }
-                                }
-
-        self.DictFittedData = {Feature: {"best_fit":[], "fitted_data":[],"parameters":[],"start_window":None,"end_window":None} for Feature in list(self.Features2Fit)}
-        self.InfoFittedParameters =  {Function2Fit: {Feature:{"fit":None,"StdError":None,"success":None} for Feature in self.DictInitialGuess[Function2Fit].keys()} for Function2Fit in self.DictInitialGuess.keys()}
+        self.Feature2Function2Fit2InitialGuess = InitFeature2Function2Fit2InitialGuess(self.Features2Fit)
+        self.Feature2InfoOutputFit = {Feature: {"best_fit":[], "fitted_data":[],"parameters":[],"start_window":None,"end_window":None,"std_error":None} for Feature in list(self.Features2Fit)}
+        self.Feature2Function2Fit2InfoOutputFit =  {Feature: {Function2Fit:{"fit":None,"StdError":None,"success":None} for Function2Fit in self.Feature2Function2Fit2InitialGuess.keys()} for Feature in self.Feature2Function2Fit2InitialGuess.keys()}
         self.InfoFit = config["info_fit"]
         ## BIN SETTINGS
         if "shift_count" in config.keys():
@@ -249,7 +230,7 @@ class DailyNetworkStats:
                     raise KeyError(feat + " not in scale_bins")
         else:
             self.Feature2ScaleBins = {"av_speed": "linear","speed_kmh": "linear","lenght": "linear","lenght_km": "linear","time": "linear","time_hours": "linear","av_accel": "linear"}
-        assert self.Feature2ScaleBins.keys() == self.Feature2ScaleCount.keys() == self.Feature2IntervalCount.keys() == self.Feature2IntervalBin.keys() == self.Feature2ShiftBin.keys() == self.Feature2ShiftCount.keys() == self.Feature2Label.keys() == self.Column2SaveName.keys() == self.Column2Legend.keys(), "Error: Features not consistent"
+        assert self.Feature2ScaleBins.keys() == self.Feature2ScaleCount.keys() == self.Feature2IntervalCount.keys() == self.Feature2IntervalBin.keys() == self.Feature2ShiftBin.keys() == self.Feature2ShiftCount.keys() == self.Feature2Label.keys() == self.Feature2SaveName.keys() == self.Feature2Legend.keys(), "Error: Features not consistent"
         # FUNDAMENTAL DIAGRAM
         self.MFD = Dict2PolarsDF({"time":[],"population":[],"speed_kmh":[],"av_speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64})
         self.MFDNew = Dict2PolarsDF({"time":[],"population":[],"speed_kmh":[],"av_speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64})
@@ -1251,14 +1232,14 @@ class DailyNetworkStats:
         self.CountFunctionsCalled += 1
         if self.BoolStrClass2IntClass:
             print("Initialize The Fitting Parameters Initial Guess And Windows")
-            self.Class2InitialGuess = {IntClass: self.DictInitialGuess for IntClass in self.IntClass2StrClass.keys()}
+            self.Feature2Class2Function2Fit2InitialGuess = InitFeature2Class2Function2Fit2InitialGuess(self.Features2Fit,self.IntClass2StrClass)
             if self.verbose:
                 print(self.StrDate)
-                print("Class2InitialGuess:\n",self.Class2InitialGuess)
-            for IntClass in self.IntClass2StrClass.keys():
-                StrClass = self.IntClass2StrClass[IntClass]
-                for Function2Test in self.Class2InitialGuess[IntClass]: 
-                    for Feature in self.Class2InitialGuess[IntClass][Function2Test]:
+                print("Class2InitialGuess:\n",self.Feature2Class2Function2Fit2InitialGuess)
+            for Feature in self.Feature2Class2Function2Fit2InitialGuess:
+                for IntClass in self.Feature2Class2Function2Fit2InitialGuess[Feature].keys():
+                    StrClass = self.IntClass2StrClass[IntClass]
+                    for Function2Test in self.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass].keys(): 
                         if Feature == "av_speed" or Feature == "speed_kmh":
                             pass
                         else:
@@ -1269,15 +1250,9 @@ class DailyNetworkStats:
                         # Normalization
                         SecondsInHour = 3600
                         MetersinKm = 1000
-                        if self.verbose:
-                            print(self.StrDate)
-                            print("Feature: ",Feature)
-                            print("IntClass: ",IntClass)
-                            print("Function2Test: ",Function2Test)
-                            print("self.Class2InitialGuess[IntClass][Function2Test][Feature]:\n",self.Class2InitialGuess[IntClass][Function2Test][Feature])
-                        if self.Class2InitialGuess[IntClass][Function2Test][Feature] is not None:
+                        if self.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass][Function2Test] is not None:
                             if Feature == "time":
-                                self.Class2InitialGuess[IntClass][Function2Test][Feature] = FillInitGuessIntervalPlExp(self.Class2InitialGuess[IntClass][Function2Test][Feature],
+                                self.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass][Function2Test] = FillInitGuessIntervalPlExp(self.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass][Function2Test],
                                                                                                                         MaxCount,
                                                                                                                         Avg,
                                                                                                                         StartWindow,
@@ -1287,14 +1262,14 @@ class DailyNetworkStats:
                                 Avg = Avg/SecondsInHour 
                                 StartWindow = StartWindow/SecondsInHour
                                 EndWindow = EndWindow/SecondsInHour 
-                                self.Class2InitialGuess[IntClass][Function2Test][Feature] = FillInitGuessIntervalPlExp(self.Class2InitialGuess[IntClass][Function2Test][Feature],
+                                self.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass][Function2Test] = FillInitGuessIntervalPlExp(self.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass][Function2Test],
                                                                                                                         MaxCount,
                                                                                                                         Avg,
                                                                                                                         StartWindow,
                                                                                                                         EndWindow,
                                                                                                                         Function2Test)
                             elif Feature == "lenght":
-                                self.Class2InitialGuess[IntClass][Function2Test][Feature] = FillInitGuessIntervalPlExp(self.Class2InitialGuess[IntClass][Function2Test][Feature],
+                                self.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass][Function2Test] = FillInitGuessIntervalPlExp(self.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass][Function2Test],
                                                             MaxCount,
                                                             Avg,
                                                             StartWindow,
@@ -1304,19 +1279,19 @@ class DailyNetworkStats:
                                 Avg = Avg/MetersinKm 
                                 StartWindow = StartWindow/MetersinKm
                                 EndWindow = EndWindow/MetersinKm
-                                self.Class2InitialGuess[IntClass][Function2Test][Feature] = FillInitGuessIntervalPlExp(self.Class2InitialGuess[IntClass][Function2Test][Feature],
+                                self.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass][Function2Test] = FillInitGuessIntervalPlExp(self.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass][Function2Test],
                                                                                                                     MaxCount,
                                                                                                                     Avg,
                                                                                                                     StartWindow,
                                                                                                                     EndWindow,
                                                                                                                     Function2Test)
                             elif Feature == "av_speed":
-                                self.Class2InitialGuess[IntClass][Function2Test][Feature] = FillInitGuessIntervalMxGs(self.Class2InitialGuess[IntClass][Function2Test][Feature],
+                                self.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass][Function2Test] = FillInitGuessIntervalMxGs(self.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass][Function2Test],
                                                                                                                     self.Fcm,
                                                                                                                     Feature,
                                                                                                                     IntClass)
                             elif Feature == "speed_kmh":
-                                self.Class2InitialGuess[IntClass][Function2Test][Feature] = FillInitGuessIntervalMxGs(self.Class2InitialGuess[IntClass][Function2Test][Feature],
+                                self.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass][Function2Test] = FillInitGuessIntervalMxGs(self.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass][Function2Test],
                                                                                                                     self.Fcm,
                                                                                                                     Feature,
                                                                                                                     IntClass)
@@ -1325,8 +1300,8 @@ class DailyNetworkStats:
             Message = "{} Create Dictionary Class2InitialGuess: True".format(self.CountFunctionsCalled)
             AddMessageToLog(Message,self.LogFile)
             # Initialize The Guess Without Classes
-            for Function2Test in self.DictInitialGuess: 
-                for Feature in self.DictInitialGuess[Function2Test]:
+            for Feature in self.Feature2Function2Fit2InitialGuess.keys(): 
+                for Function2Test in self.Feature2Function2Fit2InitialGuess[Feature].keys():
                     if Feature == "av_speed" or Feature == "speed_kmh":
                         pass
                     else:
@@ -1338,7 +1313,7 @@ class DailyNetworkStats:
                     SecondsInHour = 3600
                     MetersinKm = 1000
                     if Feature == "time":
-                        self.DictInitialGuess[Function2Test][Feature] = FillInitGuessIntervalPlExp(self.DictInitialGuess[Function2Test][Feature],
+                        self.Feature2Function2Fit2InitialGuess[Feature][Function2Test] = FillInitGuessIntervalPlExp(self.Feature2Function2Fit2InitialGuess[Feature][Function2Test],
                                                                                                     MaxCount,
                                                                                                     Avg,
                                                                                                     StartWindow,
@@ -1348,14 +1323,14 @@ class DailyNetworkStats:
                         Avg = Avg/SecondsInHour 
                         StartWindow = StartWindow/SecondsInHour
                         EndWindow = EndWindow/SecondsInHour 
-                        self.DictInitialGuess[Function2Test][Feature] = FillInitGuessIntervalPlExp(self.DictInitialGuess[Function2Test][Feature],
+                        self.Feature2Function2Fit2InitialGuess[Feature][Function2Test] = FillInitGuessIntervalPlExp(self.Feature2Function2Fit2InitialGuess[Feature][Function2Test],
                                                                                                     MaxCount,
                                                                                                     Avg,
                                                                                                     StartWindow,
                                                                                                     EndWindow,
                                                                                                     Function2Test)
                     elif Feature == "lenght":
-                        self.DictInitialGuess[Function2Test][Feature] = FillInitGuessIntervalPlExp(self.DictInitialGuess[Function2Test][Feature],
+                        self.Feature2Function2Fit2InitialGuess[Feature][Function2Test] = FillInitGuessIntervalPlExp(self.Feature2Function2Fit2InitialGuess[Feature][Function2Test],
                                                                                                     MaxCount,
                                                                                                     Avg,
                                                                                                     StartWindow,
@@ -1365,125 +1340,128 @@ class DailyNetworkStats:
                         Avg = Avg/MetersinKm 
                         StartWindow = StartWindow/MetersinKm
                         EndWindow = EndWindow/MetersinKm
-                        self.DictInitialGuess[Function2Test][Feature] = FillInitGuessIntervalPlExp(self.DictInitialGuess[Function2Test][Feature],
+                        self.Feature2Function2Fit2InitialGuess[Feature][Function2Test] = FillInitGuessIntervalPlExp(self.Feature2Function2Fit2InitialGuess[Feature][Function2Test],
                                                                                                     MaxCount,
                                                                                                     Avg,
                                                                                                     StartWindow,
                                                                                                     EndWindow,
                                                                                                     Function2Test)
                     elif Feature == "av_speed":
-                        self.DictInitialGuess[Function2Test][Feature] = FillInitGuessIntervalMxGs(self.DictInitialGuess[Function2Test][Feature],
+                        self.Feature2Function2Fit2InitialGuess[Feature][Function2Test] = FillInitGuessIntervalMxGs(self.Feature2Function2Fit2InitialGuess[Feature][Function2Test],
                                                                                                 self.Fcm,
                                                                                                 Feature,
                                                                                                 None)
                     elif Feature == "speed_kmh":
-                        self.DictInitialGuess[Function2Test][Feature] = FillInitGuessIntervalMxGs(self.DictInitialGuess[Function2Test][Feature],
+                        self.Feature2Function2Fit2InitialGuess[Feature][Function2Test] = FillInitGuessIntervalMxGs(self.Feature2Function2Fit2InitialGuess[Feature][Function2Test],
                                                                                                     self.Fcm,
                                                                                                     Feature,
                                                                                                     None)
             with open(os.path.join(self.PlotDir,"DictInitialGuess_{0}.json".format(self.StrDate)),'w') as f:
-                json.dump(self.DictInitialGuess,f,cls = NumpyArrayEncoder,indent=2)
+                json.dump(self.Feature2Function2Fit2InitialGuess,f,cls = NumpyArrayEncoder,indent=2)
             Message = "{} Create Class Dictionary DictInitialGuess: True".format(self.CountFunctionsCalled)
             AddMessageToLog(Message,self.LogFile)
 ## DISTRIBUTIONS
+    def ComputeFitAggregated(self):
+        self.Feature2InfoOutputFit = InitFeature2InfoOutputFit(self.Features2Fit)
+        self.Feature2AllFitTry = InitFeature2AllFitTry(self.Feature2Function2Fit2InitialGuess)
+        for Feature in self.Feature2AllFitTry.keys():
+            ObservedData = self.Fcm[Feature].to_list()
+            # Compute the Fit for functions you are Undecided from
+            self.Feature2AllFitTry[Feature] = ReturnFitInfoFromDict(ObservedData,
+                                                                    self.Feature2Function2Fit2InitialGuess[Feature],
+                                                                    self.Feature2AllFitTry[Feature],
+                                                                    True)
+            self.Feature2InfoOutputFit[Feature] = ChooseBestFit(self.Feature2AllFitTry[Feature],self.Feature2InfoOutputFit[Feature])
 
-    def PlotDailyDistr(self,LableSave = "Aggregated"):
-        """
-            Input:
-                LabelSave: str -> 'Aggregated' or 'Class_i'
-            Description:
-                self.Feature2MaxBins = {
-                    "time": {"bins": int, "count": int},
-                    "lenght": {"bins": int, "count": int},
-                    "av_speed": {"bins": int, "count": int}} -> Contains informations about the feature of interest for trajectories
-        """
-        print('all different groups colored differently')
-        # Inititialize Fit for all different classes
-        self.CreateDictClass2FitInit()
-        if self.verbose:
-            print("++++++ Aggregated Fit ++++++")
-        self.InfoFittedParameters,self.DictFittedData,Upload,SuccessFit = ReturnFitInfoFromDict(Fcm = self.Fcm,
-                                                                            InitialGuess = self.DictInitialGuess,
-                                                                            DictFittedData = self.DictFittedData,
-                                                                            InfoFittedParameters = self.InfoFittedParameters,
-                                                                            Feature2Label = self.Feature2Label,
-                                                                            FitFile = os.path.join(self.PlotDir,'Fit_Aggregated'),
-                                                                            FittedDataFile = os.path.join(self.PlotDir,'FittedData_Aggregated'))
-        self.CountFunctionsCalled += 1
-        MessagePlotDailyDistr(self.CountFunctionsCalled,self.LogFile,Upload)
-        # Compute the Fcm Partition For Each Feature
-        self.Feature2Class2FcmDistr = defaultdict()
+    def ComputeFitPerClass(self):
+        # Sotore Results Fit
+        self.Feature2Class2InfoOutputFit = InitFeature2Class2InfoOutputFit(self.Features2Fit,self.IntClass2StrClass)
+        # Save All the Tried Fit
+        self.Feature2Class2AllFitTry = InitFeature2Class2AllFitTry(self.Feature2Function2Fit2InitialGuess,self.IntClass2StrClass)
+        # Returns for each function to try the best fit.
+        for Feature in self.Feature2Class2AllFitTry.keys():
+            for IntClass in self.Feature2Class2AllFitTry[Feature].keys():
+                if self.verbose:
+                    print("++++++ Class {} Fit ++++++".format(IntClass))
+                FcmFilteredByClass = self.Fcm.filter(pl.col("class") == IntClass)
+                ObservedData = FcmFilteredByClass[Feature].to_list()
+                # Compute the Fit for functions you are Undecided from
+                self.Feature2Class2AllFitTry[Feature][IntClass] = ReturnFitInfoFromDict(ObservedData,
+                                                                                        self.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass],
+                                                                                        self.Feature2Class2AllFitTry[Feature][IntClass],
+                                                                                        True)
+                # Choose the Best Fit among all the tried feature
+                self.Feature2Class2InfoOutputFit[Feature][IntClass] = ChooseBestFit(self.Feature2Class2AllFitTry[Feature][IntClass],self.Feature2Class2InfoOutputFit[Feature][IntClass])
+                if self.verbose:
+                    print("Feature: ",Feature)
+                    print("Class: ",IntClass)
+                    print("Best Fit Info: ",self.Feature2Class2InfoOutputFit[Feature][IntClass])
+
+    def ComputeFitDataFrame(self):
+        self.Feature2IntClass2FcmDistr = defaultdict()
         self.Feature2IntClass2Feat2AvgVar = defaultdict()
-        for Feature in self.DictFittedData.keys():
+        self.Freature2IntClass2FitInfo = defaultdict()
+        for Feature in self.Feature2InfoOutputFit.keys():
             Class2FcmDistr,IntClass2Feat2AvgVar = SplitFcmByClass(self.Fcm,Feature,self.IntClass2StrClass) 
-            self.Feature2Class2FcmDistr[Feature] = Class2FcmDistr
+            self.Feature2IntClass2FcmDistr[Feature] = Class2FcmDistr
             self.Feature2IntClass2Feat2AvgVar[Feature] = IntClass2Feat2AvgVar
-        InfoPlotDistrFeat = {"figsize":(4,4),"minx":0,"miny":0,"maxx":0,"maxy":0}
+            print("Feature: ",Feature)
+            print("Feature2IntClass2Feat2AvgVar:\n",self.Feature2IntClass2Feat2AvgVar)
+        InfoPlotDistrFeat = {"figsize":(10,10),"minx":0,"miny":0,"maxx":0,"maxy":0}
         # Compute the MinMax for the Plot
-        self.InfoPlotDistrFeat = {Feature: ComputeMinMaxPlotGivenFeature(self.Feature2Class2FcmDistr[Feature],InfoPlotDistrFeat) for Feature in self.DictFittedData.keys()}
-        self.Feature2DistributionPlot = {Feature: {"fig":None,"ax":None} for Feature in self.DictFittedData.keys()}
-        for Feature in self.DictFittedData.keys():
-            fig,ax = PlotFeatureDistrSeparatedByClass(self.Feature2Class2FcmDistr[Feature],
-                                                self.InfoPlotDistrFeat[Feature],
-                                                Feature,
-                                                self.IntClass2StrClass,
-                                                self.DictFittedData,
-                                                self.Column2Legend,
-                                                self.Feature2IntervalBin,
-                                                self.Feature2IntervalCount,
-                                                self.Feature2Label,
-                                                self.Feature2ShiftBin,
-                                                self.Feature2ShiftCount,
-                                                self.Feature2ScaleBins,
-                                                self.Feature2ScaleCount)
-            self.Feature2DistributionPlot[Feature]["fig"] = fig
-            self.Feature2DistributionPlot[Feature]["ax"] = ax
-            fig.savefig(os.path.join(self.PlotDir,'{0}_{1}.png'.format(LableSave,self.Column2SaveName[Feature])),dpi = 200)
-            plt.close()
-            Message = "\tPlot {} Distribution: True\n".format(Feature)
-            Message += "\t\tFitting Function {0}\n".format(self.DictFittedData[Feature]["best_fit"])
-            AddMessageToLog(Message,self.LogFile)
-
-
-
+        self.Feature2InfoPlotDistrFeat = {Feature: ComputeMinMaxPlotGivenFeature(self.Feature2IntClass2FcmDistr[Feature],InfoPlotDistrFeat) for Feature in self.Feature2InfoOutputFit.keys()}
+        self.Feature2DistributionPlot = {Feature: {"fig":None,"ax":None} for Feature in self.Feature2InfoOutputFit.keys()}
+        self.Feature2FitDf = FitDataFrame(self.Feature2Class2InfoOutputFit,self.Feature2IntClass2FcmDistr,self.PlotDir)        
 
     def PlotDistrPerClass(self):
         """
             Description:
-                For each Feature of ColumnLabel: ['time','lenght','av_speed','time_hours','lenght_km','speed_kmh']
-                Plot the distribution of the feature for each class. 
-                With a set of guesses for the fitting functions.
+                Computes the fit for each Feature each class and aggregated.
+                Plots them and save the variables in:
+                - self.Feature2Class2InfoOutputFit [best_fit, fitted_data, std_error, parameters]
+                - self.Feature2InfoOutputFit
             Return:
                 InfoDayFit: dict -> {IntClass: {Feature: {Function: [A,b]}}}
 
         """
+        self.CreateDictClass2FitInit()
+        self.ComputeFitAggregated()
+        self.ComputeFitPerClass()
+        self.ComputeFitDataFrame()
+        if self.verbose:
+            print("++++++ Aggregated Fit ++++++")
+            
+        self.CountFunctionsCalled += 1
         self.InfoDayFit = {IntClass: {} for IntClass in self.IntClass2StrClass.keys()}
-        self.Class2DictFittedData = {IntClass: {Feature: {"best_fit":[], "fitted_data":[],"parameters:":[]} for Feature in list(self.Features2Fit)} for IntClass in self.IntClass2StrClass.keys()}
-        self.Class2InfoFittedParameters = {IntClass: {Function2Fit: {Feature:{"fit":None,"StdError":None} for Feature in self.DictInitialGuess[Function2Fit].keys()} for Function2Fit in self.DictInitialGuess.keys()} for IntClass in self.IntClass2StrClass.keys()}
-        for IntClass in self.IntClass2StrClass:
-            if self.verbose:
-                print("++++++ Class {} Fit ++++++".format(IntClass))
-            self.Class2InfoFittedParameters[IntClass],self.Class2DictFittedData[IntClass],Upload,SuccessFit = ReturnFitInfoFromDict(Fcm = self.Fcm.filter(pl.col("class") == IntClass),
-                                                                                                                InitialGuess = self.Class2InitialGuess[IntClass],
-                                                                                                                DictFittedData = self.Class2DictFittedData[IntClass],
-                                                                                                                InfoFittedParameters = self.Class2InfoFittedParameters[IntClass],
-                                                                                                                Feature2Label = self.Feature2Label,
-                                                                                                                FitFile = os.path.join(self.PlotDir,'Fit_Class_{0}'.format(IntClass)),
-                                                                                                                FittedDataFile = os.path.join(self.PlotDir,'FittedData_Class_{0}'.format(IntClass)))
+        # Compute the Fcm Partition For Each Feature
 
         self.CountFunctionsCalled += 1
-        MessagePlotSingleClass0(Upload,self.CountFunctionsCalled,self.LogFile)
-        for Feature in self.DictFittedData.keys():
+        fig,ax = PlotFeatureDistrSeparatedByClass(self.Feature2IntClass2FcmDistr,
+                                            self.Feature2InfoPlotDistrFeat,
+                                            self.IntClass2StrClass,
+                                            self.Feature2Class2InfoOutputFit,
+                                            self.Feature2Legend,
+                                            self.Feature2IntervalBin,
+                                            self.Feature2IntervalCount,
+                                            self.Feature2Label,
+                                            self.Feature2ShiftBin,
+                                            self.Feature2ShiftCount,
+                                            self.Feature2ScaleBins,
+                                            self.Feature2ScaleCount,
+                                            self.Feature2DistributionPlot,
+                                            self.PlotDir,
+                                            self.Feature2SaveName)
+        for Feature in self.Feature2InfoOutputFit.keys():
             for IntClass in self.IntClass2StrClass:
                 fig,ax = plt.subplots(1,1,figsize= (15,12))
                 df = self.Fcm.filter(pl.col("class") == IntClass)
                 y,x = np.histogram(df[Feature].to_list(),bins = 50)
                 if Feature == "av_speed" or Feature == "speed_kmh":
                     y = y/np.sum(y)
-                fig,ax = PlotFeatureSingleClass(self.Feature2Class2FcmDistr[Feature],
+                fig,ax = PlotFeatureSingleClass(self.Feature2IntClass2FcmDistr[Feature],
                                         self.InfoPlotDistrFeat[Feature],
                                         Feature,
-                                        self.Class2DictFittedData[IntClass],
+                                        self.Feature2Class2InfoOutputFit[IntClass],
                                         self.Feature2IntervalBin,
                                         self.Feature2IntervalCount,
                                         self.Feature2Label,
@@ -1492,9 +1470,9 @@ class DailyNetworkStats:
                                         self.Feature2ScaleBins,
                                         self.Feature2ScaleCount,
                                         IntClass)
-                fig.savefig(os.path.join(self.PlotDir,'{0}_Class_{1}_{2}.png'.format(self.Class2DictFittedData[IntClass][Feature]["best_fit"],IntClass,self.Column2SaveName[Feature])),dpi = 200)
+                fig.savefig(os.path.join(self.PlotDir,'{0}_Class_{1}_{2}.png'.format(self.Feature2Class2InfoOutputFit[IntClass][Feature]["best_fit"],IntClass,self.Feature2SaveName[Feature])),dpi = 200)
                 plt.close()
-                MessagePlotSingleClass1(Feature,IntClass,self.Class2DictFittedData,self.Class2InfoFittedParameters,self.LogFile)
+                MessagePlotSingleClass1(Feature,IntClass,self.Feature2Class2InfoOutputFit,self.Class2InfoFittedParameters,self.LogFile)
 
 ## ------------------- PRINT UTILITIES ---------------- #
     def PrintTimeInfo(self):

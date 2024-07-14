@@ -54,8 +54,8 @@ class NetworkAllDays:
                 self.Features2Fit = MobDate.Features2Fit
                 # PLot Parameters
                 self.Feature2Label = MobDate.Feature2Label
-                self.Column2SaveName = MobDate.Column2SaveName
-                self.Column2Legend = MobDate.Column2Legend
+                self.Feature2SaveName = MobDate.Column2SaveName
+                self.Feature2Legend = MobDate.Column2Legend
                 self.Feature2IntervalBin = MobDate.Feature2IntervalBin
                 self.Feature2IntervalCount = MobDate.Feature2IntervalCount
                 self.Feature2ShiftBin = MobDate.Feature2ShiftBin
@@ -88,13 +88,22 @@ class NetworkAllDays:
             for Feature in self.Day2Feature2MaxBins[Day].keys():
                 for Bins in self.Day2Feature2MaxBins[Day][Feature].keys():
                     self.Feature2MaxBins[Feature][Bins] = max(self.Feature2MaxBins[Feature][Bins],self.Day2Feature2MaxBins[Day][Feature][Bins])
-        # Map The Classes among different days according to the closest average speed        
+        # Map The Classes among different days according to the closest average speed    
+        self.Day2IntClass2StrClass,self.Day2StrClass2IntClass,self.DictClass2AvSpeed = GenerateDay2DictClassAvSpeed(self.ListDailyNetwork,self.ReferenceFcmCenters,self.DictClass2AvSpeed,self.RefIntClass2StrClass,self.Day2IntClass2StrClass,self.Day2StrClass2IntClass)    
         self.AddStrClassColumn2Fcm()
         self.AssociateAvSpeed2StrClass()
+        # Dictionaries Depending on the Map day 2 common classes
+        self.Aggregation2Fcm = {Aggregation: pl.DataFrame() for Aggregation in self.AggregationLevel}
+        self.Aggregation2Class2Fcm = {Aggregation: {StrClass: pl.DataFrame() for StrClass in self.Day2StrClass2IntClass[self.DayReferenceClasses].keys()} for Aggregation in self.AggregationLevel}
+        self.Aggregation2Dict2InitialGuess = {Aggregation:defaultdict(dict) for Aggregation in self.Aggregation2Class2Fcm.keys()}
+        self.Aggregation2DictFittedData = {Aggregation:defaultdict(dict) for Aggregation in self.Aggregation2Class2Fcm.keys()}
+        self.Aggregation2InfoFittedParameters = {Aggregation:defaultdict(dict) for Aggregation in self.Aggregation2Class2Fcm.keys()}     
+        self.Aggregation2Class2DictFittedData = {Aggregation:{StrClass: defaultdict(dict) for StrClass in self.Aggregation2Class2Fcm[Aggregation]} for Aggregation in self.Aggregation2Class2Fcm.keys()}       
+        self.Aggregation2Class2InfoFittedParameters = {Aggregation:{StrClass: defaultdict(dict) for StrClass in self.Aggregation2Class2Fcm[Aggregation]} for Aggregation in self.Aggregation2Class2Fcm.keys()}
         self.InitFitInfo()
 
+
     def InitListStrClassReference(self):
-        RefIntClass2StrClass = {}
         # Take The Day with More Classes.
         NumberClasses = 0
         self.DayReferenceClasses = ""
@@ -125,6 +134,11 @@ class NetworkAllDays:
             StrDate = MobDate.StrDate
             MobDate.Fcm = MobDate.Fcm.with_columns(pl.col("class").apply(lambda x: self.Day2IntClass2StrClass[StrDate][x], return_dtype=pl.Utf8).alias("str_class"))
             MobDate.Fcm = MobDate.Fcm.with_columns(pl.col("class_new").apply(lambda x: self.Day2IntClass2StrClass[StrDate][x], return_dtype=pl.Utf8).alias("str_class_new"))
+            MobDate.FcmCenters = MobDate.FcmCenters.with_columns(pl.col("class").apply(lambda x: self.Day2IntClass2StrClass[StrDate][x], return_dtype=pl.Utf8).alias("str_class"))
+            print("StrDate:\n",MobDate.StrDate)
+            print("FcmCenters:\n",MobDate.FcmCenters)
+            print("Fcm:\n",MobDate.Fcm)
+
         self.CountFunctions += 1
         Message = "AddStrClassColumn2Fcm: True\n"
         self.AddStrClassColumn2FcmBool = True
@@ -164,28 +178,6 @@ class NetworkAllDays:
             print("Day to StrClass to intClass:\n",self.Day2StrClass2IntClass)
             print("Day to IntClass to StrClass:\n",self.Day2IntClass2StrClass)
         # Each day.GenerateDay2DictClass2AvSpeed
-        self.Day2IntClass2StrClass,self.Day2StrClass2IntClass,self.DictClass2AvSpeed = GenerateDay2DictClassAvSpeed(self.ListDailyNetwork,self.ReferenceFcmCenters,self.DictClass2AvSpeed,self.RefIntClass2StrClass,self.Day2IntClass2StrClass,self.Day2StrClass2IntClass)
-        MessageDict2AvSpeed(self.Day2IntClass2StrClass,self.Day2StrClass2IntClass,self.DictClass2AvSpeed,self.LogFile)
-        # For Each Day Associate a column to FcmCenters and Fcm to the str_class computed above
-        for MobDate in self.ListDailyNetwork:
-            for Class in MobDate.FcmCenters["class"].unique():
-                StrClass = MobDate.FcmCenters.to_pandas()["class"].apply(lambda x: self.Day2IntClass2StrClass[MobDate.StrDate][x])
-                MobDate.FcmCenter["str_class"] = StrClass
-                StrClass = MobDate.Fcm.to_pandas()["class"].apply(lambda x: self.Day2IntClass2StrClass[MobDate.StrDate][x])
-                MobDate["str_class"] = StrClass
-                print("StrDate:\n",MobDate.StrDate)
-                print("FcmCenters:\n",MobDate.FcmCenters)
-                print("Fcm:\n",MobDate.Fcm)
-                print("Class:\n",Class)
-
-#                if not isinstance(MobDate.FcmCenters, pd.DataFrame):
-#                    MobDate.FcmCenters = pd.DataFrame(MobDate.FcmCenters)
-#                if not isinstance(MobDate.Fcm, pd.DataFrame):
-#                    MobDate.Fcm = pd.DataFrame(MobDate.Fcm)
-#                MobDate.FcmCenters = pl.from_pandas(MobDate.FcmCenters)
-#                MobDate.Fcm = pl.from_pandas(MobDate.Fcm)
-#                MobDate.FcmCenters = MobDate.FcmCenters.with_columns(pl.when(pl.col("class") == Class).then().otherwise("11").alias("str_class"))
-#                MobDate.Fcm = MobDate.Fcm.with_columns(pl.when(pl.col("class") == Class).then(self.Day2IntClass2StrClass[MobDate.StrDate][self.Day2IntClass2StrClass[MobDate.StrDate][Class]]).otherwise("11").alias("str_class"))
         self.AssociateAvSpeed2StrClassBool = True
         self.CountFunctions += 1
         MessageAveSpeedStrClass(self.Day2IntClass2StrClass,self.Day2StrClass2IntClass,self.DictClass2AvSpeed,self.LogFile)
@@ -196,11 +188,6 @@ class NetworkAllDays:
         """
         if self.AssociateAvSpeed2StrClassBool:
             # FIT
-            self.Aggregation2Dict2InitialGuess = {Aggregation:defaultdict(dict) for Aggregation in self.Aggregation2Class2Fcm.keys()}
-            self.Aggregation2DictFittedData = {Aggregation:defaultdict(dict) for Aggregation in self.Aggregation2Class2Fcm.keys()}
-            self.Aggregation2InfoFittedParameters = {Aggregation:defaultdict(dict) for Aggregation in self.Aggregation2Class2Fcm.keys()}     
-            self.Aggregation2Class2DictFittedData = {Aggregation:{StrClass: defaultdict(dict) for StrClass in self.Aggregation2Class2Fcm[Aggregation]} for Aggregation in self.Aggregation2Class2Fcm.keys()}       
-            self.Aggregation2Class2InfoFittedParameters = {Aggregation:{StrClass: defaultdict(dict) for StrClass in self.Aggregation2Class2Fcm[Aggregation]} for Aggregation in self.Aggregation2Class2Fcm.keys()}
             for Aggregation in self.Aggregation2Class2Fcm.keys():
                 # FIT Features
                 self.Aggregation2Dict2InitialGuess[Aggregation] = self.DictInitialGuess
@@ -226,7 +213,7 @@ class NetworkAllDays:
         if self.AssociateAvSpeed2StrClassBool:
             DictFitKeys = ["parameters","best_fit"]
             Columns = ["time","lenght","av_speed","speed_kmh","lenght_km","time_hours"]
-            ColumnsDictFittedData = [Feature + "_{}".format() for FI in DictFitKeys for Feature in Columns]
+            ColumnsDictFittedData = [Feature + "_{}".format(FI) for FI in DictFitKeys for Feature in Columns]
             Index = self.StrDates
             self.DF_FitAggregated = pl.DataFrame(ColumnsDictFittedData,Index)
             self.StrClass2DF_Fit = {StrClass:self.DF_FitAggregated for StrClass in self.ListStrClassReference}
@@ -269,8 +256,6 @@ class NetworkAllDays:
         if self.AddStrClassColumn2FcmBool:
             # If Classes are Categorized
             self.CountFunctions += 1
-            self.Aggregation2Fcm = {Aggregation: pl.DataFrame() for Aggregation in self.AggregationLevel}
-            self.Aggregation2Class2Fcm = {Aggregation: {StrClass: pl.DataFrame() for StrClass in self.Day2StrClass2IntClass[self.DayReferenceClasses].keys()} for Aggregation in self.AggregationLevel}
             if self.AssociateAvSpeed2StrClassBool:
                 for Aggregation in self.AggregationLevel:
                     for MobDate in self.ListDailyNetwork:
@@ -298,6 +283,89 @@ class NetworkAllDays:
                 self.Aggregation2Class2MFD[Aggregation][StrClass] = ComputeAggregatedMFDVariables(self.ListDailyNetwork,self.Aggregation2Class2MFD[Aggregation][StrClass])
         self.CountFunctions += 1
         MessageComputeMFDAllDays(self.Aggregation2MFD,self.Aggregation2Class2MFD,self.LogFile)
+
+    def GetAggregatedFeature2Function2Fit2InitialGuess(self):
+        """
+            Fill the dictionary with the initial guess for the fit with data from output fit.
+            NOTE: Aggregate those days by Aggregation2Fcm
+            NOTE: Done
+        """
+        self.Aggregation2Feature2Function2Fit2InitialGuess = {Aggregation: defaultdict() for Aggregation in self.Aggregation2Class2Fcm.keys()}
+        self.Aggregation2Feature2Class2Function2Fit2InitialGuess = {Aggregation: {StrClass: defaultdict() for StrClass in self.Aggregation2Class2Fcm[Aggregation]} for Aggregation in self.Aggregation2Class2Fcm.keys()}
+        for Aggregation in self.AggregationLevel:
+            for MobDate in self.ListDailyNetwork:
+                if MobDate.StrDate in self.AggregationLevel2ListDays[Aggregation]:
+                    for Feature in MobDate.Feature2AllFitTry.keys():
+                        for Function2Fit in MobDate.Feature2Function2Fit2InitialGuess[Feature][IntClass].keys():
+                            self.Aggregation2Feature2Function2Fit2InitialGuess[Aggregation][Feature]["initial_guess"] = tuple(MobDate.Feature2Function2Fit2InitialGuess[Feature][Function2Fit]["parameters"])
+                            self.Aggregation2Feature2Function2Fit2InitialGuess[Aggregation][Feature]["interval"] = [MobDate.Feature2Function2Fit2InitialGuess[Feature][Function2Fit]["start_window"],MobDate.Feature2Function2Fit2InitialGuess[Feature][Function2Fit]["end_window"]]
+                            for StrClass in self.Day2StrClass2IntClass[MobDate.StrDate].keys():
+                                IntClass = self.Day2StrClass2IntClass[MobDate.StrDate][StrClass]
+                                self.Aggregation2Feature2Class2Function2Fit2InitialGuess[Aggregation][Feature][StrClass][Function2Fit]["initital_guess"] = tuple(MobDate.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass][Function2Fit]["parameters"])
+                                self.Aggregation2Feature2Class2Function2Fit2InitialGuess[Aggregation][Feature][StrClass][Function2Fit]["interval"] = [MobDate.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass][Function2Fit]["start_window"],MobDate.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass][Function2Fit]["end_window"]]
+    def ComputeFitAggregated(self):
+        """
+            Create the dictionary for the Fit (both input and output).
+            Put the best_fit, fitted_data, parameters, start_window, end_window, std_error out of the days for the class.
+        """
+        self.Aggregation2Feature2InfoOutputFit = {Aggregation: InitFeature2InfoOutputFit(self.Features2Fit) for Aggregation in self.Aggregation2Class2Fcm.keys()} 
+        self.Aggregation2Feature2AllFitTry = {Aggregation: InitFeature2AllFitTry(self.Aggregation2Feature2Class2Function2Fit2InitialGuess[Aggregation]) for Aggregation in self.Aggregation2Class2Fcm.keys()}
+        for Aggregation in self.Aggregation2Class2Fcm.keys():
+            ####################################à
+            for Feature in self.Aggregation2Feature2AllFitTry[Aggregation].keys():
+                # NOTE: Concatednated Fcm
+                ObservedData = self.Fcm[Feature].to_list()
+                # Compute the Fit for functions you are Undecided from
+                self.Aggregation2Feature2AllFitTry[Aggregation][Feature] = ReturnFitInfoFromDict(ObservedData,
+                                                                        self.Aggregation2Feature2Function2Fit2InitialGuess[Aggregation][Feature][Feature],
+                                                                        self.Aggregation2Feature2AllFitTry[Aggregation][Feature],
+                                                                        True)
+                self.Aggregation2Feature2InfoOutputFit[Aggregation][Feature] = ChooseBestFit(self.Aggregation2Feature2AllFitTry[Aggregation][Feature],self.Aggregation2Feature2InfoOutputFit[Aggregation][Feature])
+            #########################################
+    def ComputeFitPerClass(self):
+        # Sotore Results Fit
+        self.Aggregation2Feature2Class2InfoOutputFit = {Aggregation: InitFeature2Class2InfoOutputFit(self.Features2Fit,self.ListStrClassReference) for Aggregation in self.Aggregation2Class2Fcm.keys()}
+        # Save All the Tried Fit
+        self.Aggregation2Feature2Class2AllFitTry = {Aggregation: InitFeature2Class2AllFitTry(self.Aggregation2Feature2Class2Function2Fit2InitialGuess[Aggregation],self.ListStrClassReference) for Aggregation in self.Aggregation2Class2Fcm.keys()}
+        # Returns for each function to try the best fit.
+        for Aggregation in self.Aggregation2Feature2Class2AllFitTry.keys():
+            for Feature in self.Aggregation2Feature2Class2AllFitTry[Aggregation].keys():
+                for StrClass in self.Aggregation2Feature2Class2AllFitTry[Aggregation][Feature].keys():
+                    # NOTE: Change Observed Data Accordingly 
+                    if self.verbose:
+                        print("++++++ Class {} Fit ++++++".format(IntClass))
+                    FcmFilteredByClass = self.Fcm.filter(pl.col("class") == IntClass)
+                    ObservedData = FcmFilteredByClass[Feature].to_list()
+                    # Compute the Fit for functions you are Undecided from
+                    self.Feature2Class2AllFitTry[Feature][IntClass] = ReturnFitInfoFromDict(ObservedData,
+                                                                                            self.Aggregation2Feature2Class2Function2Fit2InitialGuess[Aggregation][Feature][IntClass],
+                                                                                            self.Feature2Class2AllFitTry[Feature][IntClass],
+                                                                                            True)
+                    # Choose the Best Fit among all the tried feature
+                    self.Feature2Class2InfoOutputFit[Feature][IntClass] = ChooseBestFit(self.Feature2Class2AllFitTry[Feature][IntClass],self.Feature2Class2InfoOutputFit[Feature][IntClass])
+                    if self.verbose:
+                        print("Feature: ",Feature)
+                        print("Class: ",IntClass)
+                        print("Best Fit Info: ",self.Feature2Class2InfoOutputFit[Feature][IntClass])
+
+    def ComputeFitDataFrame(self):
+        self.Feature2IntClass2FcmDistr = defaultdict()
+        self.Feature2IntClass2Feat2AvgVar = defaultdict()
+        self.Freature2IntClass2FitInfo = defaultdict()
+        for Feature in self.Feature2InfoOutputFit.keys():
+            Class2FcmDistr,IntClass2Feat2AvgVar = SplitFcmByClass(self.Fcm,Feature,self.IntClass2StrClass) 
+            self.Feature2IntClass2FcmDistr[Feature] = Class2FcmDistr
+            self.Feature2IntClass2Feat2AvgVar[Feature] = IntClass2Feat2AvgVar
+            print("Feature: ",Feature)
+            print("Feature2IntClass2Feat2AvgVar:\n",self.Feature2IntClass2Feat2AvgVar)
+        InfoPlotDistrFeat = {"figsize":(10,10),"minx":0,"miny":0,"maxx":0,"maxy":0}
+        # Compute the MinMax for the Plot
+        self.Feature2InfoPlotDistrFeat = {Feature: ComputeMinMaxPlotGivenFeature(self.Feature2IntClass2FcmDistr[Feature],InfoPlotDistrFeat) for Feature in self.Feature2InfoOutputFit.keys()}
+        self.Feature2DistributionPlot = {Feature: {"fig":None,"ax":None} for Feature in self.Feature2InfoOutputFit.keys()}
+        self.Feature2FitDf = FitDataFrame(self.Feature2Class2InfoOutputFit,self.Feature2IntClass2FcmDistr,self.PlotDir)        
+
+##############################################à
+
 
     # Plot of Distribution of Time, Lenght, Av_Speed, Speed_kmh, Lenght_km, Time_hours for all days
     def PlotDistrAggregatedAllDays(self,bins = 100):
@@ -348,11 +416,11 @@ class NetworkAllDays:
                             # Data
                         ax.scatter(x[1:],y)
                         av_speed = np.mean(LocalFeat.filter(pl.col("str_class") == StrClass)[Feature].to_list())
-                        legend.append(StrClass + " " + self.Column2Legend[Feature] + " " + str(round(av_speed,3)))
+                        legend.append(StrClass + " " + self.Feature2Legend[Feature] + " " + str(round(av_speed,3)))
                         # Fit
                         if len(x[1:]) == len(self.Aggregation2DictFittedData[Aggregation][Feature]["fitted_data"]):
                             ax.plot(x[1:],np.array(self.Aggregation2DictFittedData[Aggregation]["fitted_data"]),label = self.Aggregation2DictFittedData[Aggregation]["best_fit"])
-                            legend.append(StrClass + " " + self.Column2Legend[Feature] + " " + str(round(av_speed,3)))
+                            legend.append(StrClass + " " + self.Feature2Legend[Feature] + " " + str(round(av_speed,3)))
                         ax.set_xticks(np.arange(bins[0],bins[-1],self.Feature2IntervalBin[Feature]))
                         ax.set_yticks(np.arange(min(n),max(n),self.Feature2IntervalCount[Feature]))
                         ax.set_xlabel(self.Feature2Label[Feature])
@@ -364,7 +432,7 @@ class NetworkAllDays:
                     legend_ = plt.legend(legend)
                     frame = legend_.get_frame()
                     frame.set_facecolor('white')
-                    plt.savefig(os.path.join(self.PlotDir,'{0}_{1}.png'.format(Aggregation,self.Column2SaveName[Feature])),dpi = 200)
+                    plt.savefig(os.path.join(self.PlotDir,'{0}_{1}.png'.format(Aggregation,self.Feature2SaveName[Feature])),dpi = 200)
                     plt.close()
                     Message = "\tPlot {} Distribution: True\n".format(Feature)
                     Message += "\t\tFitting Function {0}\n".format(self.Aggregation2DictFittedData[Aggregation][Feature]["best_fit"])
@@ -419,7 +487,7 @@ class NetworkAllDays:
                         ax.set_ylim(bottom = 1,top = max(y) + self.Feature2ShiftCount[Feature])
                         ax.set_xscale(self.Feature2ScaleBins[Feature])
                         ax.set_yscale(self.Feature2ScaleCount[Feature])
-                    plt.savefig(os.path.join(self.PlotDir,'{0}_{1}_{2}.png'.format(Aggregation,self.Column2SaveName[Feature],StrClass)),dpi = 200)
+                    plt.savefig(os.path.join(self.PlotDir,'{0}_{1}_{2}.png'.format(Aggregation,self.Feature2SaveName[Feature],StrClass)),dpi = 200)
                     plt.close()
                     Message = "\tPlot {} Distribution: True\n".format(Feature)
                     Message += "\t\tFitting Function {0}\n".format(self.Aggregation2Class2DictFittedData[Aggregation][StrClass][Feature]["best_fit"])
@@ -446,7 +514,7 @@ class NetworkAllDays:
                         row_idx, col_idx = divmod(ax_idx, NumCol)
                         axs[row_idx, col_idx] = MobDate.Feature2DistributionPlot[Feature]["ax"]
                         ax_idx += 1
-                plt.savefig(os.path.join(self.PlotDir,'Grid_{0}_{1}.png'.format(Aggregation,self.Column2SaveName[Feature])),dpi = 200)
+                plt.savefig(os.path.join(self.PlotDir,'Grid_{0}_{1}.png'.format(Aggregation,self.Feature2SaveName[Feature])),dpi = 200)
     # MFD Aggregated All Days
 
     def ComputeAggregatedMFDVariablesObj(self):
@@ -699,13 +767,36 @@ class NetworkAllDays:
 
     def GenerateAndSaveTabAvSpeed(self):
         # Initialize the code string with the start of the tab definition
-        self.AvFeat2Class2Day = {Feature: {StrClass: {StrDay: [] for StrDay in self.StrDates} for StrClass in self.ListStrClassReference} for Feature in Feature2Label.keys()}
         Feature2Label = {"lenght_km":"length (km)","speed_kmh":"speed (km/h)","time_hours":"time (h)"}
+        self.AvFeat2Class2Day = {Feature: {StrClass: {StrDay: [] for StrDay in self.StrDates} for StrClass in self.ListStrClassReference} for Feature in Feature2Label.keys()}
         for Feature in Feature2Label.keys():
+            print("Feature: ",Feature)
             for MobDate in self.ListDailyNetwork:
+                print("Day: ",MobDate.StrDate)
                 for StrClass in self.ListStrClassReference:
                     IntClass = self.Day2StrClass2IntClass[MobDate.StrDate][StrClass]
+                    print("Class: ",StrClass," IntClass: ",IntClass)
+                    print(print(MobDate.Feature2IntClass2Feat2AvgVar[Feature][IntClass]))
                     self.AvFeat2Class2Day[Feature][StrClass] =  str(round(MobDate.Feature2IntClass2Feat2AvgVar[Feature][IntClass]["avg"],3)) + " $\pm$ " + str(round(MobDate.Feature2IntClass2Feat2AvgVar[Feature][IntClass]["var"],3))
-            LatexTable = TableFromDict(self.AvFeat2Class2Day[Feature])
-            with open(os.path.join(self.PlotDir,f"LatexTable_{Feature}.txt"), "w") as file:
-                file.write(LatexTable)
+            LatexTableAvFeat = TableFromDict(self.AvFeat2Class2Day[Feature])
+            with open(os.path.join(self.PlotDir,f"LatexTableAvFeat_{Feature}.txt"), "w") as file:
+                file.write(LatexTableAvFeat)
+            
+    def GenerateAndSaveTabFit(self):
+        Feature2Label = {"lenght_km":"length (km)","speed_kmh":"speed (km/h)","time_hours":"time (h)"}
+        self.Feature2Parameters2Class2Day = {Feature: {StrClass: {StrDay: [] for StrDay in self.StrDates} for StrClass in self.ListStrClassReference} for Feature in Feature2Label.keys()}
+        for Feature in Feature2Label.keys():
+            print("Feature: ",Feature)
+            for MobDate in self.ListDailyNetwork:
+                print("Day: ",MobDate.StrDate)
+                for StrClass in self.ListStrClassReference:
+                    IntClass = self.Day2StrClass2IntClass[MobDate.StrDate][StrClass]
+                    if MobDate.Class2Feature2InfoOutputFit[Feature][IntClass]["best_fit"] == "exponential":
+                        self.Feature2Class2InfoOutputFit[Feature][StrClass] = "A = " + str(round(MobDate.Feature2Class2InfoOutputFit[Feature][IntClass]["parameters"][0],3)) + " $\beta$ = " + str(round(MobDate.Feature2Class2InfoOutputFit[Feature][IntClass]["parameters"][1],3))
+                    if MobDate.Class2Feature2InfoOutputFit[Feature][IntClass]["best_fit"] == "linear":
+                        self.Feature2Class2InfoOutputFit[Feature][StrClass] = "A = " + str(round(MobDate.Feature2Class2InfoOutputFit[Feature][IntClass]["parameters"][0],3)) + " $\alpha$ = " + str(round(MobDate.Feature2Class2InfoOutputFit[Feature][IntClass]["parameters"][1],3))
+                    if MobDate.Class2Feature2InfoOutputFit[Feature][IntClass]["best_fit"] == "gaussian" or MobDate.Class2Feature2InfoOutputFit[Feature][IntClass]["best_fit"] == "maxwellian":
+                        self.Feature2Class2InfoOutputFit[Feature][StrClass] = "$\mu$ = " + str(round(MobDate.Feature2Class2InfoOutputFit[Feature][IntClass]["parameters"][0],3)) + " $\sigma$ = " + str(round(MobDate.Feature2Class2InfoOutputFit[Feature][IntClass]["parameters"][1],3))                   
+            LatexTableAvParameters = TableFromDict(self.Feature2Parameters2Class2Day[Feature])
+            with open(os.path.join(self.PlotDir,f"LatexTableParameters_{Feature}.txt"), "w") as file:
+                file.write(LatexTableAvParameters)

@@ -124,14 +124,13 @@ def Main(config,StrDate):
     # HYSTERESIS DIAGRAM
     Network.ReadFluxes()
 ## +++++++++++++++++ PLOT TRAJECTORIES STATS +++++++++++++++++++++++++++
-    Network.PlotDailyDistr("Aggregated")
     Network.PlotDistrPerClass()
 ## +++++++++++++++ FITTING PROCEDURES +++++++++++++++++++++++++++++
     return Network
 def MainComparison(ListNetworkDays,PlotDirAggregated,config,verbose):
     NetAllDays = NetworkAllDays(ListNetworkDays,PlotDirAggregated,config,verbose)
     # Save the Fits of All Days in a unique file
-    NetAllDays.ComparedDaysFit()
+#    NetAllDays.ComparedDaysFit()
     NetAllDays.GenerateAndSaveTabAvSpeed()
     # Create Fcm for All -> Distribution lenght and time (Power law )
     NetAllDays.ConcatenateFcm()

@@ -80,25 +80,32 @@ def PlotTimePercorrenceDistribution(RoadsTimeVel,Time2Distr,AvgTimePercorrence,S
         AvgTimePercorrence.append(np.mean(ValidTime["time_percorrence"].to_list()))
         StartInterval = datetime.datetime.fromtimestamp(time)
         StrTimesLabel.append(StartInterval.strftime("%Y-%m-%d %H:%M:%S").split(" ")[1])
-    ax.plot(StrTimesLabel, AvgTimePercorrence)
-    ax.boxplot(Time2Distr,sym='')
-    ax.set_xticks(range(len(StrTimesLabel))[::Slicing])  # Set the ticks to correspond to the labels
-    ax.set_xticklabels(StrTimesLabel[::Slicing], rotation=90)  # Set the labels with rotation    ax.set_title("Time Percorrence Distribution")
-    ax.set_xlabel("Time")
-    ax.set_ylabel("Time Percorrence")
-    plt.savefig(File2Save,dpi = 200)
+    # Count how many values are not null
+    CountNonNull = 0
+    for i in range(len(AvgTimePercorrence)):
+        if isinstance(AvgTimePercorrence[i],float) and not np.isnan(AvgTimePercorrence[i]):
+            CountNonNull += 1
+    # Plot just those partition that contain half of valid numbers
+    if CountNonNull < len(AvgTimePercorrence)/2:
+        ax.plot(StrTimesLabel, AvgTimePercorrence)
+        ax.boxplot(Time2Distr,sym='')
+        ax.set_xticks(range(len(StrTimesLabel))[::Slicing])  # Set the ticks to correspond to the labels
+        ax.set_xticklabels(StrTimesLabel[::Slicing], rotation=90)  # Set the labels with rotation    ax.set_title("Time Percorrence Distribution")
+        ax.set_xlabel("Time")
+        ax.set_ylabel("Time Percorrence")
+        plt.savefig(File2Save,dpi = 200)
     return Time2Distr,AvgTimePercorrence
 
 
 
 
 ##----------------------------------- PLOT DISTRIBUTIONS -----------------------------------##
-def SplitFcmByClass(Fcm,Feature,IntClass2StrClass):
+def SplitFcmByClass(Fcm,Feature,IntClass2StrClass,NormBool = True):
     Class2FcmDistr = defaultdict(dict)
     IntClass2Feat2AvgVar = defaultdict(dict)
     for IntClass in IntClass2StrClass:
         y,x = np.histogram(Fcm.filter(pl.col("class") == IntClass)[Feature].to_list(),bins = 50)
-        if Feature == "av_speed" or Feature == "speed_kmh":
+        if NormBool:
             y = y/np.sum(y)
         Class2FcmDistr[IntClass] = {"x":x,"y":y,"maxx":max(x),"maxy":max(y),"minx":min(x),"miny":min(y),"mean":np.mean(Fcm.filter(pl.col("class") == IntClass)[Feature].to_list())}
         IntClass2Feat2AvgVar[IntClass] = {"avg":np.mean(Fcm.filter(pl.col("class") == IntClass)[Feature].to_list()),"var":np.var(Fcm.filter(pl.col("class") == IntClass)[Feature].to_list())}
@@ -143,7 +150,7 @@ def ScatterAndPlotSingleClass(ax,Class2FcmDistr,Feature,DictFittedData,IntClass)
         ax.plot(Class2FcmDistr[IntClass]["x"][1:],np.array(DictFittedData[Feature]["fitted_data"]),label = DictFittedData[Feature]["best_fit"])
     return ax
 
-def PlotFeatureDistrSeparatedByClass(Class2FcmDistr,InfoPlotDistrFeat,Feature,IntClass2StrClass,DictFittedData,Column2Legend,Feature2IntervalBin,Feature2IntervalCount,Feature2Label,Feature2ShiftBin,Feature2ShiftCount,Feature2ScaleBins,Feature2ScaleCount):
+def PlotFeatureDistrSeparatedByClass(Feature2Class2FcmDistr,Feature2InfoPlotDistrFeat,Feature,IntClass2StrClass,DictFittedData,Column2Legend,Feature2IntervalBin,Feature2IntervalCount,Feature2Label,Feature2ShiftBin,Feature2ShiftCount,Feature2ScaleBins,Feature2ScaleCount,Feature2DistributionPlot,PlotDir,Column2SaveName,NormBool = True):
     """
         Class2FcmDistr: dict -> {IntClass: {"x":x,"y":y,"maxx":max(x),"maxy":max(y),"minx":min(x),"miny":min(y),"mean":np.mean(Fcm.filter(pl.col("class") == IntClass)[Feature].to_list())}}
         InfoPlotDistrFeat: dict -> {"maxx":0,"maxy":0,"minx":10000000,"miny":10000000}
@@ -160,30 +167,48 @@ def PlotFeatureDistrSeparatedByClass(Class2FcmDistr,InfoPlotDistrFeat,Feature,In
         Feature2ScaleCount: dict -> {Feature: ScaleCount}
         PlotDir: str -> Path to Save the Plot
     """
-    fig,ax = plt.subplots(1,1,figsize = InfoPlotDistrFeat["figsize"])
-    legend = []
-#    Class2FcmDistr = SplitFcmByClass(Fcm,Feature,IntClass2StrClass)
-    for IntClass in Class2FcmDistr.keys():
-        # Scatter Points
-        ax,legend = ScatterAndPlotLegend(ax,Class2FcmDistr,Feature,IntClass2StrClass,DictFittedData,Column2Legend,IntClass,legend)
-        ax.set_xticks(np.arange(InfoPlotDistrFeat["minx"],InfoPlotDistrFeat["maxx"],Feature2IntervalBin[Feature]))
-        ax.set_yticks(np.arange(InfoPlotDistrFeat["miny"],InfoPlotDistrFeat["maxy"],Feature2IntervalCount[Feature]))
-        ax.set_xlabel(Feature2Label[Feature])
-        ax.set_ylabel('Count')
-        ax.set_xlim(right = InfoPlotDistrFeat["maxx"] + Feature2ShiftBin[Feature])
-        ax.set_ylim(bottom = 1,top = InfoPlotDistrFeat["maxy"] + Feature2ShiftCount[Feature])
-        ax.set_xscale(Feature2ScaleBins[Feature])
-        ax.set_yscale(Feature2ScaleCount[Feature])
-    legend_ = plt.legend(legend)
-    frame = legend_.get_frame()
-    frame.set_facecolor('white')
+    for Feature in Feature2Class2FcmDistr.keys():
+        fig,ax = plt.subplots(1,1,figsize = Feature2InfoPlotDistrFeat[Feature]["figsize"])
+        legend = []
+        for IntClass in Feature2Class2FcmDistr[Feature].keys():
+            if NormBool:
+                print(f"Distribution {Feature}: ",Feature2Class2FcmDistr[Feature][IntClass]["y"][:3])
+                print("maxy: ",max(Feature2Class2FcmDistr[Feature][IntClass]["y"]),", In plot lim-",Feature2InfoPlotDistrFeat[Feature]["maxy"])
+                Feature2IntervalCount[Feature] = 0.05
+                Feature2ShiftCount[Feature] = 0.1
+            # Scatter Points
+            ax.scatter(Feature2Class2FcmDistr[Feature][IntClass]["x"][1:],Feature2Class2FcmDistr[Feature][IntClass]["y"])
+            legend.append(str(IntClass2StrClass[IntClass]) + " " + Column2Legend[Feature] + " " + str(round(Feature2Class2FcmDistr[Feature][IntClass]["mean"],3)))
+            # Fit
+            if len(Feature2Class2FcmDistr[Feature][IntClass]["x"][1:]) == len(DictFittedData[Feature][IntClass]["fitted_data"]):
+                ax.plot(Feature2Class2FcmDistr[Feature][IntClass]["x"][1:],np.array(DictFittedData[Feature][IntClass]["fitted_data"]),label = DictFittedData[Feature][IntClass]["best_fit"])
+                legend.append(str(IntClass2StrClass[IntClass]) + " " + Column2Legend[Feature] + " " + str(round(Feature2Class2FcmDistr[Feature][IntClass]["mean"],3)))
+            ax.set_xticks(np.arange(Feature2InfoPlotDistrFeat[Feature]["minx"],Feature2InfoPlotDistrFeat[Feature]["maxx"],Feature2IntervalBin[Feature]))
+            ax.set_yticks(np.arange(Feature2InfoPlotDistrFeat[Feature]["miny"],Feature2InfoPlotDistrFeat[Feature]["maxy"],Feature2IntervalCount[Feature]))
+            ax.set_xlabel(Feature2Label[Feature])
+            ax.set_ylabel('Count')
+            ax.set_xlim(right = Feature2InfoPlotDistrFeat[Feature]["maxx"] + Feature2ShiftBin[Feature])
+            ax.set_ylim(bottom = 1,top = Feature2InfoPlotDistrFeat[Feature]["maxy"] + Feature2ShiftCount[Feature])
+            ax.set_xscale(Feature2ScaleBins[Feature])
+            ax.set_yscale(Feature2ScaleCount[Feature])
+        legend_ = plt.legend(legend)
+        frame = legend_.get_frame()
+        frame.set_facecolor('white')
+        Feature2DistributionPlot[Feature]["fig"] = fig
+        Feature2DistributionPlot[Feature]["ax"] = ax
+        fig.savefig(os.path.join(PlotDir,'{0}_{1}.png'.format("Aggregated",Column2SaveName[Feature])),dpi = 200)
+        plt.close()
+
     return fig,ax
 
 def PlotFeatureSingleClass(Class2FcmDistr,InfoPlotDistrFeat,Feature,DictFittedData,Feature2IntervalBin,Feature2IntervalCount,Feature2Label,Feature2ShiftBin,Feature2ShiftCount,Feature2ScaleBins,Feature2ScaleCount,IntClass):     
     fig,ax = plt.subplots(1,1,figsize = InfoPlotDistrFeat["figsize"])
     legend = []
     # Scatter Points
-    ax = ScatterAndPlotSingleClass(ax,Class2FcmDistr,Feature,DictFittedData,IntClass)
+    ax.scatter(Class2FcmDistr[IntClass]["x"][1:],Class2FcmDistr[IntClass]["y"])
+    # Fit
+    if len(Class2FcmDistr[IntClass]["x"][1:]) == len(DictFittedData[Feature]["fitted_data"]):
+        ax.plot(Class2FcmDistr[IntClass]["x"][1:],np.array(DictFittedData[Feature]["fitted_data"]),label = DictFittedData[Feature]["best_fit"])
     ax.set_xticks(np.arange(InfoPlotDistrFeat["minx"],InfoPlotDistrFeat["maxx"],Feature2IntervalBin[Feature]))
     ax.set_yticks(np.arange(InfoPlotDistrFeat["miny"],InfoPlotDistrFeat["maxy"],Feature2IntervalCount[Feature]))
     ax.set_xlabel(Feature2Label[Feature])
