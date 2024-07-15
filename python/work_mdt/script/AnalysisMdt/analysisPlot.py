@@ -185,7 +185,6 @@ def PlotFeatureDistrSeparatedByClass(Feature2IntClass2FcmDistr,
                 mean = Feature2IntClass2FcmDistr[Feature][IntClass]["mean"]
                 x_windowed = Feature2Class2AllFitTry[Feature][IntClass][LabelBestFit]["x_windowed"]
                 fitted_data_windowed = Feature2Class2AllFitTry[Feature][IntClass][LabelBestFit]["fitted_data_windowed"]
-
             x = Feature2IntClass2FcmDistr[Feature][IntClass]["x"][1:]
             y = Feature2IntClass2FcmDistr[Feature][IntClass]["y"]
             # Scatter Points

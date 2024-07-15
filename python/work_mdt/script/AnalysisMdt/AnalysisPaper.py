@@ -139,7 +139,6 @@ def MainComparison(ListNetworkDays,PlotDirAggregated,config,verbose):
     # All Days Plot Distribution Velocity Aggregated
     NetAllDays.PlotGridDistrFeat()
     NetAllDays.PlotDistrAggregatedAllDays()
-    NetAllDays.PlotDistrAggregatedAllDaysPerClass()
     # All Days Plot Distribution Velocity Comparison
     NetAllDays.CreateClass2SubNetAllDays()
     NetAllDays.PlotClass2SubNetAllDays()
