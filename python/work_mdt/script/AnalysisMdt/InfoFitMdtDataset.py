@@ -5,7 +5,6 @@ from FittingProcedures import *
 from JsonFunctions import *
 
 
-
 # PRINT
 def PrintMFDDictInfo(MFD,StartingString = "Class 2 MFD: "):
     print(StartingString)
@@ -67,53 +66,3 @@ def FillInitGuessIntervalMxGs(DictInitGuessInterval,Fcm,Feature,IntClass):
     DictInitGuessInterval["initial_guess"] = [LocalStdMs,LocalMeanMs]
     return DictInitGuessInterval
 
-def ReturnFitInfoFromDict(Fcm,InitialGuess,DictFittedData,InfoFittedParameters,Feature2Label,FitFile,FittedDataFile):
-    """
-        Input:
-            Fcm: pl.DataFrame -> Fcm Dataframe
-            InfoFittedParameters: dict -> {Feature: {Function: [A,b]}}
-            DictFittedData: dict -> {Feature: {"fitted_data": [],"best_fit": str}}
-            InitialGuess: dict -> {"exponential":{"time":{"initial_guess":[],"interval":[]},"time_hours":{"initial_guess":[],"interval":[]}},
-            Feature2Label: dict -> {Feature: Label}
-            FitFile: str -> Path to the Fit File
-            FittedDataFile: str -> Path to the Fitted Data File
-        Description:
-            For each Feature of ColumnLabel: ['time','lenght','av_speed','time_hours','lenght_km','speed_kmh']
-            Fit the distribution of the feature and plot the distribution.
-        Output:
-            InfoFittedParameters: dict -> {Feature: {Function: [A,b]}}
-            DictFittedData: dict -> {Feature: {"fitted_data": [],"best_fit": str}}
-    """
-    print("Return Fit Info From Dict:")
-#    if os.path.isfile(FitFile) and os.path.isfile(FittedDataFile):
-#        with open(FitFile,'r') as f:
-#            InfoFittedParameters = json.load(f)
-#        with open(FittedDataFile,'r') as f:
-#            DictFittedData = json.load(f)
-#       for Feature in DictFittedData.keys():
-#           with open(FitFile+"{}.json".format(Feature),'r') as f:
-#               InfoFittedParameters = json.load(f)
-#           with open(FittedDataFile+"{}.json".format(Feature),'r') as f:
-#               DictFittedData = json.load(f)
-#        Uploading = True
-#        SuccessFit = True
-#    else:
-    for Feature in DictFittedData.keys():
-        y,x = np.histogram(Fcm[Feature].to_list(),bins = 50)
-        if Feature == "speed_kmh" or Feature == "av_speed":
-            y = y/np.sum(y)
-        else:
-            y = y/np.sum(y)
-        InfoFittedParameters, DictFittedData,SuccessFit,FunctionFitted = FitAndPlot(x[1:],y,InitialGuess,Feature,InfoFittedParameters,DictFittedData)
-        if SuccessFit:
-            with open(FitFile+"{}.json".format(Feature),'w') as f:
-                json.dump(InfoFittedParameters[FunctionFitted][Feature],f,cls=NumpyArrayEncoder,indent = 4)
-            with open(FittedDataFile+"{}.json".format(Feature),'w') as f:
-                json.dump(DictFittedData[Feature],f,cls=NumpyArrayEncoder,indent = 4)
-
-    with open(FitFile,'w') as f:
-        json.dump(InfoFittedParameters,f,cls=NumpyArrayEncoder,indent = 4)
-    with open(FittedDataFile,'w') as f:
-        json.dump(DictFittedData,f,cls=NumpyArrayEncoder,indent = 4)
-    Uploading = False
-    return InfoFittedParameters,DictFittedData,Uploading,SuccessFit

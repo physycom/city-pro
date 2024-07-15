@@ -14,6 +14,8 @@ from scipy.stats import entropy as kl_div
 from scipy.stats import kstest
 from tqdm import tqdm
 
+
+VERBOSE = True
 # FUCNTIONS FOR FITTING
 def powerlaw(x, amp, index):
     return amp * (np.array(x)**index)
@@ -367,21 +369,14 @@ def Fitting(x,y_measured,label = 'powerlaw',initial_guess = (6000,0.3),maxfev = 
 
     '''
     if len(interval)!=0:
+        print("x Not Filtered:\n",x)
         x = np.array([x[i] for i in range(len(x)) if x[i] >= interval[0] and x[i] <= interval[1]])
+        print("x Filtered:\n",x)
         y_measured = np.array([y_measured[i] for i in range(len(x)) if x[i] >= interval[0] and x[i] <= interval[1]])
     else:
         x = np.array(x)
         y_measured = np.array(y_measured)
         assert len(x) == len(y_measured), "x and y_measured must have the same length"
-#    print('Fitting {}'.format(label))
-#    if label == 'powerlaw':
-#        x = np.log(x)
-#        y = np.log(y_measured)
-#        initial_guess = (initial_guess[1],np.log(initial_guess[0]))
-#        result_powerlaw = minimize(objective_function_linear, initial_guess, args = (x, y_measured))
-#        optimal_params_plw = result_powerlaw.x
-#        fit = curve_fit(linear, xdata = x, ydata = y_measured,p0 = list(optimal_params_plw),maxfev = maxfev)
-#    else:
     if label != "gaussian" and label != "maxwellian":
         A,b = Name2EstimateParameters[label](x,y_measured)
         print("Estimate Parameters: ",A,b)
@@ -390,21 +385,24 @@ def Fitting(x,y_measured,label = 'powerlaw',initial_guess = (6000,0.3),maxfev = 
     optimal_params_plw = result_powerlaw.x
     # Handle powerlaw as linear with log indices
     if label == 'powerlaw':
+        mask = np.logical_and(np.array(x) > 0, np.array(y_measured) > 0)
+        x = x[mask]
+        y_measured = y_measured[mask]
         fit = curve_fit(linear_per_powerlaw, xdata = np.log(x), ydata = np.log(y_measured),p0 = list(optimal_params_plw),maxfev = maxfev)
     fit = curve_fit(Name2Function[label], xdata = x, ydata = y_measured,p0 = list(optimal_params_plw),maxfev = maxfev)
-#    print(fit)
-#    print('{} fit: '.format(label),fit[0][0],' ',fit[0][1])
-#    print('Convergence fit {}: '.format(label),result_powerlaw.success)
-#    print('Optimal parameters: ',result_powerlaw.x)
     if label == 'powerlaw':
         fit[0][0] = np.exp(fit[0][0])
-    print('Message: ',result_powerlaw.message)
-    return fit,result_powerlaw.success
+    if VERBOSE:
+        print("Fitting:")
+        print("windowing: ",interval)
+        print("Size of x after windowing: ",len(x))
+        print("Function: ",label,' Message: ',result_powerlaw.message)
+    return fit,result_powerlaw.success,x,y_measured
 
 # City - Pro Usage
 
 def FitAndStdError(x,y_measured,label,initial_guess,maxfev = 50000,interval = []):
-    fit,ConvergenceSuccess = Fitting(x,y_measured,label,initial_guess = initial_guess,maxfev = maxfev,interval = interval)
+    fit,ConvergenceSuccess,x,y_measured = Fitting(x,y_measured,label,initial_guess = initial_guess,maxfev = maxfev,interval = interval)
     if len(fit[0]) == 2:
         A = fit[0][0]
         b = fit[0][1]
@@ -416,7 +414,7 @@ def FitAndStdError(x,y_measured,label,initial_guess,maxfev = 50000,interval = []
 #    kullback_leibler = kl_div(FittedData, y_measured)
 #    ks_stat, ks_pval = kstest(data, FittedData.cdf)
 
-    return fit,StdError,ConvergenceSuccess,FittedData
+    return fit,StdError,ConvergenceSuccess,FittedData,x,y_measured
 
 
 def ReturnFitInfoFromDict(ObservedData,Function2InitialGuess,FitAllTry,NormBool = True):
@@ -435,35 +433,71 @@ def ReturnFitInfoFromDict(ObservedData,Function2InitialGuess,FitAllTry,NormBool 
         y = y/np.sum(y)
     else:
         pass
+
     for Function2Fit in Function2InitialGuess.keys():
-        fit,StdError,ConvergenceSuccess,FittedData = FitAndStdError(x = x[1:],
+        if VERBOSE:
+            print("Function2Fit: ",Function2Fit)
+        if len(Function2InitialGuess[Function2Fit]["interval"])==0:
+            fit,StdError,ConvergenceSuccess,FittedData,x_windowed,y_measured = FitAndStdError(x = x[1:],
                                                                     y_measured = y,
                                                                     label = Function2Fit,
-                                                                    initial_guess = Function2InitialGuess[Function2Fit]
+                                                                    initial_guess = Function2InitialGuess[Function2Fit]["initial_guess"]
                                                                     )
-        FitAllTry[Function2Fit]["fitted_data"] = FittedData
+        else:
+            fit,StdError,ConvergenceSuccess,FittedData,x_windowed,y_measured = FitAndStdError(x = x[1:],
+                                                                    y_measured = y,
+                                                                    label = Function2Fit,
+                                                                    initial_guess = Function2InitialGuess[Function2Fit]["initial_guess"],
+                                                                    maxfev = 50000,
+                                                                    interval=Function2InitialGuess[Function2Fit]["interval"]
+                                                                    )
+        FitAllTry[Function2Fit]["x_windowed"] = x_windowed
+        FitAllTry[Function2Fit]["y_windowed"] = y_measured
+        FitAllTry[Function2Fit]["fitted_data_windowed"] = FittedData
         FitAllTry[Function2Fit]["parameters"] = list(fit[0])
         FitAllTry[Function2Fit]["std_error"] = StdError
         FitAllTry[Function2Fit]["success"] = ConvergenceSuccess
-        FitAllTry[Function2Fit]["start_window"] = Function2InitialGuess[Function2Fit]["interval"][0]
-        FitAllTry[Function2Fit]["end_window"] = Function2InitialGuess[Function2Fit]["interval"][1]
+        if len(Function2InitialGuess[Function2Fit]["interval"])!=0:
+            FitAllTry[Function2Fit]["start_window"] = Function2InitialGuess[Function2Fit]["interval"][0]
+            FitAllTry[Function2Fit]["end_window"] = Function2InitialGuess[Function2Fit]["interval"][1]
+        else:
+            FitAllTry[Function2Fit]["start_window"] = x[1]
+            FitAllTry[Function2Fit]["end_window"] = x[-1]
+        
     return FitAllTry
 
-def ChooseBestFit(AllFitTry,InfoOutputFit):
+def ChooseBestFit(AllFitTry):
     for Function2Fit in AllFitTry.keys():
         InfError = 10000000000
-        BestFitFunction = None
-        BestFitParameters = None
         # If the Fit for the Feature -> Class -> Function is successful and has smaller error than the previous one
-        if AllFitTry[Function2Fit]["std_error"] < InfError and AllFitTry[Function2Fit]["success"]:
-            InfoOutputFit["std_error"] = AllFitTry[Function2Fit]["std_error"]
-            InfoOutputFit["best_fit"] = Function2Fit
-            InfoOutputFit["parameters"] = list(AllFitTry[Function2Fit]["fit"])
-            InfoOutputFit["start_window"] = AllFitTry[Function2Fit]["start_window"]
-            InfoOutputFit["end_window"] = AllFitTry[Function2Fit]["end_window"]
-        else:
-            pass
-    return InfoOutputFit
+        if Function2Fit != "best_fit":
+            if AllFitTry[Function2Fit]["std_error"] < InfError and AllFitTry[Function2Fit]["success"]:
+                AllFitTry["best_fit"] = Function2Fit
+            else:
+                pass
+    return AllFitTry
+
+def FillIterationFitDicts(ObservedData,Function2Fit2InitialGuess,AllFitTry):
+    AllFitTry = ReturnFitInfoFromDict(ObservedData,
+                                        Function2Fit2InitialGuess,
+                                        AllFitTry,
+                                        True)
+    # Choose the Best Fit among all the tried feature
+    AllFitTry = ChooseBestFit(AllFitTry)
+    if VERBOSE:
+        print("Info Fit All Try: ")
+        print("best_fit: ",AllFitTry["best_fit"])
+        for Function2Fit in AllFitTry.keys():
+            if Function2Fit != "best_fit":
+                print("Function Considered: ",Function2Fit)
+                print("Number element x windowed: ",len(AllFitTry[Function2Fit]["x_windowed"]))
+                print("Number element y windowed: ",len(AllFitTry[Function2Fit]["y_windowed"]))
+                print("Number element fitted data windowed: ",len(AllFitTry[Function2Fit]["fitted_data_windowed"]))
+                print("Parameters: ",AllFitTry[Function2Fit]["parameters"])
+                print("Std Error: ",AllFitTry[Function2Fit]["std_error"])
+                print("Success: ",AllFitTry[Function2Fit]["success"])
+    return AllFitTry 
+
 
 if FoundPyMC3:
     def FitWithPymc(x,y,label):

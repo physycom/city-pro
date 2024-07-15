@@ -172,8 +172,6 @@ class DailyNetworkStats:
         self.Feature2Legend = {"av_speed":"speed (m/s)","speed_kmh":'speed (km/h)',"av_accel":"acceleration (m/s^2)","lenght":"lenght (m)","lenght_km": 'lenght (km)',"time_hours":"time (h)","time":"time (s)"} 
         self.Feature2MaxBins = {"av_speed":{"bins":0,"count":0},"speed_kmh":{"bins":0,"count":0},"av_accel":{"bins":0,"count":0},"lenght":{"bins":0,"count":0},"lenght_km": {"bins":0,"count":0},"time_hours":{"bins":0,"count":0},"time":{"bins":0,"count":0}}
         self.Feature2Function2Fit2InitialGuess = InitFeature2Function2Fit2InitialGuess(self.Features2Fit)
-        self.Feature2InfoOutputFit = {Feature: {"best_fit":[], "fitted_data":[],"parameters":[],"start_window":None,"end_window":None,"std_error":None} for Feature in list(self.Features2Fit)}
-        self.Feature2Function2Fit2InfoOutputFit =  {Feature: {Function2Fit:{"fit":None,"StdError":None,"success":None} for Function2Fit in self.Feature2Function2Fit2InitialGuess.keys()} for Feature in self.Feature2Function2Fit2InitialGuess.keys()}
         self.InfoFit = config["info_fit"]
         ## BIN SETTINGS
         if "shift_count" in config.keys():
@@ -643,7 +641,8 @@ class DailyNetworkStats:
                 for Road in self.IntClass2Roads[Class]: 
                     ClassOrderedForGeojsonRoads[np.where(self.GeoJson["poly_lid"] == Road)[0]] = Class 
             self.GeoJson["IntClass_{}".format(self.StrDate)] = ClassOrderedForGeojsonRoads
-            self.GeoJson.to_file(os.path.join(self.InputBaseDir,"BolognaMDTClassInfo.geojson"))
+            if not os.path.isfile(os.path.join(self.InputBaseDir,"BolognaMDTClassInfo.geojson")):
+                self.GeoJson.to_file(os.path.join(self.InputBaseDir,"BolognaMDTClassInfo.geojson"))
             self.GeoJsonWithClassBool = True
             Message = "{} GeoJson with Class Info: True".format(self.CountFunctionsCalled)
             AddMessageToLog(Message,self.LogFile)
@@ -1066,7 +1065,6 @@ class DailyNetworkStats:
                     if self.verbose:
                         print("After GetMFDForPlot Class {}:\n".format(Class))
     #                    print("\nClass2MFD2Plot:\n",self.Class2MFD2Plot)
-    #                    print("\nMinMaxPlotPerClass:\n",self.MinMaxPlotPerClass)
 
                     if self.BoolStrClass2IntClass:
                         # Plotting and Save Per Class
@@ -1121,7 +1119,8 @@ class DailyNetworkStats:
                                                                                                                               StrTimesLabel,
                                                                                                                               File2Save)
                 
-                SaveProcedure(ListKeys = ["Class2Time2Distr","Class2AvgTimePercorrence"],
+                SaveProcedure(BaseDir=self.PlotDir,
+                            ListKeys = ["Class2Time2Distr","Class2AvgTimePercorrence"],
                              ListDicts = [self.Class2Time2Distr,self.Class2AvgTimePercorrence],
                              ListFormats = [self.StrDate],
                              Extension = ".json")
@@ -1362,27 +1361,27 @@ class DailyNetworkStats:
             AddMessageToLog(Message,self.LogFile)
 ## DISTRIBUTIONS
     def ComputeFitAggregated(self):
-        self.Feature2InfoOutputFit = InitFeature2InfoOutputFit(self.Features2Fit)
         self.Feature2AllFitTry = InitFeature2AllFitTry(self.Feature2Function2Fit2InitialGuess)
+        print("Fit Data Without Separating by Class")
         for Feature in self.Feature2AllFitTry.keys():
             ObservedData = self.Fcm[Feature].to_list()
             # Compute the Fit for functions you are Undecided from
+            print("Feature: ",Feature)
             self.Feature2AllFitTry[Feature] = ReturnFitInfoFromDict(ObservedData,
                                                                     self.Feature2Function2Fit2InitialGuess[Feature],
                                                                     self.Feature2AllFitTry[Feature],
                                                                     True)
-            self.Feature2InfoOutputFit[Feature] = ChooseBestFit(self.Feature2AllFitTry[Feature],self.Feature2InfoOutputFit[Feature])
+            self.Feature2AllFitTry[Feature] = ChooseBestFit(self.Feature2AllFitTry[Feature])
 
     def ComputeFitPerClass(self):
-        # Sotore Results Fit
-        self.Feature2Class2InfoOutputFit = InitFeature2Class2InfoOutputFit(self.Features2Fit,self.IntClass2StrClass)
         # Save All the Tried Fit
-        self.Feature2Class2AllFitTry = InitFeature2Class2AllFitTry(self.Feature2Function2Fit2InitialGuess,self.IntClass2StrClass)
+        self.Feature2Class2AllFitTry = InitFeature2Class2AllFitTry(self.Feature2Class2Function2Fit2InitialGuess)
         # Returns for each function to try the best fit.
+        print("Fit Data Separated by Class")
         for Feature in self.Feature2Class2AllFitTry.keys():
+            print("Feature: ",Feature)
             for IntClass in self.Feature2Class2AllFitTry[Feature].keys():
-                if self.verbose:
-                    print("++++++ Class {} Fit ++++++".format(IntClass))
+                print("Class {} ".format(IntClass))
                 FcmFilteredByClass = self.Fcm.filter(pl.col("class") == IntClass)
                 ObservedData = FcmFilteredByClass[Feature].to_list()
                 # Compute the Fit for functions you are Undecided from
@@ -1391,17 +1390,16 @@ class DailyNetworkStats:
                                                                                         self.Feature2Class2AllFitTry[Feature][IntClass],
                                                                                         True)
                 # Choose the Best Fit among all the tried feature
-                self.Feature2Class2InfoOutputFit[Feature][IntClass] = ChooseBestFit(self.Feature2Class2AllFitTry[Feature][IntClass],self.Feature2Class2InfoOutputFit[Feature][IntClass])
+                self.Feature2Class2AllFitTry[Feature][IntClass] = ChooseBestFit(self.Feature2Class2AllFitTry[Feature][IntClass])
                 if self.verbose:
                     print("Feature: ",Feature)
                     print("Class: ",IntClass)
-                    print("Best Fit Info: ",self.Feature2Class2InfoOutputFit[Feature][IntClass])
 
     def ComputeFitDataFrame(self):
         self.Feature2IntClass2FcmDistr = defaultdict()
         self.Feature2IntClass2Feat2AvgVar = defaultdict()
         self.Freature2IntClass2FitInfo = defaultdict()
-        for Feature in self.Feature2InfoOutputFit.keys():
+        for Feature in self.Feature2AllFitTry.keys():
             Class2FcmDistr,IntClass2Feat2AvgVar = SplitFcmByClass(self.Fcm,Feature,self.IntClass2StrClass) 
             self.Feature2IntClass2FcmDistr[Feature] = Class2FcmDistr
             self.Feature2IntClass2Feat2AvgVar[Feature] = IntClass2Feat2AvgVar
@@ -1409,17 +1407,15 @@ class DailyNetworkStats:
             print("Feature2IntClass2Feat2AvgVar:\n",self.Feature2IntClass2Feat2AvgVar)
         InfoPlotDistrFeat = {"figsize":(10,10),"minx":0,"miny":0,"maxx":0,"maxy":0}
         # Compute the MinMax for the Plot
-        self.Feature2InfoPlotDistrFeat = {Feature: ComputeMinMaxPlotGivenFeature(self.Feature2IntClass2FcmDistr[Feature],InfoPlotDistrFeat) for Feature in self.Feature2InfoOutputFit.keys()}
-        self.Feature2DistributionPlot = {Feature: {"fig":None,"ax":None} for Feature in self.Feature2InfoOutputFit.keys()}
-        self.Feature2FitDf = FitDataFrame(self.Feature2Class2InfoOutputFit,self.Feature2IntClass2FcmDistr,self.PlotDir)        
+        self.Feature2InfoPlotDistrFeat = {Feature: ComputeMinMaxPlotGivenFeature(self.Feature2IntClass2FcmDistr[Feature],InfoPlotDistrFeat) for Feature in self.Feature2AllFitTry.keys()}
+        self.Feature2DistributionPlot = {Feature: {"fig":None,"ax":None} for Feature in self.Feature2AllFitTry.keys()}
+        self.Feature2FitDf = FitDataFrame(self.Feature2Class2AllFitTry,self.PlotDir)        
 
     def PlotDistrPerClass(self):
         """
             Description:
                 Computes the fit for each Feature each class and aggregated.
                 Plots them and save the variables in:
-                - self.Feature2Class2InfoOutputFit [best_fit, fitted_data, std_error, parameters]
-                - self.Feature2InfoOutputFit
             Return:
                 InfoDayFit: dict -> {IntClass: {Feature: {Function: [A,b]}}}
 
@@ -1439,7 +1435,7 @@ class DailyNetworkStats:
         fig,ax = PlotFeatureDistrSeparatedByClass(self.Feature2IntClass2FcmDistr,
                                             self.Feature2InfoPlotDistrFeat,
                                             self.IntClass2StrClass,
-                                            self.Feature2Class2InfoOutputFit,
+                                            self.Feature2Class2AllFitTry,
                                             self.Feature2Legend,
                                             self.Feature2IntervalBin,
                                             self.Feature2IntervalCount,
@@ -1451,28 +1447,24 @@ class DailyNetworkStats:
                                             self.Feature2DistributionPlot,
                                             self.PlotDir,
                                             self.Feature2SaveName)
-        for Feature in self.Feature2InfoOutputFit.keys():
-            for IntClass in self.IntClass2StrClass:
-                fig,ax = plt.subplots(1,1,figsize= (15,12))
-                df = self.Fcm.filter(pl.col("class") == IntClass)
-                y,x = np.histogram(df[Feature].to_list(),bins = 50)
-                if Feature == "av_speed" or Feature == "speed_kmh":
-                    y = y/np.sum(y)
-                fig,ax = PlotFeatureSingleClass(self.Feature2IntClass2FcmDistr[Feature],
-                                        self.InfoPlotDistrFeat[Feature],
-                                        Feature,
-                                        self.Feature2Class2InfoOutputFit[IntClass],
-                                        self.Feature2IntervalBin,
-                                        self.Feature2IntervalCount,
-                                        self.Feature2Label,
-                                        self.Feature2ShiftBin,
-                                        self.Feature2ShiftCount,
-                                        self.Feature2ScaleBins,
-                                        self.Feature2ScaleCount,
-                                        IntClass)
-                fig.savefig(os.path.join(self.PlotDir,'{0}_Class_{1}_{2}.png'.format(self.Feature2Class2InfoOutputFit[IntClass][Feature]["best_fit"],IntClass,self.Feature2SaveName[Feature])),dpi = 200)
+        for Feature in self.Feature2Class2AllFitTry.keys():
+            for IntClass in self.Feature2Class2AllFitTry[Feature].keys():
+                fig,ax = PlotFeatureSingleClass(self.Feature2IntClass2FcmDistr[Feature][IntClass],
+                                        self.Feature2Class2AllFitTry[Feature][IntClass],
+                                        self.Feature2IntervalBin[Feature],
+                                        self.Feature2IntervalCount[Feature],
+                                        self.Feature2Label[Feature],
+                                        self.Feature2ShiftBin[Feature],
+                                        self.Feature2ShiftCount[Feature],
+                                        self.Feature2ScaleBins[Feature],
+                                        self.Feature2ScaleCount[Feature])
+                if not os.path.exists(os.path.join(self.PlotDir,"Fit")):
+                    os.makedirs(os.path.join(self.PlotDir,"Fit"),exist_ok = True)
+                if self.Feature2Class2AllFitTry[Feature][IntClass]["best_fit"] != "":
+                    fig.savefig(os.path.join(self.PlotDir,"Fit",'{0}_Class_{1}_{2}.png'.format("NonConvergedFit",IntClass,self.Feature2SaveName[Feature])),dpi = 200)
+                else:
+                    fig.savefig(os.path.join(self.PlotDir,"Fit",'{0}_Class_{1}_{2}.png'.format(self.Feature2Class2AllFitTry[Feature][IntClass]["best_fit"],IntClass,self.Feature2SaveName[Feature])),dpi = 200)
                 plt.close()
-                MessagePlotSingleClass1(Feature,IntClass,self.Feature2Class2InfoOutputFit,self.Class2InfoFittedParameters,self.LogFile)
 
 ## ------------------- PRINT UTILITIES ---------------- #
     def PrintTimeInfo(self):

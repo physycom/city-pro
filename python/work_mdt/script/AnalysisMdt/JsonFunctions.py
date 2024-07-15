@@ -91,7 +91,7 @@ def GenerateListFilesCommonBaseDir(BaseDir,ListNames):
     return ListFiles
 
 # Save Procedure TimePercorrence
-def SaveProcedure(ListKeys,ListDicts,ListFormats,Extension):
+def SaveProcedure(BaseDir,ListKeys,ListDicts,ListFormats,Extension):
     """
         Input:
             - ListKeys: list -> List of Keys
@@ -107,4 +107,6 @@ def SaveProcedure(ListKeys,ListDicts,ListFormats,Extension):
     """
     DictOfDicts = FillDictofDictsFromKeys(ListKeys,ListDicts)
     DictFileNames = FillDictFileNamesFromKeys(ListKeys,ListFormats,Extension)
+    for Key in DictFileNames.keys():
+        DictFileNames[Key] = os.path.join(BaseDir,DictFileNames[Key])
     SaveListDict2Json(DictOfDicts,DictFileNames)
