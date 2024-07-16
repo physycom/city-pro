@@ -87,7 +87,7 @@
             "2 slowest":{"MaxCount":2200,"Avg":3900,"StartWindowS":500,"EndWindowS":10000},
             "middle velocity class":{"MaxCount":5500,"Avg":11000,"StartWindowS":500,"EndWindowS":6000},
             "2 quickest":{"MaxCount":1000,"Avg":11900,"StartWindowS":500,"EndWindowS":6000},
-            "1 quickest":{"MaxCount":150,"Avg":14000,"StartWindowS":2000,"EndWindowS":200000},
+            "1 quickest":{"MaxCount":150,"Avg":14000,"StartWindowS":2000,"EndWindowS":20000},
             "aggregated": {"MaxCount":6000,"Avg":4000,"StartWindowS":500,"EndWindowS":17000}
             },
         "lenght_km":{
@@ -95,8 +95,8 @@
             "2 slowest":{"MaxCount":2200,"Avg":3900,"StartWindowS":500,"EndWindowS":10000},
             "middle velocity class":{"MaxCount":5500,"Avg":11000,"StartWindowS":500,"EndWindowS":6000},
             "2 quickest":{"MaxCount":1000,"Avg":11900,"StartWindowS":500,"EndWindowS":6000},
-            "1 quickest":{"MaxCount":150,"Avg":14000,"StartWindowS":2000,"EndWindowS":200000},
-            "aggregated": {"MaxCount":6000,"Avg":4000,"StartWindowS":500,"EndWindowS":17000}
+            "1 quickest":{"MaxCount":150,"Avg":14000,"StartWindowS":2000,"EndWindowS":23000},
+            "aggregated": {"MaxCount":6000,"Avg":4000,"StartWindowS":500,"EndWindowS":23000}
             },
         "av_speed":{"1 slowest":{"mu": 0.5, "sigma": 0.5},
                     "2 slowest":{"mu": 0.5, "sigma": 0.5},

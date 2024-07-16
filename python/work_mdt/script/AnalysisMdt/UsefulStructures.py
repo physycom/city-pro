@@ -3,6 +3,7 @@ import pandas as pd
 import os
 from collections import defaultdict
 import polars as pl
+import json
 
 VERBOSE = False
 # FIT INITIAL GUESS (No Class/ Class)
@@ -157,3 +158,21 @@ def FitDataFrame(Feature2Class2AllTryFit,PlotDir):
                     os.makedirs(os.path.join(PlotDir,"Fit"))
                 Df.to_csv(os.path.join(PlotDir,"Fit",f"Distribution_{IntClass}_{Feature}.csv"))
     return Feature2FitDf
+
+
+def SaveMapsDayInt2Str(Day2IntClass2StrClass,Day2StrClass2IntClass,DictClass2AvSpeed,PlotDir):
+    with open(os.path.join(PlotDir,"Day2IntClass2StrClass.json"),"w") as f:
+        json.dump(Day2IntClass2StrClass,f,indent=2)
+    with open(os.path.join(PlotDir,"Day2StrClass2IntClass.json"),"w") as f:
+        json.dump(Day2StrClass2IntClass,f,indent=2)
+    with open(os.path.join(PlotDir,"DictClass2AvSpeed.json"),"w") as f:
+        json.dump(DictClass2AvSpeed,f,indent=2)
+
+def InitAvFeat2Class2Day(StrDates,Day2StrClass2IntClass,Feature2Label):
+    AvFeat2Class2Day = defaultdict(dict)
+    for Feature in Feature2Label.keys():
+        AvFeat2Class2Day[Feature] = defaultdict(dict)
+        for StrDay in StrDates:
+            for StrClass in Day2StrClass2IntClass[StrDay].keys():
+                AvFeat2Class2Day[Feature][StrDay] = {StrClass:[]}
+    return AvFeat2Class2Day

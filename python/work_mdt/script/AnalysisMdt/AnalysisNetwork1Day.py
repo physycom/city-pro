@@ -1239,10 +1239,11 @@ class DailyNetworkStats:
                 for IntClass in self.Feature2Class2Function2Fit2InitialGuess[Feature].keys():
                     StrClass = self.IntClass2StrClass[IntClass]
                     for Function2Test in self.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass].keys(): 
+                        NormCount = len(self.Fcm.filter(pl.col("class") == IntClass))
                         if Feature == "av_speed" or Feature == "speed_kmh":
                             pass
                         else:
-                            MaxCount = self.InfoFit[Feature][StrClass]["MaxCount"]
+                            MaxCount = self.InfoFit[Feature][StrClass]["MaxCount"]/NormCount
                             Avg = self.InfoFit[Feature][StrClass]["Avg"]
                             StartWindow = self.InfoFit[Feature][StrClass]["StartWindowS"]
                             EndWindow = self.InfoFit[Feature][StrClass]["EndWindowS"]
@@ -1301,10 +1302,11 @@ class DailyNetworkStats:
             # Initialize The Guess Without Classes
             for Feature in self.Feature2Function2Fit2InitialGuess.keys(): 
                 for Function2Test in self.Feature2Function2Fit2InitialGuess[Feature].keys():
+                    NormCount = len(self.Fcm)
                     if Feature == "av_speed" or Feature == "speed_kmh":
                         pass
                     else:
-                        MaxCount = self.InfoFit[Feature]["aggregated"]["MaxCount"]
+                        MaxCount = self.InfoFit[Feature]["aggregated"]["MaxCount"]/NormCount
                         Avg = self.InfoFit[Feature]["aggregated"]["Avg"]
                         StartWindow = self.InfoFit[Feature]["aggregated"]["StartWindowS"]
                         EndWindow = self.InfoFit[Feature]["aggregated"]["EndWindowS"]
@@ -1501,7 +1503,7 @@ def GetDistributionPerClass(fcm,Feature,class_):
         Returns:
             n, bins of velocity distribution
     """
-    n, bins = np.histogram(fcm.filter(pl.col("class") == class_)[Feature].to_list(), bins = bins)
+    n, bins = np.histogram(fcm.filter(pl.col("class") == class_)[Feature].to_list(), bins = 50)
 
 
 

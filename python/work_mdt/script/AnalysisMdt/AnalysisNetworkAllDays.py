@@ -88,6 +88,7 @@ class NetworkAllDays:
                     self.Feature2MaxBins[Feature][Bins] = max(self.Feature2MaxBins[Feature][Bins],self.Day2Feature2MaxBins[Day][Feature][Bins])
         # Map The Classes among different days according to the closest average speed    
         self.Day2IntClass2StrClass,self.Day2StrClass2IntClass,self.DictClass2AvSpeed = GenerateDay2DictClassAvSpeed(self.ListDailyNetwork,self.ReferenceFcmCenters,self.DictClass2AvSpeed,self.RefIntClass2StrClass,self.Day2IntClass2StrClass,self.Day2StrClass2IntClass)    
+        SaveMapsDayInt2Str(self.Day2IntClass2StrClass,self.Day2StrClass2IntClass,self.DictClass2AvSpeed,self.PlotDir)
         self.AddStrClassColumn2Fcm()
         self.AssociateAvSpeed2StrClass()
         # Dictionaries Depending on the Map day 2 common classes
@@ -236,7 +237,7 @@ class NetworkAllDays:
                             self.Aggregation2Fcm[Aggregation] = pl.concat([self.Aggregation2Fcm[Aggregation],MobDate.Fcm])
                             for StrClass in self.ListStrClassReference:
                             # Append time and lenght of the Iterated Day
-                                self.Aggregation2Class2Fcm[Aggregation] = pl.concat([self.Aggregation2Class2Fcm[Aggregation],MobDate.Fcm.filter(pl.col("str_class") == StrClass)])
+                                self.Aggregation2Class2Fcm[Aggregation][StrClass] = pl.concat([self.Aggregation2Class2Fcm[Aggregation][StrClass],MobDate.Fcm.filter(pl.col("str_class") == StrClass)])
                 self.ConcatenatePerClassBool = True
                 MessageConcatenateFcm(self.Aggregation2Fcm,self.Aggregation2Class2Fcm,self.LogFile)
             else:
@@ -624,21 +625,21 @@ class NetworkAllDays:
             print("No Subnetworks to Plot")
             return False            
 
-
     def GenerateAndSaveTabAvSpeed(self):
         # Initialize the code string with the start of the tab definition
         Feature2Label = {"lenght_km":"length (km)","speed_kmh":"speed (km/h)","time_hours":"time (h)"}
-        self.AvFeat2Class2Day = {Feature: {StrClass: {StrDay: [] for StrDay in self.StrDates} for StrClass in self.Day2StrClass2IntClass.keys()} for Feature in Feature2Label.keys()}
+        self.AvFeat2Class2Day = InitAvFeat2Class2Day(self.StrDates,self.Day2StrClass2IntClass,Feature2Label)
         for Feature in Feature2Label.keys():
-            print("Feature: ",Feature)
             for MobDate in self.ListDailyNetwork:
-                print("Day: ",MobDate.StrDate)
                 for StrClass in self.Day2StrClass2IntClass[MobDate.StrDate].keys():
                     IntClass = self.Day2StrClass2IntClass[MobDate.StrDate][StrClass]
-                    print("Class: ",StrClass," IntClass: ",IntClass)
-                    print(MobDate.Feature2IntClass2Feat2AvgVar[Feature][IntClass])
-                    self.AvFeat2Class2Day[Feature][StrClass][MobDate.StrDate] =  str(round(MobDate.Feature2IntClass2Feat2AvgVar[Feature][IntClass]["avg"],3)) + " $\pm$ " + str(round(MobDate.Feature2IntClass2Feat2AvgVar[Feature][IntClass]["var"],3))
-            LatexTableAvFeat = TableFromDict(self.AvFeat2Class2Day[Feature])
+                    if "var" in MobDate.Feature2IntClass2Feat2AvgVar[Feature][IntClass].keys() and "avg" in MobDate.Feature2IntClass2Feat2AvgVar[Feature][IntClass].keys():
+                        RoundAvg = round(MobDate.Feature2IntClass2Feat2AvgVar[Feature][IntClass]["avg"],3)
+                        RoundVar = round(MobDate.Feature2IntClass2Feat2AvgVar[Feature][IntClass]["var"],3)
+                        self.AvFeat2Class2Day[Feature][StrClass][MobDate.StrDate] =  str(RoundAvg) + " $\pm$ " + str(RoundVar)
+                    else:
+                        self.AvFeat2Class2Day[Feature][StrClass][MobDate.StrDate] =  " "
+            LatexTableAvFeat = FancyTableFromDict(self.AvFeat2Class2Day[Feature])
             with open(os.path.join(self.PlotDir,f"LatexTableAvFeat_{Feature}.txt"), "w") as file:
                 file.write(LatexTableAvFeat)
             
@@ -657,10 +658,12 @@ class NetworkAllDays:
                         StrBestFit = MobDate.Feature2Class2Feature2AllFitTry[Feature][IntClass]["best_fit"]
                         if StrBestFit == "exponential":
                             self.Aggregation2Feature2Class2AllFitTry[Aggregation][Feature][StrClass][MobDate.StrDate] = "A = " + str(RoundedParam0) + " $\beta$ = " + str(RoundedParam1)
-                        if StrBestFit == "linear":
+                        elif StrBestFit == "linear":
                             self.Aggregation2Feature2Class2AllFitTry[Aggregation][Feature][StrClass][MobDate.StrDate] = "A = " + str(RoundedParam0) + " $\alpha$ = " + str(RoundedParam1)
-                        if StrBestFit == "gaussian" or StrBestFit == "maxwellian":
+                        elif StrBestFit == "gaussian" or StrBestFit == "maxwellian":
                             self.Aggregation2Feature2Class2AllFitTry[Aggregation][Feature][StrClass][MobDate.StrDate] = "$\mu$ = " + str(RoundedParam0) + " $\sigma$ = " + str(RoundedParam1)                   
+                        else:
+                            self.Aggregation2Feature2Class2AllFitTry[Aggregation][Feature][StrClass][MobDate.StrDate] = " "
                 LatexTableAvParameters = TableFromDict(self.Feature2Parameters2Class2Day[Aggregation][Feature])
                 with open(os.path.join(self.PlotDir,f"LatexTableParameters_{Feature}.txt"), "w") as file:
                     file.write(LatexTableAvParameters)
