@@ -5,9 +5,10 @@ import os
 import folium
 import polars as pl
 from collections import defaultdict
+import seaborn as sns
 from MFDAnalysis import *
 from CastVariables import *
-VERBOSE = True
+VERBOSE = True      
 ##----------------------------------- PLOT VELOCITIES -----------------------------------##
 
 def QuiverPopulationVelocityClass(population,velocity,save_dir,day,idx,dict_name,average_all_days = False):
@@ -77,19 +78,25 @@ def PlotTimePercorrenceDistribution(RoadsTimeVel,Time2Distr,AvgTimePercorrence,S
     Slicing = 8
     fig,ax = plt.subplots(1,1,figsize = (10,10))
     RoadsTimeVel = RoadsTimeVel.sort("start_bin")
+    CountNonNull = 0
     for time,RTV in RoadsTimeVel.groupby("start_bin"):
         ValidTime = RTV.filter(pl.col("time_percorrence")>0)
+        if len(ValidTime) == 0:
+            pass
+        else:
+            CountNonNull += 1
         Time2Distr.append(ValidTime["time_percorrence"].to_list())
         AvgTimePercorrence.append(np.mean(ValidTime["time_percorrence"].to_list()))
         StartInterval = datetime.datetime.fromtimestamp(time)
         StrTimesLabel.append(StartInterval.strftime("%Y-%m-%d %H:%M:%S").split(" ")[1])
     # Count how many values are not null
-    CountNonNull = 0
-    for i in range(len(AvgTimePercorrence)):
-        if isinstance(AvgTimePercorrence[i],float) and not np.isnan(AvgTimePercorrence[i]):
-            CountNonNull += 1
+    
+    if VERBOSE:
+        print("Number of Null Time Slots: ",len(AvgTimePercorrence) - CountNonNull)
+        print("Save in: ",File2Save)
+        print("Number of Time Slot with valid values: ",CountNonNull)
     # Plot just those partition that contain half of valid numbers
-    if CountNonNull < len(AvgTimePercorrence)/2:
+    if CountNonNull > len(AvgTimePercorrence)/2:
         ax.plot(StrTimesLabel, AvgTimePercorrence)
         ax.boxplot(Time2Distr,sym='')
         ax.set_xticks(range(len(StrTimesLabel))[::Slicing])  # Set the ticks to correspond to the labels
@@ -100,8 +107,38 @@ def PlotTimePercorrenceDistribution(RoadsTimeVel,Time2Distr,AvgTimePercorrence,S
     return Time2Distr,AvgTimePercorrence
 
 
+def ComputeTimePercorrence(GeoJson,RoadsTimeVel,Class,StrDay):
+    RoadsTimeVel = RoadsTimeVel.sort("start_bin")
+    for time,RTV in RoadsTimeVel.groupby("start_bin"):
+        StartInterval = datetime.datetime.fromtimestamp(time).strftime("%Y-%m-%d %H:%M:%S").split(" ")[1]
+        GeoJson["TimePercorrence_" + StartInterval + "_" + str(Class) + "_" + StrDay] = np.ones(len(GeoJson))*(-1)
+        GeoJson["AvSpeed_" + StartInterval + "_" + str(Class) + "_" + StrDay] = np.ones(len(GeoJson))*(-1)
+        ValidTime = RTV.filter(pl.col("time_percorrence")>0)
+        Roads = ValidTime["poly_id"].to_list()
+        for Road in Roads:
+            GeoJson.loc[GeoJson["poly_lid"] == Road,"TimePercorrence_" + StartInterval + "_" + str(Class) + "_" + StrDay] = ValidTime.filter(pl.col("poly_id") == Road)["time_percorrence"].to_list()[0]
+            GeoJson.loc[GeoJson["poly_lid"] == Road,"AvSpeed_" + StartInterval + "_" + str(Class) + "_" + StrDay] = ValidTime.filter(pl.col("poly_id") == Road)["av_speed"].to_list()[0]
+    return GeoJson
+def AggregateTimePercorrence(GeoJson,StrDay):
+    Hour2Road2TimePercorrence = {datetime.datetime.fromtimestamp(time).strftime("%Y-%m-%d %H:%M:%S").split(" ")[1]: {Road:[] for Road in GeoJson["poly_lid"].to_numpy()} for time,_ in RoadsTimeVel.groupby("start_bin")}
+    Hour2Road2AvSpeed = Hour2Road2TimePercorrence
 
 
+def PlotConditionaltimeSpace(ax,Fcm,Time,Length,StrClass):
+#    ax.scatter(Time, Length, alpha=0.5, label='Data points')
+
+    # Regression line
+#    sns.regplot(x=Time, y = Length, scatter=False, color='red', label='Regression line')
+
+    # Optional: Heatmap
+#    sns.kdeplot(x= Time, y= Length, cmap="Blues", shade=True, bw_adjust=0.5, label='Density')
+    try:
+        sns.jointplot(data=Fcm, x=Time, y=Length,ax = ax)
+    except:
+        sns.jointplot(data=Fcm, x="time", y="length",ax = ax)
+    ax.set_xlabel('time (h)')
+    ax.set_ylabel('length (km)')
+    ax.set_title('Conditional Distribution trajectories class {}'.format(StrClass))
 ##----------------------------------- PLOT DISTRIBUTIONS -----------------------------------##
 
 def ComputeMinMaxPlotGivenFeature(Class2FcmDistr,InfoPlotDistrFeat):
@@ -187,36 +224,41 @@ def PlotFeatureDistrSeparatedByClass(Feature2IntClass2FcmDistr,
                 fitted_data_windowed = Feature2Class2AllFitTry[Feature][IntClass][LabelBestFit]["fitted_data_windowed"]
             x = Feature2IntClass2FcmDistr[Feature][IntClass]["x"][1:]
             y = Feature2IntClass2FcmDistr[Feature][IntClass]["y"]
+            
             # Scatter Points
             ax.scatter(x,y)
             legend.append(str(IntClass2StrClass[IntClass]) + " " + Feature2Legend[Feature] + " " + str(round(mean,3)))
             # Fit
             if LabelBestFit != "":
                 if len(x_windowed) == len(fitted_data_windowed):
-                    ax.plot(x_windowed,fitted_data_windowed,label = Feature2Class2AllFitTry[Feature][IntClass]["best_fit"])
+                    ax.plot(x_windowed,fitted_data_windowed)
                     legend.append(str(IntClass2StrClass[IntClass]) + " " + Feature2Legend[Feature] + " " + str(round(mean,3)))
         ax.set_xticks(np.arange(minx,maxx,Feature2IntervalBin[Feature]))
         ax.set_yticks(np.arange(miny,maxy,Feature2IntervalCount[Feature]))
         ax.set_xlabel(Feature2Label[Feature])
         ax.set_ylabel('Count')
-        ax.set_xlim(right = maxx + Feature2ShiftBin[Feature])
-        ax.set_ylim(bottom = 1,top = maxy + Feature2ShiftCount[Feature])
+        ax.set_xlim(left = 0.01, right = maxx + Feature2ShiftBin[Feature])
+        ax.set_ylim(bottom = 0.000001,top = maxy + Feature2ShiftCount[Feature])
         ax.set_xscale(Feature2ScaleBins[Feature])
         ax.set_yscale(Feature2ScaleCount[Feature])
+        ax.set_title(f"Best Fit: {Feature2Class2AllFitTry[Feature][IntClass]["best_fit"]}")
         legend_ = plt.legend(legend)
         frame = legend_.get_frame()
         frame.set_facecolor('white')
         Feature2DistributionPlot[Feature]["fig"] = fig
         Feature2DistributionPlot[Feature]["ax"] = ax
-        fig.savefig(os.path.join(PlotDir,'{0}_{1}.png'.format("Aggregated",Feature2SaveName[Feature])),dpi = 200)
+        Date = os.path.basename(PlotDir)
+        plt.savefig(os.path.join(PlotDir,'{0}_{1}_{2}.png'.format("Aggregated",Feature2SaveName[Feature],Date)),dpi = 200)
         plt.close()
         if VERBOSE:
             print("Plot Distributions With All Classes")
             print("Feature: ",Feature)
             print("min x: ",minx," max x: ",maxx," min y: ",miny," max y: ",maxy)
-            for IntClass in Feature2IntClass2FcmDistr[Feature].keys():
-                print("IntClass: ",IntClass)
-                print("min x windowed",min(x_windowed),"max x windowed: ",max(x_windowed),"min y windowed", min(fitted_data_windowed)," max y windowed: ",max(fitted_data_windowed))
+            print("Plotted x:\n",x)
+            print("Plotted y:\n",y)
+            print("Plotted x_windowed:\n",x_windowed)
+            print("Plotted fitted_data_windowed:\n",fitted_data_windowed)
+            print("min x windowed",min(x_windowed),"max x windowed: ",max(x_windowed),"min y windowed", min(fitted_data_windowed)," max y windowed: ",max(fitted_data_windowed))
     return fig,ax
 def ComputeCommonBins(IntClass2FcmDistr):
     minx = 10000000
@@ -254,15 +296,17 @@ def PlotFeatureSingleClass(FcmDistr,
     # Fit
     if AllFitTry["best_fit"] != "":
         if len(x_windowed) == len(fitted_data_windowed):
-            ax.plot(x_windowed,fitted_data_windowed,label = AllFitTry["best_fit"])
+            ax.plot(x_windowed,fitted_data_windowed)
     ax.set_xticks(np.arange(min(x),max(x),IntervalBin))
     ax.set_yticks(np.arange(min(y),max(y),IntervalCount))
     ax.set_xlabel(Label)
     ax.set_ylabel('Count')
-    ax.set_xlim(right = max(x) + ShiftBin)
-    ax.set_ylim(bottom = 1,top = max(y) + ShiftCount)
+    ax.set_xlim(left = 0.01,right = max(x) + ShiftBin)
+    ax.set_ylim(bottom = 0.000001,top = max(y) + ShiftCount)
     ax.set_xscale(ScaleBins)
     ax.set_yscale(ScaleCount)
+    ax.set_title(f"Best Fit: {AllFitTry["best_fit"]}")
+
     return fig,ax
 
 def PlotFeatureAggregatedAllDays(Aggregation2Feature2StrClass2FcmDistr,                   
@@ -302,20 +346,22 @@ def PlotFeatureAggregatedAllDays(Aggregation2Feature2StrClass2FcmDistr,
                 # Fit
                 if LabelBestFit != "":                
                     if len(x_windowed) == len(y_data):
-                        ax.plot(x_windowed,y_data,label = LabelBestFit)
+                        ax.plot(x_windowed,y_data)
                         legend.append(StrClass + " " + Feature2Legend[Feature] + " " + str(round(mean,3)))
                 ax.set_xticks(np.arange(x[0],x[-1],Feature2IntervalBin[Feature]))
                 ax.set_yticks(np.arange(min(y),max(y),Feature2IntervalCount[Feature]))
                 ax.set_xlabel(Feature2Label[Feature])
                 ax.set_ylabel('Count')
-                ax.set_xlim(right = x[-1] + Feature2ShiftBin[Feature])
-                ax.set_ylim(bottom = 1,top =max(y) + Feature2ShiftCount[Feature])
+                ax.set_xlim(left = 0.01,right = x[-1] + Feature2ShiftBin[Feature])
+                ax.set_ylim(bottom = 0.000001,top =max(y) + Feature2ShiftCount[Feature])
                 ax.set_xscale(Feature2ScaleBins[Feature])
                 ax.set_yscale(Feature2ScaleCount[Feature])
+            ax.set_title(f"Best Fit: {LabelBestFit}")
             legend_ = plt.legend(legend)
             frame = legend_.get_frame()
             frame.set_facecolor('white')
-            fig.savefig(os.path.join(PlotDir,'{0}_{1}.png'.format(Aggregation,Feature2SaveName[Feature])),dpi = 200)
+            Date = os.path.basename(PlotDir)
+            fig.savefig(os.path.join(PlotDir,'{0}_{1}_{2}.png'.format(Aggregation,Feature2SaveName[Feature],Date)),dpi = 200)
             plt.close()
 
 def PlotAggregatedAllDaysPerClass(Aggregation2Feature2StrClass2FcmDistr,                   
@@ -357,7 +403,8 @@ def PlotAggregatedAllDaysPerClass(Aggregation2Feature2StrClass2FcmDistr,
                 ax.set_ylim(bottom = 1,top =max(y) + Feature2ShiftCount[Feature])
                 ax.set_xscale(Feature2ScaleBins[Feature])
                 ax.set_yscale(Feature2ScaleCount[Feature])
-                fig.savefig(os.path.join(PlotDir,'{0}_{1}_{2}.png'.format(Aggregation,Feature2SaveName[Feature],StrClass)),dpi = 200)
+                Date = os.path.basename(PlotDir)
+                fig.savefig(os.path.join(PlotDir,'{0}_{1}_{2}_{3}.png'.format(Aggregation,Feature2SaveName[Feature],StrClass,Date)),dpi = 200)
                 plt.close()
         return fig,ax
 
@@ -522,6 +569,8 @@ def PlotFluxesHTML(GeoJson,TimedFluxes,centroid,StrDate,PlotDir,ReadTime2FluxesB
         print("No Fluxes to Plot")
     return Message
 
+
+
 def PlotTimePercorrenceHTML(GeoJson,VelTimePercorrenceClass,IntClass2BestFit,ReadGeojsonBool,ReadVelocitySubnetBool,centroid,PlotDir,StrDate,Class2Color,NameAvSpeed = "AvSpeed",NameTimePercorrenceFile = "TimePercorrence",verbose = False):
     """
         Description:
@@ -547,7 +596,6 @@ def PlotTimePercorrenceHTML(GeoJson,VelTimePercorrenceClass,IntClass2BestFit,Rea
                     min_val = min(RoadsTimeVel["time_percorrence"])
                     max_val = max(RoadsTimeVel["time_percorrence"])
                     RoadsTimeVel = RoadsTimeVel.with_columns(pl.col("time_percorrence").apply(lambda x: NormalizeWidthForPlot(x,min_val,max_val), return_dtype=pl.Int64).alias("width_time"))
-                    # Hey, cool, I wrote this bug!
                     # Add roads to the feature group with a unique color
                     list_colored_roads_speed = RTV.loc[RTV["av_speed"]!=0]["poly_id"]
                     filtered_gdf = GeoJson[GeoJson['poly_lid'].isin(list_colored_roads_speed)]
@@ -599,6 +647,10 @@ def ComputeAggregatedMFDVariables(ListDailyNetwork,MFDAggregated):
     for MobDate in ListDailyNetwork:
         if LocalDayCount == 0:
             MFDAggregated = MobDate.MFD
+            if isinstance(MFDAggregated,pl.DataFrame):
+                MFDAggregated = MFDAggregated.to_pandas()
+            else:
+                pass
             MFDAggregated["count_days"] = list(np.zeros(len(MFDAggregated["time"])))
             MFDAggregated["total_number_people"] = list(np.zeros(len(MFDAggregated["time"])))
             LocalDayCount += 1
@@ -622,5 +674,5 @@ def ComputeAggregatedMFDVariables(ListDailyNetwork,MFDAggregated):
             MFDAggregated["av_speed"][t] = MFDAggregated["av_speed"][t]/(MFDAggregated["count_days"][t]*MFDAggregated["total_number_people"][t])
         else:
             pass
-    MFDAggregated = Dict2PolarsDF(MFDAggregated,schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64})
+    MFDAggregated = Dict2PolarsDF(MFDAggregated,schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64,"count_days":pl.Int64,"total_number_people":pl.Int64})
     return MFDAggregated

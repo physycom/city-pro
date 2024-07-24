@@ -33,7 +33,9 @@ from InfoFitMdtDataset import *
 from JsonFunctions import *
 from LoggingInfo import *
 from UsefulStructures import *
+from GeoPlot import *
 import matplotlib.ticker as ticker
+
 
 # Ignore all warnings
 warnings.filterwarnings("ignore")
@@ -147,7 +149,7 @@ class DailyNetworkStats:
         self.IntClass2StrClass = defaultdict() # {0,slowest,...}
         self.StrClass2IntClass = defaultdict() # {slowest: 0,...}
         self.RoadInClass2VelocityDir = defaultdict() # {0: ../.._0velocity_subnet.csv}
-        self.VelTimePercorrenceClass = defaultdict() # {0: [start_bin,end_bin,id,time_percorrence,av_speed]}
+        self.Class2DfSpeedAndTimePercorrenceRoads = defaultdict() # {0: [start_bin,end_bin,id,time_percorrence,av_speed]}
         # INPUT FIT INFO
         self.DictConstraintClassLabel = defaultdict(dict)
         self.DictConstraintLabel = defaultdict(dict)
@@ -641,6 +643,7 @@ class DailyNetworkStats:
                 for Road in self.IntClass2Roads[Class]: 
                     ClassOrderedForGeojsonRoads[np.where(self.GeoJson["poly_lid"] == Road)[0]] = Class 
             self.GeoJson["IntClass_{}".format(self.StrDate)] = ClassOrderedForGeojsonRoads
+            self.GeoJson["StrClass_{}".format(self.StrDate)] = [self.IntClass2StrClass[intclass] if intclass in self.IntClass2StrClass else "1 quickest" for intclass in ClassOrderedForGeojsonRoads]
             if not os.path.isfile(os.path.join(self.InputBaseDir,"BolognaMDTClassInfo.geojson")):
                 self.GeoJson.to_file(os.path.join(self.InputBaseDir,"BolognaMDTClassInfo.geojson"))
             self.GeoJsonWithClassBool = True
@@ -710,18 +713,18 @@ class DailyNetworkStats:
             try:
                 for Class in self.IntClass2StrClass.keys():
                     self.RoadInClass2VelocityDir[Class] = os.path.join(os.path.join(self.InputBaseDir,self.BaseFileName+'_'+ self.StrDate+'_'+ self.StrDate + '_class_{}velocity_subnet.csv'.format(Class)))
-                    self.VelTimePercorrenceClass[Class] = pd.read_csv(self.RoadInClass2VelocityDir[Class],delimiter = ';')
-                    self.VelTimePercorrenceClass[Class] = pl.from_pandas(self.VelTimePercorrenceClass[Class])
+                    self.Class2DfSpeedAndTimePercorrenceRoads[Class] = pd.read_csv(self.RoadInClass2VelocityDir[Class],delimiter = ';')
+                    self.Class2DfSpeedAndTimePercorrenceRoads[Class] = pl.from_pandas(self.Class2DfSpeedAndTimePercorrenceRoads[Class])
                 self.ReadVelocitySubnetBool = True
                 Message = "{} Read Velocity Subnet: True\n".format(self.CountFunctionsCalled)
-                Message += "\tInitialized VelTimePercorrenceClass: {IntClass:pl.Dataframe[id_poly,time_percorrence,av_speed]}\n"
+                Message += "\tInitialized Class2DfSpeedAndTimePercorrenceRoads: {IntClass:pl.Dataframe[id_poly,time_percorrence,av_speed]}\n"
                 AddMessageToLog(Message,self.LogFile)
             except:
                 Message = "{} Read Velocity Subnet: False".format(self.CountFunctionsCalled)
                 AddMessageToLog(Message,self.LogFile)
                 print("VelTimePercorrenceFile not found")
         else:
-            print("Warning: No Initialization of VelTimePercorrenceClass due to lack of definition of IntClass2Str")
+            print("Warning: No Initialization of Class2DfSpeedAndTimePercorrenceRoads due to lack of definition of IntClass2Str")
 
     def AddFcmNew2Fcm(self,verbose = True):
         """
@@ -823,7 +826,7 @@ class DailyNetworkStats:
         """
         self.CountFunctionsCalled += 1
         Message = PlotTimePercorrenceHTML(self.GeoJson,
-                                self.VelTimePercorrenceClass,
+                                self.Class2DfSpeedAndTimePercorrenceRoads,
                                 self.IntClass2BestFit,
                                 self.ReadGeojsonBool,
                                 self.ReadVelocitySubnetBool,
@@ -1107,18 +1110,35 @@ class DailyNetworkStats:
                 self.Class2AvgTimePercorrence = ListDict[1]
                 pass
             else:
+                pass
+            if True:
                 self.Class2Time2Distr = {IntClass:[] for IntClass in self.IntClass2StrClass.keys()} # For key Shape (96,Number of Roads)
                 self.Class2AvgTimePercorrence = {IntClass:[] for IntClass in self.IntClass2StrClass.keys()} # For key Shape (96,)
                 # Per Class
                 for IntClass in self.IntClass2StrClass.keys():
                     File2Save = os.path.join(self.PlotDir,"TimePercorrenceDistribution_Class_{0}_{1}.png".format(IntClass,self.StrDate))
                     StrTimesLabel = []
-                    self.Class2Time2Distr[IntClass],self.Class2AvgTimePercorrence[IntClass] = PlotTimePercorrenceDistribution(self.VelTimePercorrenceClass[IntClass],
+                    self.Class2Time2Distr[IntClass],self.Class2AvgTimePercorrence[IntClass] = PlotTimePercorrenceDistribution(self.Class2DfSpeedAndTimePercorrenceRoads[IntClass],
                                                                                                                               self.Class2Time2Distr[IntClass],
                                                                                                                               self.Class2AvgTimePercorrence[IntClass],
                                                                                                                               StrTimesLabel,
                                                                                                                               File2Save)
-                
+                    if not os.path.isfile(os.path.join(self.PlotDir,"GeoJson_{0}.geojson".format(self.StrDate))): 
+                        self.GeoJson = ComputeTimePercorrence(self.GeoJson,self.Class2DfSpeedAndTimePercorrenceRoads[IntClass],IntClass,self.StrDate)
+                        self.GeoJson = BuildListStepsGivenDay(self.GeoJson,self.StrDate,"AvSpeed_")
+                        self.GeoJson = BuildListStepsGivenDay(self.GeoJson,self.StrDate,"TimePercorrence_")
+                    else:
+                        pass
+                if not os.path.isfile(os.path.join(self.PlotDir,"GeoJson_{0}.geojson".format(self.StrDate))): 
+                    self.GeoJson.to_file(os.path.join(self.PlotDir,"GeoJson_{0}.geojson".format(self.StrDate)))
+                else:
+                    self.GeoJson = gpd.read_file(os.path.join(self.PlotDir,"GeoJson_{0}.geojson".format(self.StrDate)))
+                VideoEvolutionTimePercorrence(self.GeoJson,"TimePercorrence_",self.StrDate,self.PlotDir)
+                VideoEvolutionTimePercorrence(self.GeoJson,"AvSpeed_",self.StrDate,self.PlotDir)
+
+                print("GeoJson")
+                print(self.GeoJson)
+
                 SaveProcedure(BaseDir=self.PlotDir,
                             ListKeys = ["Class2Time2Distr","Class2AvgTimePercorrence"],
                              ListDicts = [self.Class2Time2Distr,self.Class2AvgTimePercorrence],
@@ -1129,9 +1149,14 @@ class DailyNetworkStats:
             self.TimePercorrenceBool = True
             self.PlotTimePercorrenceConditionalLengthRoad()
 
+
     def PlotTimePercorrenceConditionalLengthRoad(self):
         self.CountFunctionsCalled += 1
-        CountLengths,Lengths = np.histogram(self.GeoJson["poly_length"],bins = 10)
+        
+        # Drop rows with NaN values in the 'poly_length' column
+        self.GeoJson = self.GeoJson.dropna(subset=['poly_length'])
+        # Calculate the histogram
+        CountLengths,Lengths = np.histogram(self.GeoJson["poly_length"][~np.isnan(self.GeoJson["poly_length"])],bins = 10)
         self.Lenght2Roads = GetLengthPartitionInGeojSon(self.GeoJson,Lengths)
         self.Length2Class2Time2Distr = {Length:{IntClass:[] for IntClass in self.IntClass2StrClass.keys()} for Length in Lengths}
         self.Length2Class2AvgTimePercorrence = {Length:{IntClass:[] for IntClass in self.IntClass2StrClass.keys()} for Length in Lengths}
@@ -1141,7 +1166,7 @@ class DailyNetworkStats:
                 if not os.path.isfile(File2Json):
                     StrTimesLabel = []
                     File2Save = os.path.join(self.PlotDir,"TimePercorrenceDistribution_Class_{0}_{1}_Length_{2}.png".format(IntClass,self.StrDate,round(Length,2)))
-                    Length2VelTimePerccorenceClass = self.VelTimePercorrenceClass[IntClass].filter(pl.col("poly_id").is_in(Roads))
+                    Length2VelTimePerccorenceClass = self.Class2DfSpeedAndTimePercorrenceRoads[IntClass].filter(pl.col("poly_id").is_in(Roads))
                     if len(Roads)>0:
                         self.Length2Class2Time2Distr[Length][IntClass],self.Length2Class2AvgTimePercorrence[Length][IntClass] = PlotTimePercorrenceDistribution(Length2VelTimePerccorenceClass,
                                                     self.Length2Class2Time2Distr[Length][IntClass],
@@ -1234,7 +1259,6 @@ class DailyNetworkStats:
             self.Feature2Class2Function2Fit2InitialGuess = InitFeature2Class2Function2Fit2InitialGuess(self.Features2Fit,self.IntClass2StrClass)
             if self.verbose:
                 print(self.StrDate)
-                print("Class2InitialGuess:\n",self.Feature2Class2Function2Fit2InitialGuess)
             for Feature in self.Feature2Class2Function2Fit2InitialGuess:
                 for IntClass in self.Feature2Class2Function2Fit2InitialGuess[Feature].keys():
                     StrClass = self.IntClass2StrClass[IntClass]
@@ -1298,6 +1322,10 @@ class DailyNetworkStats:
                         else:
                             print("Warning: Initial Guess Not Initialized for Class {0} and Feature {1} Day: {2}".format(IntClass,Feature,self.StrDate))
             Message = "{} Create Dictionary Class2InitialGuess: True".format(self.CountFunctionsCalled)
+            if self.verbose:
+                pass
+#                print("Class2InitialGuess:\n",self.Feature2Class2Function2Fit2InitialGuess)
+
             AddMessageToLog(Message,self.LogFile)
             # Initialize The Guess Without Classes
             for Feature in self.Feature2Function2Fit2InitialGuess.keys(): 
@@ -1368,34 +1396,51 @@ class DailyNetworkStats:
         for Feature in self.Feature2AllFitTry.keys():
             ObservedData = self.Fcm[Feature].to_list()
             # Compute the Fit for functions you are Undecided from
-            print("Feature: ",Feature)
-            self.Feature2AllFitTry[Feature] = ReturnFitInfoFromDict(ObservedData,
-                                                                    self.Feature2Function2Fit2InitialGuess[Feature],
-                                                                    self.Feature2AllFitTry[Feature],
-                                                                    True)
-            self.Feature2AllFitTry[Feature] = ChooseBestFit(self.Feature2AllFitTry[Feature])
-
+            if Feature == "av_speed" or Feature == "speed_kmh":
+                print("Feature: ",Feature)
+                self.Feature2AllFitTry[Feature] = ReturnFitInfoFromDict(ObservedData,
+                                                                        self.Feature2Function2Fit2InitialGuess[Feature],
+                                                                        self.Feature2AllFitTry[Feature],
+                                                                        True)
+                self.Feature2AllFitTry[Feature] = ChooseBestFit(self.Feature2AllFitTry[Feature])
+            else:
+                self.Feature2AllFitTry[Feature] = ComputeAndChooseBestFit(ObservedData,self.Feature2Function2Fit2InitialGuess[Feature],
+                                                                        self.Feature2AllFitTry[Feature],
+                                                                        True)
+        if self.verbose:
+            pass
+            #print("Dictionary Fit All Features All Functions without aggregation:\n",self.Feature2AllFitTry)
     def ComputeFitPerClass(self):
         # Save All the Tried Fit
         self.Feature2Class2AllFitTry = InitFeature2Class2AllFitTry(self.Feature2Class2Function2Fit2InitialGuess)
         # Returns for each function to try the best fit.
         print("Fit Data Separated by Class")
         for Feature in self.Feature2Class2AllFitTry.keys():
-            print("Feature: ",Feature)
+#            print("Feature: ",Feature)
             for IntClass in self.Feature2Class2AllFitTry[Feature].keys():
-                print("Class {} ".format(IntClass))
+#                print("Class {} ".format(IntClass))
                 FcmFilteredByClass = self.Fcm.filter(pl.col("class") == IntClass)
                 ObservedData = FcmFilteredByClass[Feature].to_list()
-                # Compute the Fit for functions you are Undecided from
-                self.Feature2Class2AllFitTry[Feature][IntClass] = ReturnFitInfoFromDict(ObservedData,
-                                                                                        self.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass],
-                                                                                        self.Feature2Class2AllFitTry[Feature][IntClass],
-                                                                                        True)
-                # Choose the Best Fit among all the tried feature
-                self.Feature2Class2AllFitTry[Feature][IntClass] = ChooseBestFit(self.Feature2Class2AllFitTry[Feature][IntClass])
-                if self.verbose:
-                    print("Feature: ",Feature)
-                    print("Class: ",IntClass)
+                if Feature == "av_speed" or Feature == "speed_kmh":
+                    # Compute the Fit for functions you are Undecided from
+                    self.Feature2Class2AllFitTry[Feature][IntClass] = ReturnFitInfoFromDict(ObservedData,
+                                                                                            self.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass],
+                                                                                            self.Feature2Class2AllFitTry[Feature][IntClass],
+                                                                                            True)
+                    # Choose the Best Fit among all the tried feature
+                    self.Feature2Class2AllFitTry[Feature][IntClass] = ChooseBestFit(self.Feature2Class2AllFitTry[Feature][IntClass])
+                else:
+                    self.Feature2Class2AllFitTry[Feature][IntClass] = ComputeAndChooseBestFit(ObservedData,
+                                                                                            self.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass],
+                                                                                            self.Feature2Class2AllFitTry[Feature][IntClass],
+                                                                                            True)
+
+#                if self.verbose:
+#                    print("Feature: ",Feature)
+#                    print("Class: ",IntClass)
+        if self.verbose:
+            pass
+#            print("Dictionary Fit All Features All Functions per Class:\n",self.Feature2Class2AllFitTry)
 
     def ComputeFitDataFrame(self):
         self.Feature2IntClass2FcmDistr = defaultdict()
@@ -1405,14 +1450,26 @@ class DailyNetworkStats:
             Class2FcmDistr,IntClass2Feat2AvgVar = SplitFcmByClass(self.Fcm,Feature,self.IntClass2StrClass) 
             self.Feature2IntClass2FcmDistr[Feature] = Class2FcmDistr
             self.Feature2IntClass2Feat2AvgVar[Feature] = IntClass2Feat2AvgVar
-            print("Feature: ",Feature)
-            print("Feature2IntClass2Feat2AvgVar:\n",self.Feature2IntClass2Feat2AvgVar)
+#            print("Feature: ",Feature)
+#            print("Feature2IntClass2Feat2AvgVar:\n",self.Feature2IntClass2Feat2AvgVar)
         InfoPlotDistrFeat = {"figsize":(10,10),"minx":0,"miny":0,"maxx":0,"maxy":0}
         # Compute the MinMax for the Plot
         self.Feature2InfoPlotDistrFeat = {Feature: ComputeMinMaxPlotGivenFeature(self.Feature2IntClass2FcmDistr[Feature],InfoPlotDistrFeat) for Feature in self.Feature2AllFitTry.keys()}
         self.Feature2DistributionPlot = {Feature: {"fig":None,"ax":None} for Feature in self.Feature2AllFitTry.keys()}
         self.Feature2FitDf = FitDataFrame(self.Feature2Class2AllFitTry,self.PlotDir)        
 
+
+    def PlotSpaceConditionalTime(self):
+        fix,ax = plt.subplots(2,2,figsize = (10,10))
+        ax = ax.flatten()
+        for i,IntClass in enumerate(self.IntClass2StrClass.keys()):
+            TimeFeat = "time_hours"
+            LengthFeat = "lenght_km"
+            FilteredDf = self.Fcm.filter(pl.col("class") == IntClass)
+            PlotConditionaltimeSpace(ax[i],FilteredDf,"time_hours","lenght_km",self.IntClass2StrClass[IntClass])
+        plt.tight_layout()
+        plt.savefig(os.path.join(self.PlotDir,"TimeSpaceConditional.png"),dpi = 200)
+        plt.close()
     def PlotDistrPerClass(self):
         """
             Description:
@@ -1462,10 +1519,10 @@ class DailyNetworkStats:
                                         self.Feature2ScaleCount[Feature])
                 if not os.path.exists(os.path.join(self.PlotDir,"Fit")):
                     os.makedirs(os.path.join(self.PlotDir,"Fit"),exist_ok = True)
-                if self.Feature2Class2AllFitTry[Feature][IntClass]["best_fit"] != "":
-                    fig.savefig(os.path.join(self.PlotDir,"Fit",'{0}_Class_{1}_{2}.png'.format("NonConvergedFit",IntClass,self.Feature2SaveName[Feature])),dpi = 200)
+                if self.Feature2Class2AllFitTry[Feature][IntClass]["best_fit"] == "":
+                    fig.savefig(os.path.join(self.PlotDir,"Fit",'{0}_Class_{1}_{2}_{3}.png'.format("NonConvergedFit",IntClass,self.Feature2SaveName[Feature],self.StrDate)),dpi = 200)
                 else:
-                    fig.savefig(os.path.join(self.PlotDir,"Fit",'{0}_Class_{1}_{2}.png'.format(self.Feature2Class2AllFitTry[Feature][IntClass]["best_fit"],IntClass,self.Feature2SaveName[Feature])),dpi = 200)
+                    fig.savefig(os.path.join(self.PlotDir,"Fit",'{0}_Class_{1}_{2}_{3}.png'.format(self.Feature2Class2AllFitTry[Feature][IntClass]["best_fit"],IntClass,self.Feature2SaveName[Feature],self.StrDate)),dpi = 200)
                 plt.close()
 
 ## ------------------- PRINT UTILITIES ---------------- #

@@ -66,18 +66,19 @@ def FillTable(Dict):
 
 def FillTableFancy(Dict):
     Table = ""
-    for i,Row in enumerate(Dict.keys()):
+    Cols = list(Dict.keys())
+    for i,Col in enumerate(Dict.keys()):
         if i == 0:
             Table += "\hline\n"    
-        for j,Col in enumerate(Dict[Row].keys()):
+        for j,Row in enumerate(Dict[Col].keys()):
             if i == 0:
                 if j == 0:
-                    cell = LeftCurl + RightCurl
+                    cell = LeftCurl + RightCurl + " & "
                 elif j == len(Dict[Row]) - 1:
                     cell = "& " + LeftCurl + "{}".format(Col) + RightCurl
                     cell += DoubleBackslash + Vespar + NewLine
                 else:
-                    cell = "& {} ".format(Col)
+                    cell = "& " + LeftCurl + "{}".format(Col) + RightCurl
                 Table += cell
             else:
                 if j == 0:
@@ -86,7 +87,7 @@ def FillTableFancy(Dict):
                     cell = LeftCurl + "{}".format(Dict[Row][Col]) + RightCurl
                     cell += DoubleBackslash + Vespar + NewLine
                 else:
-                    cell = "{} & ".format(Dict[Row][Col])
+                    cell = LeftCurl + "{}".format(Dict[Row][Col]) + RightCurl + " & "
                 Table += cell
     return Table
 
@@ -97,7 +98,7 @@ def EndTable():
     return EndTabular + EndCenter
 
 def EndFancyTable():
-    EndTable = "\end{table}\n"
+    EndTable = "}\n\end{table}\n"
     return EndTable
 
 def TableFromDict(Dict):
@@ -109,8 +110,8 @@ def TableFromDict(Dict):
         Description:
             The Latex table will be created with the data from the dictionary. {Name Row: {Name Col: Value} }
     """
-    Rows = list(Dict.keys())
-    Cols = list(Dict[Rows[0]].keys())
+    Cols = list(Dict.keys())
+    Rows = list(Dict[Cols[0]].keys())
     Table = InitTable(Cols)
     Table += FillTable(Dict)
     print("Fill Table:\n",Table)

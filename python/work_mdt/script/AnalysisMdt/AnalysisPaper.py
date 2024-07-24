@@ -101,6 +101,9 @@ def Main(config,StrDate):
     ## Classes associated to inclusion principle
     Network.ReadFcmNew()
     Network.AddFcmNew2Fcm()
+    # Plot Fit
+    Network.PlotSpaceConditionalTime()
+    Network.PlotDistrPerClass()
     # NOTE: Network.FcmCenters -> DataFrame ["class","av_speed","vmin","vmax","sinuosity","count"]
     Network.ReadStats()
     Network.GetIncreasinglyIncludedSubnets()
@@ -119,12 +122,11 @@ def Main(config,StrDate):
 #    Network.PlotTimePercorrenceHTML()     
     # FUNDAMENTAL DIAGRAM
     Network.ReadVelocitySubnet()
-    Network.PlotTimePercorrenceDistributionAllClasses()
+#    Network.PlotTimePercorrenceDistributionAllClasses()
     Network.PlotMFD()
     # HYSTERESIS DIAGRAM
     Network.ReadFluxes()
 ## +++++++++++++++++ PLOT TRAJECTORIES STATS +++++++++++++++++++++++++++
-    Network.PlotDistrPerClass()
 ## +++++++++++++++ FITTING PROCEDURES +++++++++++++++++++++++++++++
     return Network
 def MainComparison(ListNetworkDays,PlotDirAggregated,config,verbose):

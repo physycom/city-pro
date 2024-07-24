@@ -6,16 +6,14 @@ except:
     FoundPyMC3 = False
 from scipy.special import gamma
 from scipy.optimize import curve_fit,minimize
-from scipy import stats
-from scipy.stats import powerlaw as plw
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import entropy as kl_div
 from scipy.stats import kstest
 from tqdm import tqdm
+import powerlaw as pwl
 
-
-VERBOSE = True
+VERBOSE = False
 # FUCNTIONS FOR FITTING
 def powerlaw(x, amp, index):
     return amp * (np.array(x)**index)
@@ -369,9 +367,9 @@ def Fitting(x,y_measured,label = 'powerlaw',initial_guess = (6000,0.3),maxfev = 
 
     '''
     if len(interval)!=0:
-        print("x Not Filtered:\n",x)
+#        print("x Not Filtered:\n",x)
         x = np.array([x[i] for i in range(len(x)) if x[i] >= interval[0] and x[i] <= interval[1]])
-        print("x Filtered:\n",x)
+#        print("x Filtered:\n",x)
         y_measured = np.array([y_measured[i] for i in range(len(x)) if x[i] >= interval[0] and x[i] <= interval[1]])
     else:
         x = np.array(x)
@@ -379,7 +377,7 @@ def Fitting(x,y_measured,label = 'powerlaw',initial_guess = (6000,0.3),maxfev = 
         assert len(x) == len(y_measured), "x and y_measured must have the same length"
     if label != "gaussian" and label != "maxwellian":
         A,b = Name2EstimateParameters[label](x,y_measured)
-        print("Estimate Parameters: ",A,b)
+#        print("Estimate Parameters: ",A,b)
         initial_guess = (A,b)
     result_powerlaw = minimize(Name2LossFunction[label], initial_guess, args = (x, y_measured))#,maxfev = maxfev
     optimal_params_plw = result_powerlaw.x
@@ -429,6 +427,7 @@ def ReturnFitInfoFromDict(ObservedData,Function2InitialGuess,FitAllTry,NormBool 
         NOTE: FitAllTry must be a dictionary whose entrancies respect the same structure  of the conditional search one wants to do.
     """
     y,x = np.histogram(ObservedData,bins = 50)
+    y = AdjustZerosDataWithAverage(y)
     if NormBool:
         y = y/np.sum(y)
     else:
@@ -466,6 +465,65 @@ def ReturnFitInfoFromDict(ObservedData,Function2InitialGuess,FitAllTry,NormBool 
         
     return FitAllTry
 
+
+
+def ComputeAndChooseBestFit(ObservedData,Function2InitialGuess,FitAllTry,NormBool = True):
+    y,x = np.histogram(ObservedData,bins = 50)
+    y = AdjustZerosDataWithAverage(y)
+    if NormBool:
+        y = y/np.sum(y)
+    else:
+        pass
+    if VERBOSE:
+        print("interval considered for fit: ",Function2InitialGuess["exponential"]["interval"])
+    fit = pwl.Fit(ObservedData,xmin = Function2InitialGuess["exponential"]["interval"][0],xmax = Function2InitialGuess["exponential"]["interval"][1])
+    R,p = fit.distribution_compare('power_law', 'exponential',normalized_ratio=True)
+    Aexp = fit.exponential.parameter1
+    bexp = fit.exponential.parameter2
+    if R>0:
+        BestFit = "powerlaw"
+    else:
+        BestFit = "exponential"
+    if VERBOSE:
+        print("Best Fit: ",BestFit)
+        print("R: ",R)
+        print("p: ",round(p,3))
+        print("Aexp: ",Aexp)
+        print("bexp: ",bexp)
+        print("xmin: ",fit.xmin)
+        print("xmax: ",fit.xmax)
+    for Function2Fit in Function2InitialGuess.keys():
+        if fit.xmax is not None:            
+            x_windowed = [x_ for x_ in x if (x_>=fit.xmin) and (x_<=fit.xmax)]
+            y_windowed = [y_ for i,y_ in enumerate(y) if (x[i]>=fit.xmin) and (x[i]<=fit.xmax)]
+            FitAllTry[Function2Fit]["x_windowed"] = x_windowed
+            FitAllTry[Function2Fit]["y_windowed"] = y_windowed
+        else:
+            x_windowed = [x_ for x_ in x if (x_>=fit.xmin)]
+            y_windowed = [y_ for i,y_ in enumerate(y) if (x[i]>=fit.xmin)]
+            FitAllTry[Function2Fit]["x_windowed"] = x_windowed
+            FitAllTry[Function2Fit]["y_windowed"] = y_windowed
+        if Function2Fit == "powerlaw":
+            A = 1
+            b = fit.power_law.parameter1
+        elif Function2Fit == "exponential":
+            A = 1
+            b = Aexp
+        FitAllTry[Function2Fit]["fitted_data_windowed"] = list(Name2Function[Function2Fit](np.array(x_windowed),A,b))
+        FitAllTry[Function2Fit]["parameters"] = (A,b)
+        if Function2Fit == "powerlaw":
+            FitAllTry[Function2Fit]["std_error"] = fit.sigma
+        else:
+            SqrtN = np.sqrt(len(y))
+            StdError = np.sqrt(np.sum((np.array(y_windowed) - np.array(FitAllTry[Function2Fit]["fitted_data_windowed"]))**2))/SqrtN            
+            FitAllTry[Function2Fit]["std_error"] = StdError
+        FitAllTry[Function2Fit]["success"] = True
+        FitAllTry[Function2Fit]["start_window"] = fit.xmin
+        FitAllTry[Function2Fit]["end_window"] = fit.xmax
+    FitAllTry["best_fit"] = BestFit
+    return FitAllTry
+
+
 def ChooseBestFit(AllFitTry):
     for Function2Fit in AllFitTry.keys():
         InfError = 10000000000
@@ -497,6 +555,30 @@ def FillIterationFitDicts(ObservedData,Function2Fit2InitialGuess,AllFitTry):
                 print("Std Error: ",AllFitTry[Function2Fit]["std_error"])
                 print("Success: ",AllFitTry[Function2Fit]["success"])
     return AllFitTry 
+
+def FillIterationFitDictsTimeLength(ObservedData,Function2Fit2InitialGuess,AllFitTry):
+    AllFitTry = ComputeAndChooseBestFit(ObservedData,Function2Fit2InitialGuess,AllFitTry,True)
+    return AllFitTry
+
+
+def AdjustZerosDataWithAverage(data):
+    """
+        Fill with average the zeros in the data.
+        When there are 3 zeros in a row, just the edges will be filled
+    """
+    for i in range(len(data)-1):
+        # Take the average of the two closest values o
+        if data[i] == 0:
+            if i > 0:
+                if data[i+1] != 0 or data[i-1] != 0:
+                    data[i] = (data[i-1] + data[i+1])/2
+            # if the index is 0 then allow the 1st value that is not 0.
+            else:
+                for j in range(1,4):
+                    if data[i+j] != 0:
+                        data[i] = data[i+j]
+                        break
+    return data
 
 
 if FoundPyMC3:

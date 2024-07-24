@@ -231,11 +231,11 @@ class NetworkAllDays:
             # If Classes are Categorized
             self.CountFunctions += 1
             if self.AssociateAvSpeed2StrClassBool:
-                for Aggregation in self.AggregationLevel:
+                for Aggregation in self.Aggregation2Class2Fcm.keys():
                     for MobDate in self.ListDailyNetwork:
                         if MobDate.StrDate in self.AggregationLevel2ListDays[Aggregation]:
                             self.Aggregation2Fcm[Aggregation] = pl.concat([self.Aggregation2Fcm[Aggregation],MobDate.Fcm])
-                            for StrClass in self.ListStrClassReference:
+                            for StrClass in self.Aggregation2Class2Fcm[Aggregation]:
                             # Append time and lenght of the Iterated Day
                                 self.Aggregation2Class2Fcm[Aggregation][StrClass] = pl.concat([self.Aggregation2Class2Fcm[Aggregation][StrClass],MobDate.Fcm.filter(pl.col("str_class") == StrClass)])
                 self.ConcatenatePerClassBool = True
@@ -270,18 +270,22 @@ class NetworkAllDays:
             for MobDate in self.ListDailyNetwork:
                 if MobDate.StrDate in self.AggregationLevel2ListDays[Aggregation]:
                     for Feature in MobDate.Feature2AllFitTry.keys():
-                        for Function2Fit in MobDate.Feature2Function2Fit2InitialGuess[Feature][IntClass].keys():
-                            self.Aggregation2Feature2Function2Fit2InitialGuess[Aggregation][Feature]["initial_guess"] = tuple(MobDate.Feature2Function2Fit2InitialGuess[Feature][Function2Fit]["parameters"])
-                            self.Aggregation2Feature2Function2Fit2InitialGuess[Aggregation][Feature]["interval"] = [MobDate.Feature2Function2Fit2InitialGuess[Feature][Function2Fit]["start_window"],MobDate.Feature2Function2Fit2InitialGuess[Feature][Function2Fit]["end_window"]]
+                        self.Aggregation2Feature2Function2Fit2InitialGuess[Aggregation][Feature] = defaultdict()
+                        self.Aggregation2Feature2Class2Function2Fit2InitialGuess[Aggregation][Feature] = defaultdict()
+                        for Function2Fit in MobDate.Feature2Function2Fit2InitialGuess[Feature].keys():
+                            print(MobDate.Feature2Function2Fit2InitialGuess[Feature][Function2Fit])
+                            self.Aggregation2Feature2Function2Fit2InitialGuess[Aggregation][Feature]["initial_guess"] = tuple(MobDate.Feature2Function2Fit2InitialGuess[Feature][Function2Fit]["initital_guess"])
+                            self.Aggregation2Feature2Function2Fit2InitialGuess[Aggregation][Feature]["interval"] = [MobDate.Feature2Function2Fit2InitialGuess[Feature][Function2Fit]["start_window"],MobDate.Feature2Function2Fit2InitialGuess[Feature][Function2Fit]["end_window"]]                            
                             for StrClass in self.Day2StrClass2IntClass[MobDate.StrDate].keys():
                                 IntClass = self.Day2StrClass2IntClass[MobDate.StrDate][StrClass]
-                                self.Aggregation2Feature2Class2Function2Fit2InitialGuess[Aggregation][Feature][StrClass][Function2Fit]["initital_guess"] = tuple(MobDate.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass][Function2Fit]["parameters"])
+                                self.Aggregation2Feature2Class2Function2Fit2InitialGuess[Aggregation][Feature][StrClass][Function2Fit]["initital_guess"] = tuple(MobDate.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass][Function2Fit]["initital_guess"])
                                 self.Aggregation2Feature2Class2Function2Fit2InitialGuess[Aggregation][Feature][StrClass][Function2Fit]["interval"] = [MobDate.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass][Function2Fit]["start_window"],MobDate.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass][Function2Fit]["end_window"]]
     def ComputeAggregatedFit(self):
         """
             Create the dictionary for the Fit (both input and output).
             Put the best_fit, fitted_data, parameters, start_window, end_window, std_error out of the days for the class.
         """
+        self.GetAggregatedFeature2Function2Fit2InitialGuess()
         self.Aggregation2Feature2AllFitTry = {Aggregation: InitFeature2AllFitTry(self.Aggregation2Feature2Class2Function2Fit2InitialGuess[Aggregation]) for Aggregation in self.Aggregation2Class2Fcm.keys()}
         for Aggregation in self.Aggregation2Class2Fcm.keys():
             ####################################à
@@ -289,9 +293,14 @@ class NetworkAllDays:
                 # NOTE: Concatednated Fcm
                 ObservedData = self.Aggregation2Fcm[Aggregation][Feature].to_list()
                 # Compute the Fit for functions you are Undecided from
-                self.Aggregation2Feature2AllFitTry[Aggregation][Feature] = FillIterationFitDicts(ObservedData,
-                                                                                                self.Aggregation2Feature2Function2Fit2InitialGuess[Aggregation][Feature],
-                                                                                                self.Aggregation2Feature2AllFitTry[Aggregation][Feature])
+                if Feature == "av_speed" or Feature == "speed_kmh":
+                    self.Aggregation2Feature2AllFitTry[Aggregation][Feature] = FillIterationFitDicts(ObservedData,
+                                                                                                    self.Aggregation2Feature2Function2Fit2InitialGuess[Aggregation][Feature],
+                                                                                                    self.Aggregation2Feature2AllFitTry[Aggregation][Feature])
+                else:
+                    self.Aggregation2Feature2AllFitTry[Aggregation][Feature] = FillIterationFitDictsTimeLength(ObservedData,
+                                                                                                    self.Aggregation2Feature2Function2Fit2InitialGuess[Aggregation][Feature],
+                                                                                                    self.Aggregation2Feature2AllFitTry[Aggregation][Feature])
             #########################################
     def ComputeAggregatedFitPerClass(self):
         # Save All the Tried Fit
@@ -301,12 +310,15 @@ class NetworkAllDays:
             for Feature in self.Aggregation2Feature2Class2AllFitTry[Aggregation].keys():
                 for StrClass in self.Aggregation2Feature2Class2AllFitTry[Aggregation][Feature].keys():
                     # NOTE: Change Observed Data Accordingly 
-                    if self.verbose:
-                        print("++++++ Class {} Fit ++++++".format(StrClass))
                     ObservedData = self.Aggregation2Class2Fcm[Aggregation][StrClass][Feature].to_list()
-                    self.Aggregation2Feature2Class2AllFitTry[Aggregation][Feature][StrClass] = FillIterationFitDicts(ObservedData,
-                                                                                                                self.Aggregation2Feature2Class2Function2Fit2InitialGuess[Aggregation][Feature][StrClass],
-                                                                                                                self.Aggregation2Feature2Class2AllFitTry[Aggregation][Feature][StrClass])
+                    if Feature == "av_speed" or Feature == "speed_kmh":
+                        self.Aggregation2Feature2Class2AllFitTry[Aggregation][Feature][StrClass] = FillIterationFitDicts(ObservedData,
+                                                                                                                    self.Aggregation2Feature2Class2Function2Fit2InitialGuess[Aggregation][Feature][StrClass],
+                                                                                                                    self.Aggregation2Feature2Class2AllFitTry[Aggregation][Feature][StrClass])
+                    else:
+                        self.Aggregation2Feature2Class2AllFitTry[Aggregation][Feature][StrClass] = FillIterationFitDictsTimeLength(ObservedData,
+                                                                                                                    self.Aggregation2Feature2Class2Function2Fit2InitialGuess[Aggregation][Feature][StrClass],
+                                                                                                                    self.Aggregation2Feature2Class2AllFitTry[Aggregation][Feature][StrClass])
                     if self.verbose:
                         print("Feature: ",Feature)
                         print("Class: ",StrClass)
@@ -639,7 +651,7 @@ class NetworkAllDays:
                         self.AvFeat2Class2Day[Feature][StrClass][MobDate.StrDate] =  str(RoundAvg) + " $\pm$ " + str(RoundVar)
                     else:
                         self.AvFeat2Class2Day[Feature][StrClass][MobDate.StrDate] =  " "
-            LatexTableAvFeat = FancyTableFromDict(self.AvFeat2Class2Day[Feature])
+            LatexTableAvFeat = TableFromDict(self.AvFeat2Class2Day[Feature])
             with open(os.path.join(self.PlotDir,f"LatexTableAvFeat_{Feature}.txt"), "w") as file:
                 file.write(LatexTableAvFeat)
             

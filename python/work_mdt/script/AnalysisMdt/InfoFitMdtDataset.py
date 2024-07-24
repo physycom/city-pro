@@ -39,12 +39,12 @@ def FillInitGuessIntervalPlExp(DictInitGuessInterval,MaxCount,Avg,StartWindow,En
             LocalDict2Params: dict -> Dictionary with parameters for the class
 
     """
-    if Function2Test == "exponential":
-        DictInitGuessInterval["initial_guess"] = [MaxCount,Avg]
-        DictInitGuessInterval["interval"] = [StartWindow,EndWindow]        
-    elif Function2Test == "powerlaw":
-        DictInitGuessInterval["initial_guess"] = [MaxCount*StartWindow,-1]
-        DictInitGuessInterval["interval"] = [StartWindow,EndWindow]    
+#    if Function2Test == "exponential":
+    DictInitGuessInterval["initial_guess"] = [MaxCount,Avg]
+    DictInitGuessInterval["interval"] = [StartWindow,EndWindow]        
+#    elif Function2Test == "powerlaw":
+#        DictInitGuessInterval["initial_guess"] = [MaxCount*StartWindow,-1]
+#        DictInitGuessInterval["interval"] = [StartWindow,EndWindow]    
     return DictInitGuessInterval
 
 def FillInitGuessIntervalMxGs(DictInitGuessInterval,Fcm,Feature,IntClass):

@@ -105,7 +105,7 @@ def MessageComputeMFDAllDays(Aggregation2MFD,Aggregation2Class2MFD,LogFile):
     Message += "\tself.Aggregation2MFD\n"
     for Aggregation in Aggregation2MFD.keys():
         Message += "\tAggregation: {}".format(Aggregation)
-        Message += "-> Number of Trajectories: {}".format(len(self.Aggregation2MFD[Aggregation]))
+        Message += "-> Number of Trajectories: {}".format(len(Aggregation2MFD[Aggregation]))
     AddMessageToLog(Message,LogFile)
     Message = "ComputeMFDAllDays: self.Aggregation2Class2MFD\n"
     for Aggregation in Aggregation2Class2MFD.keys():
