@@ -38,43 +38,49 @@ def FillTable(Dict):
     Table = ""
     DoubleBackslash = "\\\\"
     NewLine = "\n"
-    for i,Row in enumerate(Dict.keys()):
+    Cols = list(Dict.keys())
+    print("Creation Latex Table with columns: ",Cols)
+    for i,Row in enumerate(Dict[Cols[0]].keys()):
         if i == 0:
             Table += "\hline\n"    
-        for j,Col in enumerate(Dict[Row].keys()):
+        for j,Col in enumerate(Dict.keys()):
             if i == 0:
                 if j == 0:
                     cell = " & {} ".format(Col)
-                elif j == len(Dict[Row]) - 1:
+                elif j == len(list(Dict.keys())) - 1:
                     cell = "& {} ".format(Col)
                     cell += DoubleBackslash + NewLine
                     cell += "\hline\n"
+                    print("Row: ",Row,"Column: ",Col,"Cell: ",cell)
                 else:
                     cell = "& {} ".format(Col)
+                    print("Row: ",Row,"Column: ",Col,"Cell: ",cell)
                 Table += cell
             else:
                 if j == 0:
-                    cell = "{} & ".format(Row)
-                elif j == len(Dict[Row]) - 1:
-                    cell = "{} ".format(Dict[Row][Col])
+                    cell = "{0} & {1} & ".format(Row,Dict[Col][Row])
+                elif j == len(list(Dict.keys())) - 1:
+                    cell = "{} ".format(Dict[Col][Row])
                     cell += DoubleBackslash + NewLine
                     cell += "\hline\n"
+                    print("Row: ",Row,"Column: ",Col,"Cell: ",cell)
                 else:
-                    cell = "{} & ".format(Dict[Row][Col])
+                    cell = "{} & ".format(Dict[Col][Row])
+                    print("Row: ",Row,"Column: ",Col,"Cell: ",cell)
                 Table += cell
     return Table
 
 def FillTableFancy(Dict):
     Table = ""
     Cols = list(Dict.keys())
-    for i,Col in enumerate(Dict.keys()):
+    for i,Row in enumerate(Dict[Cols[0]].keys()):
         if i == 0:
             Table += "\hline\n"    
-        for j,Row in enumerate(Dict[Col].keys()):
+        for j,Col in enumerate(Dict.keys()):
             if i == 0:
                 if j == 0:
                     cell = LeftCurl + RightCurl + " & "
-                elif j == len(Dict[Row]) - 1:
+                elif j == len(list(Dict.keys())) - 1:
                     cell = "& " + LeftCurl + "{}".format(Col) + RightCurl
                     cell += DoubleBackslash + Vespar + NewLine
                 else:
@@ -83,11 +89,11 @@ def FillTableFancy(Dict):
             else:
                 if j == 0:
                     cell = LeftCurl + "{}".format(Row) + RightCurl + " & "
-                elif j == len(Dict[Row]) - 1:
-                    cell = LeftCurl + "{}".format(Dict[Row][Col]) + RightCurl
+                elif j == len(list(Dict.keys())) - 1:
+                    cell = LeftCurl + "{}".format(Dict[Col][Row]) + RightCurl
                     cell += DoubleBackslash + Vespar + NewLine
                 else:
-                    cell = LeftCurl + "{}".format(Dict[Row][Col]) + RightCurl + " & "
+                    cell = LeftCurl + "{}".format(Dict[Col][Row]) + RightCurl + " & "
                 Table += cell
     return Table
 

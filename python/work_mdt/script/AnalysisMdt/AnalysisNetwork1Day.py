@@ -1470,6 +1470,7 @@ class DailyNetworkStats:
         plt.tight_layout()
         plt.savefig(os.path.join(self.PlotDir,"TimeSpaceConditional.png"),dpi = 200)
         plt.close()
+        
     def PlotDistrPerClass(self):
         """
             Description:

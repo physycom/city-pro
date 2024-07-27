@@ -6,6 +6,7 @@ import folium
 import polars as pl
 from collections import defaultdict
 import seaborn as sns
+from matplotlib.lines import Line2D
 from MFDAnalysis import *
 from CastVariables import *
 VERBOSE = True      
@@ -676,3 +677,104 @@ def ComputeAggregatedMFDVariables(ListDailyNetwork,MFDAggregated):
             pass
     MFDAggregated = Dict2PolarsDF(MFDAggregated,schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64,"count_days":pl.Int64,"total_number_people":pl.Int64})
     return MFDAggregated
+
+def ComputeDay2PopulationTime(ListDailyNetwork):
+    Day2PopulationTime = {MobDate.StrDate: {"population":[],"time":[]} for MobDate in ListDailyNetwork}
+    LocalDayCount = 0
+    for MobDate in ListDailyNetwork:
+        StrDate = MobDate.StrDate
+        if LocalDayCount == 0:
+            MFDAggregated = MobDate.MFD
+            if isinstance(MFDAggregated,pl.DataFrame):
+                MFDAggregated = MFDAggregated.to_pandas()
+            else:
+                pass
+            Day2PopulationTime[StrDate]["time"] = list(np.zeros(len(MobDate.MFD["time"])))
+            Day2PopulationTime[StrDate]["population"] = list(np.zeros(len(MobDate.MFD["time"])))
+            LocalDayCount += 1            
+            for t in range(len(MobDate.MFD["time"])-1):
+                Day2PopulationTime[StrDate]["time"][t] = MobDate.MFD["time"][t]
+                Day2PopulationTime[StrDate]["population"][t] = MobDate.MFD["population"][t]
+    return Day2PopulationTime
+def PlotDay2PopulationTime(Day2PopulationTime,PlotDir):
+    fig,ax = plt.subplots(1,1,figsize = (12,10))
+    for StrDate in Day2PopulationTime.keys():
+        ax.plot(Day2PopulationTime[StrDate]["time"],Day2PopulationTime[StrDate]["population"],label = StrDate)
+    ax.set_xlabel("Time")
+    ax.set_ylabel("Population")
+    ax.set_title("Population Over Time")
+    ax.legend()
+    plt.savefig(os.path.join(PlotDir,"AllDaysPopulationOverTime.png"))
+    return fig,ax    
+
+
+def PlotIntervals(Avareges, std_devs, classes, types,Class2Type2Colors,Class2Type2Shapes,Title,Xlabel,PlotDir,SaveName):
+    """
+        Input:
+            Averages: List of average values
+            std_devs: List of standard deviations
+            classes: List of classes
+            types: List of types
+            NOTE: They could be 3 different columns of a dataframe (they must hold the same length)
+    
+    """
+    assert len(Avareges) == len(std_devs) == len(classes) == len(types), 'The input lists must have the same length'
+    legend = []
+    legend_entries = set()
+    fig, ax = plt.subplots()
+    for point, std_dev, cls,type in zip(Avareges, std_devs, classes,types):
+        color = Class2Type2Colors[cls][str(type)]
+        shape = Class2Type2Shapes[cls][str(type)]
+        # Plot point
+        ax.plot(point, 0, shape, color=color)
+        class_type_identifier = (cls, str(type))
+        print("Point: ",round(point,2)," StdDev: ",round(std_dev,2)," Class:",cls," type: ",type," Color: ",color," Shape: ",shape," Identifier: ",class_type_identifier)
+        if class_type_identifier not in legend_entries:
+            legend.append(Line2D([0], [0], marker=shape, color='w', markerfacecolor=color, markersize=10, label=f"Class {cls}, Type {type}"))
+            legend_entries.add(class_type_identifier)
+            TemporaryAddLegend = True
+
+        # Plot interval
+        ax.plot([point - std_dev, point + std_dev], [0, 0], color=color, marker='_', markersize=20, alpha = 0.3)
+    # Customize the plot
+    ax.set_yticks([])  # Hide y-axis
+    ax.set_xlabel(Xlabel)
+#    legend_ = plt.legend(legend)
+#    frame = legend_.get_frame()
+#    frame.set_facecolor('white')    
+    plt.title(Title)
+    box = ax.get_position()
+    ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])  # Resize plot to make space for the legend
+    print(legend)
+    ax.legend(handles = legend,loc='center left', bbox_to_anchor=(1, 0.5))  # Place legend outside the plot
+    plt.savefig(os.path.join(PlotDir,SaveName + ".png"))
+
+def ScatterFitParams(A, b, classes, types,Class2Type2Colors,Class2Type2Shapes,Title,Xlabel,Ylabel,PlotDir,SaveName):
+    assert len(A) == len(b) == len(classes), 'The input lists must have the same length'
+    legend = []
+    legend_entries = set()
+    fig, ax = plt.subplots()
+    for point, std_dev, cls,type in zip(A, b, classes,types):
+        color = Class2Type2Colors[cls][str(type)]
+        shape = Class2Type2Shapes[cls][str(type)]
+        # Plot point
+        class_type_identifier = (cls, str(type))
+        print("Point: ",round(point,2)," StdDev: ",round(std_dev,2)," Class:",cls," type: ",type," Color: ",color," Shape: ",shape," Identifier: ",class_type_identifier)
+        ax.scatter(point, std_dev, marker=shape, color=color)
+        if class_type_identifier not in legend_entries:
+            legend.append(Line2D([0], [0], marker=shape, color='w', markerfacecolor=color, markersize=10, label=f"Class {cls}, Type {type}"))
+            legend_entries.add(class_type_identifier)
+            TemporaryAddLegend = True
+    # Customize the plot
+    ax.set_yticks([])  # Hide y-axis
+    ax.set_xlabel(Xlabel)
+    ax.set_ylabel(Ylabel)
+#    legend_ = plt.legend(legend)
+#    frame = legend_.get_frame()
+#    frame.set_facecolor('white')    
+    plt.title(Title)
+    box = ax.get_position()
+    ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])  # Resize plot to make space for the legend
+    print(legend)
+    ax.legend(handles = legend,loc='center left', bbox_to_anchor=(1, 0.5))  # Place legend outside the plot
+    plt.savefig(os.path.join(PlotDir,SaveName + ".png"))

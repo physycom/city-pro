@@ -133,7 +133,6 @@ def MainComparison(ListNetworkDays,PlotDirAggregated,config,verbose):
     NetAllDays = NetworkAllDays(ListNetworkDays,PlotDirAggregated,config,verbose)
     # Save the Fits of All Days in a unique file
 #    NetAllDays.ComparedDaysFit()
-    NetAllDays.GenerateAndSaveTabAvSpeed()
     # Create Fcm for All -> Distribution lenght and time (Power law )
     NetAllDays.ConcatenateFcm()
     # Compute MFD
@@ -143,9 +142,11 @@ def MainComparison(ListNetworkDays,PlotDirAggregated,config,verbose):
     NetAllDays.PlotDistrAggregatedAllDays()
     # All Days Plot Distribution Velocity Comparison
     NetAllDays.CreateClass2SubNetAllDays()
-    NetAllDays.PlotClass2SubNetAllDays()
-    NetAllDays.PlotClass2SubnetsComparisonAllDays()
+#    NetAllDays.PlotClass2SubNetAllDays()
+#    NetAllDays.PlotClass2SubnetsComparisonAllDays()
     # MFD All Days
+    NetAllDays.GenerateAndSaveTabAvSpeed()
+
     NetAllDays.ComputeAggregatedMFDVariablesObj()
     NetAllDays.PlotMFDAggreagated()
 

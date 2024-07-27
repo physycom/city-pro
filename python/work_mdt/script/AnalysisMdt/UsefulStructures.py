@@ -116,15 +116,18 @@ def SplitFcmByClass(Fcm,Feature,IntClass2StrClass,NormBool = True):
 
     return Class2FcmDistr,IntClass2Feat2AvgVar#,IntClass2ResultFit
 
-def AggregatedFcmDistr(Aggregation2Class2Fcm,Feature,NormBool = True):
-    Aggregated2Class2FcmDistr = defaultdict(dict)
-    for Aggregation in Aggregation2Class2Fcm:
-        Aggregated2Class2FcmDistr[Aggregation] = defaultdict(dict)
-        for StrClass in Aggregation2Class2Fcm[Aggregation]:
-            y,x = np.histogram(Aggregated2Class2FcmDistr[Aggregation][StrClass][Feature].to_list(),bins = 50)
-            if NormBool:
-                y = y/np.sum(y)
-            Aggregated2Class2FcmDistr[Aggregation][StrClass] = {"x":x,"y":y,"maxx":max(x),"maxy":max(y),"minx":min(x),"miny":min(y),"mean":np.mean(Aggregated2Class2FcmDistr[Aggregation][StrClass][Feature].to_list())}
+def AggregatedFcmDistr(Aggregation2Class2Fcm,Aggregation,Feature,Aggregated2Class2FcmDistr,NormBool = True):
+    for StrClass in Aggregation2Class2Fcm[Aggregation]:
+        y,x = np.histogram(Aggregation2Class2Fcm[Aggregation][StrClass][Feature].to_list(),bins = 50)
+        if NormBool:
+            y = y/np.sum(y)
+        Aggregated2Class2FcmDistr[Aggregation][Feature][StrClass] = {"x":x,
+                                                            "y":y,
+                                                            "maxx":max(x),
+                                                            "maxy":max(y),
+                                                            "minx":min(x),
+                                                            "miny":min(y),
+                                                            "mean":np.mean(Aggregation2Class2Fcm[Aggregation][StrClass][Feature].to_list())}
     if VERBOSE:
         print("Aggregated2Class2FcmDistr Feature: ",Feature)
         for Aggregation in Aggregated2Class2FcmDistr:
@@ -172,7 +175,27 @@ def InitAvFeat2Class2Day(StrDates,Day2StrClass2IntClass,Feature2Label):
     AvFeat2Class2Day = defaultdict(dict)
     for Feature in Feature2Label.keys():
         AvFeat2Class2Day[Feature] = defaultdict(dict)
-        for StrDay in StrDates:
+        for StrDay in StrDates:        
             for StrClass in Day2StrClass2IntClass[StrDay].keys():
-                AvFeat2Class2Day[Feature][StrDay] = {StrClass:[]}
+                AvFeat2Class2Day[Feature][StrClass] = {StrDay:[]}
     return AvFeat2Class2Day
+
+def GetClass2Type2ShapesAndColors(Classes,Types):
+    """
+        Return:
+            {Class: {Type: Shape}}
+            {Class: {Type: Color}}
+    """
+    PossibleShapes = ['o', 's', '^', 'D', 'v', '<', '>', 'p', 'P', '*', 'X']
+    PossibleColors = ['red', 'blue', 'green', 'orange', 'purple', 'brown', 'pink', 'gray', 'olive', 'cyan', 'black']
+    Class2Type2Colors = {Class: {Type:"" for Type in Types} for Class in Classes}
+    Class2Type2Shapes = {Class: {Type:"" for Type in Types} for Class in Classes}
+    count = 0
+    for cl in range(len(Classes)):
+        Class = Classes[cl]
+        for t in range(len(Types)):
+            Type = Types[t]
+            Class2Type2Shapes[Class][Type] = PossibleShapes[count]
+            Class2Type2Colors[Class][Type] = PossibleColors[count]
+            count += 1
+    return Class2Type2Shapes,Class2Type2Colors
