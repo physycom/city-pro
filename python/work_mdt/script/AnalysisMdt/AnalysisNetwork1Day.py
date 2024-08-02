@@ -1151,6 +1151,13 @@ class DailyNetworkStats:
 
 
     def PlotTimePercorrenceConditionalLengthRoad(self):
+        """
+            Description:
+                1) Draws the distribution of road lengths
+                2) Draws the time percorrence distribution conditioned to the length of the road.
+
+        """
+        self.PlotDistributionLengthRoadPerClass()
         self.CountFunctionsCalled += 1
         
         # Drop rows with NaN values in the 'poly_length' column
@@ -1193,7 +1200,33 @@ class DailyNetworkStats:
             Message += "\tComputed Length2Class2Time2Distr, Length2Class2AvgTimePercorrence"
             AddMessageToLog(Message,self.LogFile)
 
+    def PlotDistributionLengthRoadPerClass(self):
+        """
+          Compute the distribution of roads length for each class.
+          NOTE: The idea is to try to understand if there is some bias in the length of the roads for each class.
+          NOTE: By bias I mean that the distributions are peaked around some length, and the centroid for different
+          classes are different, maybe in the sense of sigmas in a gaussian distribution. 
+        """
+        plt.subplots(1,1,figsize = (10,10))
+        self.IntClass2RoadLengthDistr = {IntClass:[] for IntClass in self.IntClass2StrClass.keys()}
+        for IntClass in self.IntClass2StrClass.keys():
+            Lengths = self.Class2DfSpeedAndTimePercorrenceRoads[IntClass]["poly_length"]
+            n,bins = np.histogram(Lengths,bins = 100)
+            self.IntClass2RoadLengthDistr[IntClass] = {"n":n,"bins":bins}
+            sns.histplot(Lengths,bins = 100,label = self.IntClass2StrClass[IntClass],kde = True)
+        plt.legend()
+        plt.xlabel("Length [m]")
+        plt.ylabel("Counts")
+        plt.title("Distribution of Roads Length for Each Class")
+        plt.savefig(os.path.join(self.PlotDir,"DistributionRoadLengthPerClass_{0}.png".format(self.StrDate)))
+        plt.close()
 
+    def GetTime2ClassPeople(self):
+        """
+            Get the number of people for each quarter of hour for each class.
+        """
+        self.Class2Time2NPeople = GetPartitionClass2Time2Npeople(self.Class2DfSpeedAndTimePercorrenceRoads)
+        PlotTime2NumberPeopleClasses(self.Class2Time2NPeople,self.IntClass2StrClass,self.PlotDir)
 ##--------------- Dictionaries --------------##
     def CreateDictionaryIntClass2StrClass(self):
         '''
@@ -1554,81 +1587,3 @@ class DailyNetworkStats:
         print("Incremental subnet: ",self.ReadFluxesSubIncreasinglyIncludedIntersectionBool)
 
 
-def GetDistributionPerClass(fcm,Feature,class_):
-    """
-        Input:
-            Feature: str -> time, lenght, av_speed, p, a_max
-        Returns:
-            n, bins of velocity distribution
-    """
-    n, bins = np.histogram(fcm.filter(pl.col("class") == class_)[Feature].to_list(), bins = 50)
-
-
-
-def PlotSubnetHTML(ListDailyNetwork,Daily = True):
-    for DailyNetwork in ListDailyNetwork:
-        list_of_lists = DailyNetwork.IntClass2Roads
-        # Create a base map
-        m = folium.Map()
-
-        # Iterate through the list of lists
-        for class_, index_list in list_of_lists.items():
-            # Filter GeoDataFrame for roads with indices in the current list
-            filtered_gdf = DailyNetwork.GeoJson[DailyNetwork.GeoJson['index'].isin(index_list)]
-            
-            # Create a feature group for the current layer
-            layer_group = folium.FeatureGroup(name=f"Layer {class_}").add_to(m)
-            
-            # Add roads to the feature group with a unique color
-            for _, road in filtered_gdf.iterrows():
-                color = 'blue'  # Choose a color for the road based on index or any other criterion
-                folium.GeoJson(road.geometry, style_function=lambda x: {'color': color}).add_to(layer_group)
-            
-            # Add the feature group to the map
-            layer_group.add_to(m)
-
-        # Add layer control to the map
-        folium.LayerControl().add_to(m)
-
-        # Save or display the map
-        m.save("map_with_layers.html")
-
-
-
-
-"""resolution = 100
-n_bins_std = 100
-bin_width = 5
-rescaling_factor_pdf = resolution/n_bins_std
-i=0
-for fcm_data in fcm:
-    plot_distribution_velocity_all_class_together_per_day(fcm_data,list_dict_name,i)
-    plot_aggregated_velocity(fcm_data,list_dict_name,i)
-    for cl,df in fcm_data.groupby('class'):
-        if cl!=10 and len(list_dict_name[i][cl])!=0:
-            n,bins = np.histogram(df['av_speed'].to_numpy(),bins = n_bins_std,range = [0,n_bins_std-bin_width])            
-            scaling_factor_data = np.sum(n)
-            initial_guess_sigma = np.std(df['av_speed'].to_numpy())
-            initial_guess_mu = np.mean(df['av_speed'].to_numpy())
-            params, pcov = curve_fit(maxwellian,xdata = bins[:-1],ydata = np.array(n)/scaling_factor_data, p0=[initial_guess_sigma, initial_guess_mu])
-            a_maxwell,b_maxwell = params
-            print("covariance matrix a,b:\n",pcov)
-            print("a_maxwell,b_maxwell:\n",a_maxwell,b_maxwell)
-#            a_maxwell,b_maxwell = maxwell.fit(df['av_speed'].to_numpy(),floc = np.mean(df['av_speed']))
-            a_gauss,b_gauss = norm.fit(df['av_speed'].to_numpy(),floc = np.mean(df['av_speed']))
-            fig,ax = plt.subplots(1,1,figsize= (15,12))
-            plt.hist(df['av_speed'].to_numpy(),bins = n_bins_std,range = [0,n_bins_std-bin_width],density = True)
-            av_speed = np.mean(df['av_speed'].to_numpy())       
-            ax.set_xlabel('average speed (m/s)')
-            ax.set_ylabel('Count')
-            ax.set_title(list_dict_name[i][cl] + ' vel: ' + str(round(av_speed,3)) +' m/s')
-#            print('maxwell pdf:\n ',maxwellian(np.linspace(min(bins),max(bins),resolution),a_maxwell,b_maxwell))
-#            print('gaussian pdf rescaled:\n ',norm.pdf(np.linspace(min(bins),max(bins),resolution),a_gauss,b_gauss))
-            plt.plot(np.linspace(min(bins),max(bins),resolution),maxwellian(np.linspace(min(bins),max(bins),resolution),a_maxwell,b_maxwell),label = 'maxwell',color = 'violet')
-            plt.plot(np.linspace(min(bins),max(bins),resolution),norm.pdf(np.linspace(min(bins),max(bins),resolution),a_gauss,b_gauss),label = 'gauss',color = 'red')
-            plt.legend(['maxwell','gauss'])
-            plt.savefig(os.path.join(s_dir[i],'average_speed_{}.png'.format(list_dict_name[i][cl])),dpi = 200)
-            plt.show()
-    i+=1
-
-"""

@@ -64,9 +64,10 @@ def maxwellian(x,sigma,mu):
 def gaussian(x,sigma,mu):
     return 1/(sigma*np.sqrt(2*np.pi))*np.exp(-(x-mu)**2/(2*sigma**2))
 
+def truncated_powerlaw(x, amp, index, beta):
+    return amp * (np.array(x)**index) * np.exp(-beta*np.array(x))
 
-
-
+####### DEPRECATED
 # Best Parameter from data
 def PlotParameters(ListA,Listb):
     plt.hist2d(ListA,Listb,bins = 100)
@@ -229,7 +230,7 @@ def best_parameter_gaussian(x,y):
                     avg_mu.append(mu)
 #    PlotParameters(avg_sigma,avg_mu)
     return BestMu,BestSigma
-
+########################################
 # Inverse Functions
 
 def inverse_powerlaw(y, amp, index):
@@ -321,6 +322,14 @@ def objective_function_gaussian(params,x,y_measured):
         raise ValueError('The x and y must have the same shape')
     y_guessed = gaussian(x, params[0], params[1])
     return quadratic_loss_function(y_guessed,y_measured)
+
+def objective_function_truncated_powerlaw(params,x,y_measured):
+    if len(params)!=3:
+        raise ValueError('The parameters must be an array of length 3')
+    if len(x)!=len(y_measured):
+        raise ValueError('The x and y must have the same shape')
+    y_guessed = truncated_powerlaw(x, params[0], params[1], params[2])
+    return quadratic_loss_function(y_guessed,y_measured)
 ## DICTIONARY FOR LOSS FUNCTIONS
 Name2Function = {'powerlaw':powerlaw,
                 'exponential':exponential,
@@ -330,7 +339,8 @@ Name2Function = {'powerlaw':powerlaw,
                 'gamma':gamma_,
                 'weibull':weibull,
                 'maxwellian':maxwellian,
-                'gaussian':gaussian}
+                'gaussian':gaussian,
+                'truncated_powerlaw':truncated_powerlaw}
 Name2LossFunction = {'powerlaw':objective_function_powerlaw,
                     'exponential':objective_function_exponential,
                     'linear':objective_function_linear,
@@ -339,7 +349,8 @@ Name2LossFunction = {'powerlaw':objective_function_powerlaw,
                     'gamma':objective_function_gamma,
                     'weibull':objective_function_weibull,
                     'maxwellian':objective_function_maxwellian,
-                    'gaussian':objective_function_gaussian}
+                    'gaussian':objective_function_gaussian,
+                    'truncated_powerlaw':objective_function_truncated_powerlaw}
     
 
 Name2InverseFunction = {'powerlaw':inverse_powerlaw,
@@ -420,13 +431,19 @@ def ReturnFitInfoFromDict(ObservedData,Function2InitialGuess,FitAllTry,NormBool 
         Input:
             ObservedData: Column from a dataframe or array of observations
             Function2InitialGuess: dict -> {Function0: (A,b),Function1: (A,b),...}
-            FitAllTry: dict -> {Feature: {"fitted_data": [],"best_fit": str,"parameters": [],"start_window":None,"end_window":None,"std_error":None,"success": False}}
+            1) FitAllTry: dict -> {Function2Fit: {"fitted_data": [],"best_fit": str,"parameters": [],"start_window":None,"end_window":None,"std_error":None,"success": False}}
         Description:
             Usage in cycles over features and conditionalities of a big dataframe.
             Computes the fit and store them in entrance of FitAllTry
         NOTE: FitAllTry must be a dictionary whose entrancies respect the same structure  of the conditional search one wants to do.
+            i.e. 1) Function2Fit: ["eponential","powerlaw"] if ObservedData represents -> Feature in ["lenght","lenght_km","time","time_hours"]
+                    Function2Fit: ["gaussian","maxwellian"] if ObservedData represents -> Feature in ["av_speed","av_speed_kmh"]
+        NOTE: In AnalysisNetwork1Day and AnalysisNetworkAllDays this function is called for each feature and conditionalities.
+            For example groupby the Fcm dataframe by "Class" and the ObservedData will be the vector of observation of some Feature.
     """
+    # Bin Data: number of bins is chosen randomly (no optimal principle of any kind)
     y,x = np.histogram(ObservedData,bins = 50)
+    # Assumes that if some bin has 0 elements is beacouse the data is not enough to fill it (so it is a problem of the choice of bin that we solve in this way)
     y = AdjustZerosDataWithAverage(y)
     if NormBool:
         y = y/np.sum(y)
@@ -436,6 +453,7 @@ def ReturnFitInfoFromDict(ObservedData,Function2InitialGuess,FitAllTry,NormBool 
     for Function2Fit in Function2InitialGuess.keys():
         if VERBOSE:
             print("Function2Fit: ",Function2Fit)
+        # Consider the Fitting without the interval. (Case of Average Speed) <- It fits well.
         if len(Function2InitialGuess[Function2Fit]["interval"])==0:
             fit,StdError,ConvergenceSuccess,FittedData,x_windowed,y_measured = FitAndStdError(x = x[1:],
                                                                     y_measured = y,
@@ -468,6 +486,11 @@ def ReturnFitInfoFromDict(ObservedData,Function2InitialGuess,FitAllTry,NormBool 
 
 
 def ComputeAndChooseBestFit(ObservedData,Function2InitialGuess,FitAllTry,NormBool = True):
+    """
+        This function is used to compute the best fit for Feature in [lenght,time,lenght_km,time_hours].  .
+        NOTE: Feature2Class2Function2Fit2InitialGuess {Feature: {Class: {Function: {"initial_guess": (A,b),"interval": (start,end)}}}}
+        Initialized from the configuration file in CreateDictClass2FitInit.
+            """
     y,x = np.histogram(ObservedData,bins = 50)
     y = AdjustZerosDataWithAverage(y)
     if NormBool:
@@ -476,7 +499,11 @@ def ComputeAndChooseBestFit(ObservedData,Function2InitialGuess,FitAllTry,NormBoo
         pass
     if VERBOSE:
         print("interval considered for fit: ",Function2InitialGuess["exponential"]["interval"])
-    fit = pwl.Fit(ObservedData,xmin = Function2InitialGuess["exponential"]["interval"][0],xmax = Function2InitialGuess["exponential"]["interval"][1])
+    # Choose the interval Coming from the Configuration File and Put in Feature2Class2Function2Fit2InitialGuess
+    fit = pwl.Fit(ObservedData,
+                  xmin = Function2InitialGuess["exponential"]["interval"][0],
+                  xmax = Function2InitialGuess["exponential"]["interval"][1]
+                  )
     R,p = fit.distribution_compare('power_law', 'exponential',normalized_ratio=True)
     Aexp = fit.exponential.parameter1
     bexp = fit.exponential.parameter2
@@ -582,5 +609,19 @@ def AdjustZerosDataWithAverage(data):
 
 
 if FoundPyMC3:
+    """
+        Want to define a method that is capable to understand what is the best fit for the data and gives me back some 
+        refined information for telling why the choice.
+    """
     def FitWithPymc(x,y,label):
         return x,y,label
+    import pytensor
+    from pytensor.graph.op import Op
+    class BestFit(Op):
+        __props__ = ()
+
+        #itypes and otypes attributes are
+        #compulsory if make_node method is not defined.
+        #They're the type of input and output respectively
+        itypes = None
+        otypes = None        

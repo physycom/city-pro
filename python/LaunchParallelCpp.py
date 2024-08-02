@@ -20,8 +20,26 @@ def run_command(cmd):
         subprocess.run(cmd, shell=True, check=True)
     except subprocess.CalledProcessError as e:
         print(f"Error executing command: {cmd}\n{e}")
+def run_adjust_configuration_file(cmd):
+    """Function to execute a command in the shell."""
+    try:
+        subprocess.run(cmd, shell=True, check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error executing command: {cmd}\n{e}")
+
+def run_python_analysis(cmd):
+    """Function to execute a command in the shell."""
+    try:
+        subprocess.run(cmd, shell=True, check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error executing command: {cmd}\n{e}")
 
 if __name__ == "__main__":
     # Create a pool of workers equal to the number of commands
+    command_set_right_values_config = "./python/SetRightDirectoriesConfiguration.py"
+    run_adjust_configuration_file(command_set_right_values_config)
     with Pool(len(commands)) as pool:
         pool.map(run_command, commands)
+
+    cmd_python_analysis = "python3 ./python/work_mdt/script/AnalysisMdt/AnalysisPaper.py"
+    run_python_analysis(cmd_python_analysis)

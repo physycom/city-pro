@@ -134,6 +134,14 @@ Input:
 
 ./bin/city-pro ./work_geo/bologna_mdt_detailed/date/config_bologna.json
 ```
+
+## Complete Analysis
+```
+python3 ./python/LaunchParallelCpp.py
+```   
+The script automatically will set the configuration files for each day by calling `SetRightDirectoriesConfiguration.py` and 
+then will launch in parallel `main_city-pro.cpp` for each day.
+Once the cpp analysis finishes, will run also python analysis on the data so obtained.
 # Output:
 
 
@@ -243,33 +251,5 @@ For own cartography the parameter needs to be changed.
 To be specified ...
 
 #### Python
-To be specified ...
-# LAUNCH ANALYSIS (WORK IN PROGRESS)
-
-   ``` ./python/config_subnet_create.py ```
-(README in the file)  
-Output:    
-    all_subnets.sh  
-    work_geo/bologna_mdt_detailed/date/plot_subnet  
-
-AnalysisPaper.ipynb (non è il top affatto)  
-Bisogna inserire manualmente gli indirizzi dove è salvata la roba nella prima cella. Fatto questo si possono runnare le altre celle.
-Poi lanciare cella per cella:
-Input:
-    fcm.csv
-    stats.csv
-    timed_fluxes.csv
-Output:
-    distribuzione velocità per ogni classe
-    distribuzione lunghezze e tempi per ogni classe
-    fondamental diagram per ogni classe
-
-
-#### POSTPROCESSING AGGREGATION PYTHON
-COMMAND:
-    python3 fondamental_diagram_aggregated.py -c config_fundamental_diagram_aggregated.json
-Input:
-    class_i_velocity_subnet.csv
-    _fcm.csv
-
+```python3 ./python/work_mdt/script/AnalysisMdt/AnalysisPaper.py```
 

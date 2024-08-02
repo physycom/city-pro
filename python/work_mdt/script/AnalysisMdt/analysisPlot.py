@@ -67,6 +67,7 @@ def MFDByClass(population,velocity,dict_name,idx,save_dir,day,verbose = False):
 
 
 ##----------------------------------- PLOT TIMES -----------------------------------##
+
 def PlotTimePercorrenceDistribution(RoadsTimeVel,Time2Distr,AvgTimePercorrence,StrTimesLabel,File2Save):    
     """
         Input:
@@ -140,6 +141,43 @@ def PlotConditionaltimeSpace(ax,Fcm,Time,Length,StrClass):
     ax.set_xlabel('time (h)')
     ax.set_ylabel('length (km)')
     ax.set_title('Conditional Distribution trajectories class {}'.format(StrClass))
+
+def GetPartitionClass2Time2Npeople(Class2RoadsTimeVel):
+    """
+        Input:
+            RoadsTimeVel: pl.DataFrame -> DataFrame with the Roads Time Velocities 
+        Description:
+            Class2Time2Npeople: dict -> {Class: {Time: Npeople}}
+    """
+    Class2Time2Npeople = defaultdict(lambda: defaultdict(int))
+    for IntClass in Class2RoadsTimeVel.keys():
+        # Select the DataFrame for the Class
+        for time,RTV in Class2RoadsTimeVel[IntClass].groupby("start_bin"):
+            # Select Rows that have speed > 0
+            ValidTime = RTV.filter(pl.col("time_percorrence")>0)
+            # Sum over the number of people for each road
+            NumberPeople = np.sum(ValidTime["number_people_poly"].to_list())
+            Class2Time2Npeople[IntClass][time] = len(NumberPeople)
+    return Class2Time2Npeople
+
+def PlotTime2NumberPeopleClasses(Class2Time2Npeople,IntClass2StrClass,PlotDir):
+    """
+        Input:
+            Class2Time2Npeople: dict -> {Class: {Time: Npeople}}
+    """
+    fig,ax = plt.subplots(1,1,figsize = (10,10))
+    legend = []
+    for IntClass in Class2Time2Npeople.keys():
+        Time = list(Class2Time2Npeople[IntClass].keys())
+        Npeople = list(Class2Time2Npeople[IntClass].values())
+        ax.plot(Time,Npeople)
+        legend.append(IntClass2StrClass[IntClass])
+    ax.set_xlabel('Time')
+    ax.set_ylabel('Number of People')
+    ax.set_title('Number of People per Class')
+    plt.savefig(os.path.join(PlotDir,'NumberPeoplePerClass.png'),dpi = 200)
+    plt.close()
+    
 ##----------------------------------- PLOT DISTRIBUTIONS -----------------------------------##
 
 def ComputeMinMaxPlotGivenFeature(Class2FcmDistr,InfoPlotDistrFeat):
@@ -221,23 +259,35 @@ def PlotFeatureDistrSeparatedByClass(Feature2IntClass2FcmDistr,
             LabelBestFit = Feature2Class2AllFitTry[Feature][IntClass]["best_fit"]
             if LabelBestFit != "":
                 mean = Feature2IntClass2FcmDistr[Feature][IntClass]["mean"]
-                x_windowed = Feature2Class2AllFitTry[Feature][IntClass][LabelBestFit]["x_windowed"]
+                if LabelBestFit == "exponential":
+                    x_windowed = np.array(Feature2Class2AllFitTry[Feature][IntClass][LabelBestFit]["x_windowed"])/mean
+                else:
+                    x_windowed = Feature2Class2AllFitTry[Feature][IntClass][LabelBestFit]["x_windowed"]
                 fitted_data_windowed = Feature2Class2AllFitTry[Feature][IntClass][LabelBestFit]["fitted_data_windowed"]
-            x = Feature2IntClass2FcmDistr[Feature][IntClass]["x"][1:]
+            if LabelBestFit == "exponential":
+                x = np.array(Feature2IntClass2FcmDistr[Feature][IntClass]["x"][1:])/mean
+            else:
+                x = Feature2IntClass2FcmDistr[Feature][IntClass]["x"][1:]
             y = Feature2IntClass2FcmDistr[Feature][IntClass]["y"]
             
             # Scatter Points
             ax.scatter(x,y)
-            legend.append(str(IntClass2StrClass[IntClass]) + " " + Feature2Legend[Feature] + " " + str(round(mean,3)))
+#            legend.append(str(IntClass2StrClass[IntClass]) + " " + Feature2Legend[Feature] + " " + str(round(mean,3)))
+            legend.append(str(IntClass2StrClass[IntClass]))
             # Fit
             if LabelBestFit != "":
                 if len(x_windowed) == len(fitted_data_windowed):
                     ax.plot(x_windowed,fitted_data_windowed)
-                    legend.append(str(IntClass2StrClass[IntClass]) + " " + Feature2Legend[Feature] + " " + str(round(mean,3)))
+                    legend.append(str(IntClass2StrClass[IntClass]))
+#                    legend.append(str(IntClass2StrClass[IntClass]) + " " + Feature2Legend[Feature] + " " + str(round(mean,3)))
         ax.set_xticks(np.arange(minx,maxx,Feature2IntervalBin[Feature]))
         ax.set_yticks(np.arange(miny,maxy,Feature2IntervalCount[Feature]))
-        ax.set_xlabel(Feature2Label[Feature])
-        ax.set_ylabel('Count')
+        if LabelBestFit == "exponential":
+            ax.set_xlabel(Feature2Label[Feature] + f"/ <{Feature2Label[Feature]}>")
+            ax.set_ylabel("P(" + Feature2Label[Feature] + f"/ <{Feature2Label[Feature]}>" + ")")
+        else:
+            ax.set_xlabel(Feature2Label[Feature])
+            ax.set_ylabel('P({0})'.format(Feature2Label[Feature]))
         ax.set_xlim(left = 0.01, right = maxx + Feature2ShiftBin[Feature])
         ax.set_ylim(bottom = 0.000001,top = maxy + Feature2ShiftCount[Feature])
         ax.set_xscale(Feature2ScaleBins[Feature])
@@ -291,7 +341,12 @@ def PlotFeatureSingleClass(FcmDistr,
     y = FcmDistr["y"]
     LabelBestFit = AllFitTry["best_fit"]
     if AllFitTry["best_fit"] != "":
-        x_windowed = AllFitTry[LabelBestFit]["x_windowed"]
+        if AllFitTry["best_fit"] == "exponential":
+            mean = np.sum(np.array(x)*np.array(y))
+            x_windowed = np.array(AllFitTry[LabelBestFit]["x_windowed"])/mean
+            x = np.array(x)/mean
+        else:
+            x_windowed = AllFitTry[LabelBestFit]["x_windowed"]
         fitted_data_windowed = AllFitTry[LabelBestFit]["fitted_data_windowed"]
     ax.scatter(x,y)
     # Fit
@@ -300,8 +355,12 @@ def PlotFeatureSingleClass(FcmDistr,
             ax.plot(x_windowed,fitted_data_windowed)
     ax.set_xticks(np.arange(min(x),max(x),IntervalBin))
     ax.set_yticks(np.arange(min(y),max(y),IntervalCount))
-    ax.set_xlabel(Label)
-    ax.set_ylabel('Count')
+    if AllFitTry["best_fit"] == "exponential":
+        ax.set_xlabel(Label + f"/ <{Label}>")
+        ax.set_ylabel("P(" + Label + f"/ <{Label}>" + ")")
+    else:
+        ax.set_xlabel(Label)
+        ax.set_ylabel(f'P({Label})')
     ax.set_xlim(left = 0.01,right = max(x) + ShiftBin)
     ax.set_ylim(bottom = 0.000001,top = max(y) + ShiftCount)
     ax.set_xscale(ScaleBins)
@@ -340,7 +399,11 @@ def PlotFeatureAggregatedAllDays(Aggregation2Feature2StrClass2FcmDistr,
                 LabelBestFit = Aggregation2Feature2Class2AllFitTry[Aggregation][Feature][StrClass]["best_fit"]
                 if LabelBestFit != "":
                     mean = Aggregation2Feature2StrClass2FcmDistr[Aggregation][Feature][StrClass]["mean"]
-                    x_windowed = Aggregation2Feature2Class2AllFitTry[Aggregation][Feature][StrClass][LabelBestFit]["x_windowed"]
+                    if LabelBestFit == "exponential":
+                        x_windowed = Aggregation2Feature2Class2AllFitTry[Aggregation][Feature][StrClass][LabelBestFit]["x_windowed"]/mean
+                        x = x/mean
+                    else:
+                        x_windowed = Aggregation2Feature2Class2AllFitTry[Aggregation][Feature][StrClass][LabelBestFit]["x_windowed"]
                     y_data = Aggregation2Feature2Class2AllFitTry[Aggregation][Feature][StrClass][LabelBestFit]["fitted_data_windowed"]
                 ax.scatter(x,y)
                 legend.append(StrClass + " " + Feature2Legend[Feature] + " " + str(round(mean,3)))
@@ -351,8 +414,12 @@ def PlotFeatureAggregatedAllDays(Aggregation2Feature2StrClass2FcmDistr,
                         legend.append(StrClass + " " + Feature2Legend[Feature] + " " + str(round(mean,3)))
                 ax.set_xticks(np.arange(x[0],x[-1],Feature2IntervalBin[Feature]))
                 ax.set_yticks(np.arange(min(y),max(y),Feature2IntervalCount[Feature]))
-                ax.set_xlabel(Feature2Label[Feature])
-                ax.set_ylabel('Count')
+                if LabelBestFit == "exponential":
+                    ax.set_xlabel(Feature2Label[Feature] + f"/ <{Feature2Label[Feature]}>")
+                    ax.set_ylabel("P(" + Feature2Label[Feature] + f"/ <{Feature2Label[Feature]}>" + ")")
+                else:
+                    ax.set_xlabel(Feature2Label[Feature])
+                    ax.set_ylabel("P(" + Feature2Label[Feature] + ")")
                 ax.set_xlim(left = 0.01,right = x[-1] + Feature2ShiftBin[Feature])
                 ax.set_ylim(bottom = 0.000001,top =max(y) + Feature2ShiftCount[Feature])
                 ax.set_xscale(Feature2ScaleBins[Feature])
@@ -683,23 +750,27 @@ def ComputeDay2PopulationTime(ListDailyNetwork):
     LocalDayCount = 0
     for MobDate in ListDailyNetwork:
         StrDate = MobDate.StrDate
-        if LocalDayCount == 0:
-            MFDAggregated = MobDate.MFD
-            if isinstance(MFDAggregated,pl.DataFrame):
-                MFDAggregated = MFDAggregated.to_pandas()
-            else:
-                pass
-            Day2PopulationTime[StrDate]["time"] = list(np.zeros(len(MobDate.MFD["time"])))
-            Day2PopulationTime[StrDate]["population"] = list(np.zeros(len(MobDate.MFD["time"])))
-            LocalDayCount += 1            
-            for t in range(len(MobDate.MFD["time"])-1):
-                Day2PopulationTime[StrDate]["time"][t] = MobDate.MFD["time"][t]
-                Day2PopulationTime[StrDate]["population"][t] = MobDate.MFD["population"][t]
+        MFDAggregated = MobDate.MFD
+        if isinstance(MFDAggregated,pl.DataFrame):
+            MFDAggregated = MFDAggregated.to_pandas()
+        else:
+            pass
+        Day2PopulationTime[StrDate]["time"] = list(np.zeros(len(MobDate.MFD["time"])))
+        Day2PopulationTime[StrDate]["population"] = list(np.zeros(len(MobDate.MFD["time"])))
+        for t in range(len(MobDate.MFD["time"])-1):
+            Day2PopulationTime[StrDate]["time"][t] = MobDate.MFD["time"][t]
+            Day2PopulationTime[StrDate]["population"][t] = MobDate.MFD["population"][t]
     return Day2PopulationTime
+
 def PlotDay2PopulationTime(Day2PopulationTime,PlotDir):
     fig,ax = plt.subplots(1,1,figsize = (12,10))
+    print("Plot Day to Population:")
+    print(Day2PopulationTime)
     for StrDate in Day2PopulationTime.keys():
         ax.plot(Day2PopulationTime[StrDate]["time"],Day2PopulationTime[StrDate]["population"],label = StrDate)
+    time_labels =  [str(t) for t in Day2PopulationTime[StrDate]["time"]]
+    ax.set_xticks(range(len(time_labels))[::8])
+    ax.set_xticklabels(time_labels[::8], rotation=90)  # Set the labels with rotation    ax.set_title("Time Percorrence Distribution")
     ax.set_xlabel("Time")
     ax.set_ylabel("Population")
     ax.set_title("Population Over Time")
@@ -728,7 +799,6 @@ def PlotIntervals(Avareges, std_devs, classes, types,Class2Type2Colors,Class2Typ
         # Plot point
         ax.plot(point, 0, shape, color=color)
         class_type_identifier = (cls, str(type))
-        print("Point: ",round(point,2)," StdDev: ",round(std_dev,2)," Class:",cls," type: ",type," Color: ",color," Shape: ",shape," Identifier: ",class_type_identifier)
         if class_type_identifier not in legend_entries:
             legend.append(Line2D([0], [0], marker=shape, color='w', markerfacecolor=color, markersize=10, label=f"Class {cls}, Type {type}"))
             legend_entries.add(class_type_identifier)
@@ -739,9 +809,6 @@ def PlotIntervals(Avareges, std_devs, classes, types,Class2Type2Colors,Class2Typ
     # Customize the plot
     ax.set_yticks([])  # Hide y-axis
     ax.set_xlabel(Xlabel)
-#    legend_ = plt.legend(legend)
-#    frame = legend_.get_frame()
-#    frame.set_facecolor('white')    
     plt.title(Title)
     box = ax.get_position()
     ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])  # Resize plot to make space for the legend
@@ -759,7 +826,7 @@ def ScatterFitParams(A, b, classes, types,Class2Type2Colors,Class2Type2Shapes,Ti
         shape = Class2Type2Shapes[cls][str(type)]
         # Plot point
         class_type_identifier = (cls, str(type))
-        print("Point: ",round(point,2)," StdDev: ",round(std_dev,2)," Class:",cls," type: ",type," Color: ",color," Shape: ",shape," Identifier: ",class_type_identifier)
+        print("A: ",round(point,2)," b: ",round(std_dev,2)," Class:",cls," type: ",type," Color: ",color," Shape: ",shape," Identifier: ",class_type_identifier)
         ax.scatter(point, std_dev, marker=shape, color=color)
         if class_type_identifier not in legend_entries:
             legend.append(Line2D([0], [0], marker=shape, color='w', markerfacecolor=color, markersize=10, label=f"Class {cls}, Type {type}"))

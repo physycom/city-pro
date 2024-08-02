@@ -88,6 +88,38 @@ warnings.filterwarnings("ignore")
 WORKSPACE = os.environ['WORKSPACE']
 os.environ["DISPLAY"] = ":0.0"
 FittingAnalysis = False
+
+import matplotlib as mpl
+def setup_mpl():
+    mpl.rc('font', size=20)
+    mpl.rcParams['legend.fontsize'] = 'small'
+    mpl.rcParams['legend.fontsize'] = 'small'
+    mpl.rcParams['xtick.labelsize'] = 'small'
+    mpl.rcParams['ytick.labelsize'] = 'small'
+    mpl.rcParams['font.family']='DejaVu Math TeX Gyre'#'Helvetica 45 Light'
+    mpl.rcParams['xtick.major.pad']='12'
+    mpl.rcParams['ytick.major.pad']='12'
+    mpl.rcParams['lines.linewidth'] = 2
+    mpl.rcParams['xtick.major.width'] = 2
+    mpl.rcParams['ytick.major.width'] = 2
+    mpl.rcParams['xtick.minor.width'] = 2
+    mpl.rcParams['ytick.minor.width'] = 2
+    mpl.rcParams['xtick.major.size'] = 6
+    mpl.rcParams['ytick.major.size'] = 6
+    mpl.rcParams['xtick.minor.size'] = 3
+    mpl.rcParams['ytick.minor.size'] = 3
+    mpl.rcParams['axes.linewidth'] = 2
+    mpl.rcParams['ytick.direction'] = 'in'
+    mpl.rcParams['xtick.direction'] = 'in'
+    mpl.rcParams['xtick.top']=True
+    mpl.rcParams['ytick.right']=True
+    mpl.rcParams['mathtext.default']='regular'
+    mpl.rcParams['xtick.major.pad']='4'
+    mpl.rcParams['ytick.major.pad']='4'
+    mpl.rcParams['axes.labelpad']= 2
+    alpha = 0.6
+    to_rgba = mpl.colors.ColorConverter().to_rgba
+
 def Main(config,StrDate):
     print("Initialiaze Mobility and Network for Date: " + StrDate)
     # Initialize Network
@@ -122,10 +154,14 @@ def Main(config,StrDate):
 #    Network.PlotTimePercorrenceHTML()     
     # FUNDAMENTAL DIAGRAM
     Network.ReadVelocitySubnet()
-#    Network.PlotTimePercorrenceDistributionAllClasses()
+    Network.PlotTimePercorrenceDistributionAllClasses()
+    Network.GetTime2ClassPeople()
+    Network.PlotDistributionLengthRoadPerClass()
+
     Network.PlotMFD()
     # HYSTERESIS DIAGRAM
     Network.ReadFluxes()
+    
 ## +++++++++++++++++ PLOT TRAJECTORIES STATS +++++++++++++++++++++++++++
 ## +++++++++++++++ FITTING PROCEDURES +++++++++++++++++++++++++++++
     return Network
@@ -151,6 +187,7 @@ def MainComparison(ListNetworkDays,PlotDirAggregated,config,verbose):
     NetAllDays.PlotMFDAggreagated()
 
 if __name__ == "__main__":
+    setup_mpl()
     try:
         parser = argparse.ArgumentParser(description="Process configuration file.")
         parser.add_argument("-c","--config_file", help="Path to the configuration file")

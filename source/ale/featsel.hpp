@@ -27,20 +27,39 @@ constexpr int delta_node = 15;
 #endif
 
 typedef typename boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS, boost::property<boost::vertex_color_t, int>, boost::property<boost::edge_index_t, int>> Graph;//la parola graph è il tipo che la precede
-// adj_list: store nodes on object vecS, edges on vecS, the graph is undirected, property: 
 using V = Graph::vertex_descriptor;
+// View of Graph that keep_all vertices that satisfy the function = True
 using Filtered = boost::filtered_graph<Graph, boost::keep_all, boost::function<bool(V)> >;
-//boost::keep_all gives back a bool statemente about each edge in graph,the same got boost::function but fro vertices,it works on the reference of the original graph,then it is not space extended in space
 
+/** 
+  @brief Feature Selection: It is a template function that determines the subnetwork of homogeneous classes according to the
+    4 features from the Fcm Fuzzy clustering algorithm.
+    @param ENABLE_PERF: a boolean that represents the choice to divide the subnetworks by:
+      In main-city-pro_subnet.cpp:
+      NOTE: Given POLY_STAT_TYPE = 0
+      (True) -> sub_type {tot} -> sub_fraction {0.1,0.15,0.2} 
+      (False) -> sub_type {tot}
+      NOTE: POLY_STAT_TYPE = 1
+      (True) -> sub_type { "tot", "tot_it", "tot_st" } -> sub_fraction {0.1,0.15,0.2} 
+      NOTE: Refer to main_city-pro_subnet.cpp for more information
+      NOTE: set to FALSE: default 
+  @param Ig: a pointer to a pointer of type T, where T is a generic type. NOTE: Used as [{poly_lid}][{int(NF),int(NT)}]
+  @param n_link: an integer that represents the number of links in the network (poly.size())
+  @param min_size: an integer that represents the minimum size of the nodes (f*nodes.size()) | f = 0.1,0.15,0.2
+  @output: a map {sub_type: vec<[nodeFi,nodTi]>}of string and vector of pair of int, where the string is the label of the subnetwork and the pair of int is the node of the subnetwork
+**/
 template<typename T>
 std::map<std::string, std::vector<std::pair<int, int>>> FeatureSelection(T **Ig, const int &n_link, const int &min_size, bool pruning = true, bool merged = true)//int **i (numero poly,indice polyfront[0],indice tail[1],numero poly,numero_vertici)
 {//std::vector(edge)<std::pair<int(nodo1),int(nodo2)>>
   Graph G;
   std::set<V> removed_set;
-  Filtered Signature(G, boost::keep_all{}, [&](V v) { return removed_set.end() == removed_set.find(v); });//signature assigns true to each vertex that has been removed 
+  // Declaration: Keep the graph that does not contain removed vertices
+  Filtered Signature(G, boost::keep_all{}, [&](V v) { return removed_set.end() == removed_set.find(v); }); 
   int L = 0, Ncomp, leave, i = 0;
   int max_key;
-  std::vector<int> components, core;//ci metterò i vertici in components
+  // Declaration: core -> polies that is going to form the subnetwork of homogeneous class.
+  // Declaration: components -> Contains the index of the component of each vertex. 
+  std::vector<int> components, core;
   std::map<std::string, std::vector<std::pair<int, int>>> sub;
 
 #if ENABLE_PERF
@@ -49,15 +68,33 @@ std::map<std::string, std::vector<std::pair<int, int>>> FeatureSelection(T **Ig,
   int min_num = min_size;
 #endif
 
-  while (i < n_link)//tutti i nodi che contengono il link fino all'alfa*total_crossing li aggiungo
+  while (i < n_link)
   {
-    boost::add_edge(Ig[i][0], Ig[i][1], G);//sto partendo dalle poly con maggior flusso che sono i miei link. Costruisco il grafo. Di là ce l'ho già
-
+    // Add the link to the graph G. NOTE: The indices are ordered by flux. 
+    // Ig[i][0] -> polyfront, Ig[i][1] -> polytail
+    boost::add_edge(Ig[i][0], Ig[i][1], G);
+    // For each added edge:
     while (pruning)
     {
       leave = 0;
-      BGL_FORALL_VERTICES(v, Signature, Filtered)//confronyo i vertici v man mano che li metto con il grafo filtrato e con la segnatura delle edge (numero di edges senza weight).
-        if (boost::in_degree(v, Signature) < 2)//se il vertice ha meno di due edges->lo rimuovo. Lo faccio fino a che non li ho tolti tutti. Se leave==0 allora non faccio nulla al grafo.
+      /** 
+       Control all vertices if are in the removed_set from the filtered view.
+       Description: 
+       NOT SURE
+      The algorithm starts with G having the edge with the highest flux. i = 0
+      G: edges = [(nod0,nod1)], nodes = [nod0,nod1]
+      Signature: [node0,node1]
+      i = 1 
+      G: edges = [(nod0,nod1),(nod2,nod3)], nodes = [nod0,nod1,nod2,node3]
+      If node2 or node3 = node1 or node0, then do not remove them as they complete a connected component.
+      Otherwise, remove them.
+      ....
+      NOTE: In this way in the end we will have in the filtered graph just those nodes that are shared by more than one edge.
+      NOTE: The number of connected components can be bigger than 1.
+      NOTE: removed_set is the set of dangling vertices. (leaf vertices)
+      */
+      BGL_FORALL_VERTICES(v, Signature, Filtered)
+        if (boost::in_degree(v, Signature) < 2)
         {
           removed_set.insert(v);
           ++leave;
@@ -65,12 +102,13 @@ std::map<std::string, std::vector<std::pair<int, int>>> FeatureSelection(T **Ig,
       if (leave == 0)
         break;
     }
-
-    if (num_vertices(G) - removed_set.size())//fino  a che il numero di vertici che hanno più di un edge in G
+    // If the graph 
+    if (num_vertices(G) - removed_set.size()) 
     {
+      // components.size() = number leaf vertices (removed_set) + number of vertices in the signated graph
       components.resize(num_vertices(G));
-      Ncomp = boost::connected_components(Signature, &components[0]);//
-//      std::cout<<'number of connected components'<<Ncomp<<'of type'<<typeid(Ncomp).name()<<std::endl;
+      // Number of components of the Signated graph: if i = 0, then Ncomp = 0
+      Ncomp = boost::connected_components(Signature, &components[0]); 
       if (merged)
       {
         BGL_FORALL_VERTICES(v, Signature, Filtered)

@@ -16,6 +16,10 @@ for StrDate in StrDates:
     config["enable_subnet"] = True
     config["jump2subnet_analysis"] = True
     config["max_poly_length"] = 6000
+    # NOTE: Status -> Try one more class then the usual analysis to see if the Fcm Clustering separates walkers from bikes.
+    config["num_tm"] = config["num_tm"] + 1
+    config["num_tm_subnet"] = config["num_tm_subnet"] + 1
+    
     with open(os.path.join(WORKSPACE,"city-pro","bologna_mdt_detailed",StrDate,"config_bologna.json"),"w") as f:
         config = json.dump(config,f,indent=2)
 

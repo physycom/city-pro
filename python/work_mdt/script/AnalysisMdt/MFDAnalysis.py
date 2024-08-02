@@ -106,12 +106,14 @@ def GetMFDForPlot(MFD,MFD2Plot,MinMaxPlot,Class,case,verbose = False,bins_ = 15)
         NOTE: Modifies MDF2Plot = {"bins_population":[p0,..,p19],"binned_av_speed":[v0,..,v19],"binned_sqrt_err_speed":[e0,..,e19]}
         NOTE: Modifies MinMaxPlot = {"speed_kmh":{"min":v0,"max":v19},"population":{"min":p0,"max":p19}}    
     """
-    assert "population" in MFD.columns, "population not in MFD"
-    assert "speed_kmh" in MFD.columns, "speed not in MFD"
+#    assert "population" in MFD.columns, "population not in MFD"
+#    assert "speed_kmh" in MFD.columns, "speed not in MFD"
 #    assert "bins_population" in MFD2Plot.columns, "bins_population not in MFD2Plot"
 #    assert "binned_av_speed" in MFD2Plot.columns, "binned_av_speed not in MFD2Plot"
 #    assert "binned_sqrt_err_speed" in MFD2Plot.columns, "binned_sqrt_err_speed not in MFD2Plot"
     print("Get MFD For Plot: {}".format(Class))
+    if isinstance(MFD,dict):
+        MFD = Dict2PolarsDF(MFD,schema = {"population":pl.Int64,"time":pl.datatypes.Utf8,"speed_kmh":pl.Float64,"av_speed":pl.Float64})
     n, bins = np.histogram(MFD["population"],bins = bins_)
     labels = range(len(bins) - 1)
     for i in range(len(labels)):
@@ -133,10 +135,13 @@ def GetMFDForPlot(MFD,MFD2Plot,MinMaxPlot,Class,case,verbose = False,bins_ = 15)
     MinMaxPlot = GetLowerBoundsFromBins(bins = bins,label = "population",MinMaxPlot = MinMaxPlot,Class = Class,case = case)
     MinMaxPlot = GetLowerBoundsFromBins(bins = MFD2Plot['binned_av_speed'],label = "speed_kmh",MinMaxPlot = MinMaxPlot, Class = Class,case = case)
     Y_Interval = max(MFD2Plot['binned_av_speed']) - min(MFD2Plot['binned_av_speed'])
-    RelativeChange = Y_Interval/max(MFD2Plot['binned_av_speed'])/100
-    if verbose:
+    if max(MFD2Plot['binned_av_speed'])/100!=0:
+        RelativeChange = Y_Interval/max(MFD2Plot['binned_av_speed'])/100
+    else:
+        RelativeChange = 0
+#    if verbose:
 #        print("\nMinMaxPlot:\n",MinMaxPlot)
-        print("\nInterval Error: ",Y_Interval)            
+#        print("\nInterval Error: ",Y_Interval)            
     return MFD2Plot,MinMaxPlot,RelativeChange
 
 def SaveMFDPlot(binsPop,binsAvSpeed,binsSqrt,RelativeChange,SaveDir,Title = "Fondamental Diagram Aggregated",NameFile = "MFD.png"):
@@ -163,17 +168,23 @@ def SaveMFDPlot(binsPop,binsAvSpeed,binsSqrt,RelativeChange,SaveDir,Title = "Fon
     plt.close()
 
 def PlotHysteresis(MFD,Title,SaveDir,NameFile):
-    x = MFD['population'].to_list()
-    y = MFD['speed_kmh'].to_list()
-    u = [x[i+1]-x[i] for i in range(len(x)-1)]
-    v = [y[i+1]-y[i] for i in range(len(y)-1)]
-    u.append(x[len(x)-1] -x[0])
-    v.append(y[len(y)-1] -y[0])
-    plt.quiver(x,y,u,v,angles='xy', scale_units='xy', scale=1,width = 0.0025)
-    plt.xlabel('Number People')
-    plt.ylabel('Speed (km/h)')
-    plt.title(Title)
-    plt.savefig(os.path.join(SaveDir,NameFile),dpi = 200)
-    plt.close()
-
+    if isinstance(MFD,pl.DataFrame):
+        x = MFD['population'].to_list()
+        y = MFD['speed_kmh'].to_list()
+    else:
+        x = MFD['population']
+        y = MFD['speed_kmh']
+    if len(x)!= 0 and len(y)!=0:
+        u = [x[i+1]-x[i] for i in range(len(x)-1)]
+        v = [y[i+1]-y[i] for i in range(len(y)-1)]
+        u.append(x[len(x)-1] -x[0])
+        v.append(y[len(y)-1] -y[0])
+        plt.quiver(x,y,u,v,angles='xy', scale_units='xy', scale=1,width = 0.0025)
+        plt.xlabel('Number People')
+        plt.ylabel('Speed (km/h)')
+        plt.title(Title)
+        plt.savefig(os.path.join(SaveDir,NameFile),dpi = 200)
+        plt.close()
+    else:
+        print("No Data for: ",os.path.join(SaveDir,NameFile))
 # END MFD RELATED FUNCTIONS

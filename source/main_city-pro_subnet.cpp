@@ -13,6 +13,27 @@
 using namespace std;
 using namespace physycom;
 
+/** 
+
+  @brief: The script contains three different data structures taking into account different possible inputs for a single POLY:
+    - polystat: it is a structure that contains the information about the poly statistics
+    <poly_id>;<poly_id_local>;<nodeF>;<nodeT>;<n_traj_FT>;<n_traj_TF>; FT+TF; length
+    - polystatnet: it is a structure that contains the information about the poly statistics in a network
+    <poly_id>;<poly_id_local>;<nodeF>;<nodeT>;<n_traj_FT_IT>;<n_traj_TF_IT>; TOT_IT; <n_traj_FT_ST>;<n_traj_TF_ST>; TOT_ST; length
+    - polystatmore: it is a structure that contains the information about the poly statistics in a network with more information 
+    <poly_id>;<poly_id_local>;<nodeF>;<nodeT>;<n_traj_FT_IT>;<n_traj_TF_IT>; FT+TF_IT; <n_traj_FT_ST>;<n_traj_TF_ST>; FT+TF_ST; <n_traj_FT_MT>;<n_traj_TF_MT>; FT+TF_MT; <n_traj_FT_SR>;<n_traj_TF_SR>; FT+TF_SR; length
+    NOTE: In the current version, the used structure is polystat
+    AFTER: Having defined the informations to hold about poly statistics, 
+        1) import_poly_stats reads from .fluxes RETURN: Vector of polystats
+        2) and make_node_map initializes:
+          set<int> nodes;  vec<node_id>
+          map<int, map<int, int>> node_poly; map<poly_id, map<nodeF_id, nodeT_id >
+          map<int, int> cid_lid, lid_cid; local id -> OSM (or any other source) ID
+
+**/
+
+
+
 struct polystat
 {
   enum
@@ -170,6 +191,13 @@ void make_node_map(const poly_list &poly)
   }
 }
 
+
+/** 
+
+  @brief: The function import_poly_stat is a template function that imports the poly statistics from a file
+  @param filename: a string that represents the name of the file to be imported
+  @return: a vector of polystat_t that contains the poly statistics
+**/
 template<typename polystat_t>
 vector<polystat_t> import_poly_stat(const string &filename)
 {
@@ -233,6 +261,7 @@ int main(int argc, char** argv)
 #if ENABLE_PERF
   for (const auto &t : sub_types)
   {
+    // sort poly by flux
     sort(poly.begin(), poly.end(), [t](const polystat &p1, const polystat &p2) { return p1.flux.at(t) > p2.flux.at(t); });
     for (int i = 0; i < (int)poly.size(); ++i)
     {
@@ -252,6 +281,9 @@ int main(int argc, char** argv)
     for (auto &i : subnets)
       sort(i.second.begin(), i.second.end());
   }
+/**
+  @brief: According to the definition in featsel.hpp the default ramification is the else branch -> considering both sub_types and sub_fractions 
+ */
 #else
   for (const auto &t : sub_types)
   {
