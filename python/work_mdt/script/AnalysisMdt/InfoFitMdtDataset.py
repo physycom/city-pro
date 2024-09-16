@@ -40,8 +40,13 @@ def FillInitGuessIntervalPlExp(DictInitGuessInterval,MaxCount,Avg,StartWindow,En
 
     """
 #    if Function2Test == "exponential":
-    DictInitGuessInterval["initial_guess"] = [MaxCount,Avg]
-    DictInitGuessInterval["interval"] = [StartWindow,EndWindow]        
+    if Function2Test == "truncated_powerlaw":
+        DictInitGuessInterval["initial_guess"] = [MaxCount,-1,Avg]      # NOTE: -1 is the initial guess for the exponent of powerlaw (is casual, in general is close to some small negative value)
+        DictInitGuessInterval["interval"] = [StartWindow,EndWindow]            
+    else:
+        DictInitGuessInterval["initial_guess"] = [MaxCount,Avg]
+        DictInitGuessInterval["interval"] = [StartWindow,EndWindow]    
+
 #    elif Function2Test == "powerlaw":
 #        DictInitGuessInterval["initial_guess"] = [MaxCount*StartWindow,-1]
 #        DictInitGuessInterval["interval"] = [StartWindow,EndWindow]    

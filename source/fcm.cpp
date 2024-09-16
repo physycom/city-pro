@@ -13,7 +13,7 @@ FCM::FCM(double m, double epsilon) {
   m_epsilon = epsilon;
   m_m = m; // 2 -> exponential of power -> choice of euclidean distance
   m_membership = nullptr;// matrix [0,..., number of traj][0,...,number of classes] weight of the belonging of each traj to each class
-  m_data = nullptr; //[0,...,number of data][0,...,number of classes]
+  m_data = nullptr; //[0,...,number of trajectories][0,...,number of classes]
   m_cluster_center = nullptr; //[0,...,number of clusters][0,..,number of features]
   m_num_clusters = 0; // number of clusters
   m_num_dimensions = 0; // number of features

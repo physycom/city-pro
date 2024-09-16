@@ -62,7 +62,7 @@ def MFDByClass(population,velocity,dict_name,idx,save_dir,day,verbose = False):
     ax.set_title(str(dict_name[idx]))
     ax.legend(['mean','mean+std','mean-std'])
     plt.savefig(os.path.join(save_dir,'{0}_class_averageV_per_D_{1}.png'.format(dict_name[idx],day)),dpi = 200)
-    plt.show()
+    plt.close()
 
 
 
@@ -78,6 +78,7 @@ def PlotTimePercorrenceDistribution(RoadsTimeVel,Time2Distr,AvgTimePercorrence,S
         NOTE: In the case I do not have information about a street of the subnet I will not have any information about the time_percorrence
     """
     Slicing = 8
+    VarianceVec = []
     fig,ax = plt.subplots(1,1,figsize = (10,10))
     RoadsTimeVel = RoadsTimeVel.sort("start_bin")
     CountNonNull = 0
@@ -87,8 +88,9 @@ def PlotTimePercorrenceDistribution(RoadsTimeVel,Time2Distr,AvgTimePercorrence,S
             pass
         else:
             CountNonNull += 1
-        Time2Distr.append(ValidTime["time_percorrence"].to_list())
+        Time2Distr.append(ValidTime["time_percorrence"].to_list()/np.sqrt(len(ValidTime["time_percorrence"].to_list())))
         AvgTimePercorrence.append(np.mean(ValidTime["time_percorrence"].to_list()))
+        VarianceVec.append(np.std(ValidTime["time_percorrence"].to_list())/np.sqrt(len(ValidTime["time_percorrence"].to_list())))
         StartInterval = datetime.datetime.fromtimestamp(time)
         StrTimesLabel.append(StartInterval.strftime("%Y-%m-%d %H:%M:%S").split(" ")[1])
     # Count how many values are not null
@@ -100,12 +102,14 @@ def PlotTimePercorrenceDistribution(RoadsTimeVel,Time2Distr,AvgTimePercorrence,S
     # Plot just those partition that contain half of valid numbers
     if CountNonNull > len(AvgTimePercorrence)/2:
         ax.plot(StrTimesLabel, AvgTimePercorrence)
-        ax.boxplot(Time2Distr,sym='')
+#        ax.boxplot(Time2Distr,sym='')
+        ax.errorbar(StrTimesLabel, AvgTimePercorrence, yerr=VarianceVec, fmt='o')
         ax.set_xticks(range(len(StrTimesLabel))[::Slicing])  # Set the ticks to correspond to the labels
         ax.set_xticklabels(StrTimesLabel[::Slicing], rotation=90)  # Set the labels with rotation    ax.set_title("Time Percorrence Distribution")
         ax.set_xlabel("Time")
         ax.set_ylabel("Time Percorrence")
         plt.savefig(File2Save,dpi = 200)
+        plt.close()
     return Time2Distr,AvgTimePercorrence
 
 
@@ -149,7 +153,8 @@ def GetPartitionClass2Time2Npeople(Class2RoadsTimeVel):
         Description:
             Class2Time2Npeople: dict -> {Class: {Time: Npeople}}
     """
-    Class2Time2Npeople = defaultdict(lambda: defaultdict(int))
+    Class2Time2Npeople = {IntClass: {time: 0 for time,RTV in Class2RoadsTimeVel[IntClass].groupby("start_bin")} for IntClass in Class2RoadsTimeVel.keys()}
+
     for IntClass in Class2RoadsTimeVel.keys():
         # Select the DataFrame for the Class
         for time,RTV in Class2RoadsTimeVel[IntClass].groupby("start_bin"):
@@ -157,7 +162,7 @@ def GetPartitionClass2Time2Npeople(Class2RoadsTimeVel):
             ValidTime = RTV.filter(pl.col("time_percorrence")>0)
             # Sum over the number of people for each road
             NumberPeople = np.sum(ValidTime["number_people_poly"].to_list())
-            Class2Time2Npeople[IntClass][time] = len(NumberPeople)
+            Class2Time2Npeople[IntClass][time] = NumberPeople
     return Class2Time2Npeople
 
 def PlotTime2NumberPeopleClasses(Class2Time2Npeople,IntClass2StrClass,PlotDir):
@@ -170,11 +175,12 @@ def PlotTime2NumberPeopleClasses(Class2Time2Npeople,IntClass2StrClass,PlotDir):
     for IntClass in Class2Time2Npeople.keys():
         Time = list(Class2Time2Npeople[IntClass].keys())
         Npeople = list(Class2Time2Npeople[IntClass].values())
-        ax.plot(Time,Npeople)
-        legend.append(IntClass2StrClass[IntClass])
+        ax.scatter(Time,Npeople,label = IntClass2StrClass[IntClass])
     ax.set_xlabel('Time')
     ax.set_ylabel('Number of People')
+    ax.set_yscale('log')
     ax.set_title('Number of People per Class')
+    ax.legend()
     plt.savefig(os.path.join(PlotDir,'NumberPeoplePerClass.png'),dpi = 200)
     plt.close()
     
@@ -247,6 +253,9 @@ def PlotFeatureDistrSeparatedByClass(Feature2IntClass2FcmDistr,
         Feature2ScaleBins: dict -> {Feature: ScaleBins}
         Feature2ScaleCount: dict -> {Feature: ScaleCount}
         PlotDir: str -> Path to Save the Plot
+
+        NOTE: 
+         Plots: P(Feature|Class,Day)P(Class|Day)P(Day) as if P(Day) = 1, P(Class|Day) = 1
     """
     for Feature in Feature2IntClass2FcmDistr.keys():
         fig,ax = plt.subplots(1,1,figsize = Feature2InfoPlotDistrFeat[Feature]["figsize"])
@@ -266,6 +275,8 @@ def PlotFeatureDistrSeparatedByClass(Feature2IntClass2FcmDistr,
                 fitted_data_windowed = Feature2Class2AllFitTry[Feature][IntClass][LabelBestFit]["fitted_data_windowed"]
             if LabelBestFit == "exponential":
                 x = np.array(Feature2IntClass2FcmDistr[Feature][IntClass]["x"][1:])/mean
+            elif LabelBestFit != "gaussian":
+                x = Feature2IntClass2FcmDistr[Feature][IntClass]["x"][1:]/mean
             else:
                 x = Feature2IntClass2FcmDistr[Feature][IntClass]["x"][1:]
             y = Feature2IntClass2FcmDistr[Feature][IntClass]["y"]
@@ -283,8 +294,14 @@ def PlotFeatureDistrSeparatedByClass(Feature2IntClass2FcmDistr,
         ax.set_xticks(np.arange(minx,maxx,Feature2IntervalBin[Feature]))
         ax.set_yticks(np.arange(miny,maxy,Feature2IntervalCount[Feature]))
         if LabelBestFit == "exponential":
-            ax.set_xlabel(Feature2Label[Feature] + f"/ <{Feature2Label[Feature]}>")
-            ax.set_ylabel("P(" + Feature2Label[Feature] + f"/ <{Feature2Label[Feature]}>" + ")")
+            if "lenght" in Feature:
+                Feat = "L"
+            elif "time" in Feature:
+                Feat = "t"
+            else:
+                Feat = "v"
+            ax.set_xlabel(Feat + f"/ <{Feat}>")
+            ax.set_ylabel("P(" + Feat + f"/ <{Feat}>" + ")")
         else:
             ax.set_xlabel(Feature2Label[Feature])
             ax.set_ylabel('P({0})'.format(Feature2Label[Feature]))
@@ -334,7 +351,11 @@ def PlotFeatureSingleClass(FcmDistr,
                            ShiftBin,
                            ShiftCount,
                            ScaleBins,
-                           ScaleCount,):     
+                           ScaleCount,):  
+    """
+        P(Feature|Class,Day)P(Class|Day)P(Day) 
+        NOTE: Consider as if P(Day) = 1, P(Class|Day) = 1
+    """   
     fig,ax = plt.subplots(1,1,figsize = (12,10))
     # Scatter Points
     x = FcmDistr["x"][1:]
@@ -369,6 +390,8 @@ def PlotFeatureSingleClass(FcmDistr,
 
     return fig,ax
 
+
+
 def PlotFeatureAggregatedAllDays(Aggregation2Feature2StrClass2FcmDistr,                   
                                     Aggregation2Feature2Class2AllFitTry,
                                     Feature2Legend,
@@ -382,8 +405,16 @@ def PlotFeatureAggregatedAllDays(Aggregation2Feature2StrClass2FcmDistr,
                                     PlotDir,
                                     Feature2SaveName,
                                     NormBool = True):
+    """
+        Plot aggregated over all days distribution of speed, time and length
+        \sum_{Day}^{Aggregation} P(Feature|Class,Day)P(Class|Day)P(Day)
+        NOTE: 
+        This represent the dependence of the Feature to the class integrating out the day
+    """
+    Features = ["time_hours","lenght_km","speed_kmh"]
+    Feature2Label = {"time_hours":"t","lenght_km":"L","speed_kmh":"v"}
     for Aggregation in Aggregation2Feature2StrClass2FcmDistr.keys():
-        for Feature in Aggregation2Feature2StrClass2FcmDistr[Aggregation].keys():
+        for Feature in Features:
             fig,ax = plt.subplots(1,1,figsize = (12,10))
             legend = []
             for StrClass in Aggregation2Feature2StrClass2FcmDistr[Aggregation][Feature].keys():
@@ -432,6 +463,67 @@ def PlotFeatureAggregatedAllDays(Aggregation2Feature2StrClass2FcmDistr,
             fig.savefig(os.path.join(PlotDir,'{0}_{1}_{2}.png'.format(Aggregation,Feature2SaveName[Feature],Date)),dpi = 200)
             plt.close()
 
+
+
+def PlotFeatureAggregatedWithoutFitRescaledByMean(Aggregation2Feature2StrClass2FcmDistr,                   
+                                    Aggregation2Feature2Class2AllFitTry,
+                                    Feature2Legend,
+                                    Feature2IntervalBin,
+                                    Feature2IntervalCount,
+                                    Feature2Label,
+                                    Feature2ShiftBin,
+                                    Feature2ShiftCount,
+                                    Feature2ScaleBins,
+                                    Feature2ScaleCount,
+                                    PlotDir,
+                                    Feature2SaveName,
+                                    NormBool = True):
+    """
+        Plots aggregated over all days distribution of speed, time and length rescaled by mean.
+        NOTE: Do this plot to show that all the curve fall in the same when divided by mean as length and speed are exponentially distributed. 
+    """
+    
+    Features = ["time_hours","lenght_km"]
+    Feature2Label = {"time_hours":"t (h)","lenght_km":"L (km)"}
+    for Aggregation in Aggregation2Feature2StrClass2FcmDistr.keys():
+        for Feature in Features:
+            fig,ax = plt.subplots(1,1,figsize = (12,10))
+            legend = []
+            for StrClass in Aggregation2Feature2StrClass2FcmDistr[Aggregation][Feature].keys():
+                if NormBool:
+                    print(f"Distribution {Feature}: ",Aggregation2Feature2StrClass2FcmDistr[Aggregation][Feature][StrClass]["y"][:3])
+                    print("maxy: ",max(Aggregation2Feature2StrClass2FcmDistr[Aggregation][Feature][StrClass]["y"]))
+                    Feature2IntervalCount[Feature] = 0.05
+                    Feature2ShiftCount[Feature] = 0.1
+                # Scatter Points
+                x = Aggregation2Feature2StrClass2FcmDistr[Aggregation][Feature][StrClass]["x"][1:]
+                y = Aggregation2Feature2StrClass2FcmDistr[Aggregation][Feature][StrClass]["y"]
+                x_mean = np.mean(x)
+                x = np.array(x)/x_mean
+                ax.scatter(x,y)
+#                legend.append(StrClass + " " + Feature2Legend[Feature])
+                ax.vlines(x_mean,0,max(y),label = None)
+#                legend.append(str(round(x_mean,3)))
+                ax.set_xticks(np.arange(x[0],x[-1],Feature2IntervalBin[Feature]))
+                ax.set_yticks(np.arange(min(y),max(y),Feature2IntervalCount[Feature]))
+                ax.set_xlabel(Feature2Label[Feature] + f"/ <{Feature2Label[Feature]}>")
+                ax.set_ylabel("P(" + Feature2Label[Feature] + f"/ <{Feature2Label[Feature]}>" + ")")
+                ax.set_xlim(left = 0.01,right = x[-1] + Feature2ShiftBin[Feature])
+                ax.set_ylim(bottom = 0.000001,top =max(y) + Feature2ShiftCount[Feature])
+                ax.set_xscale(Feature2ScaleBins[Feature])
+                ax.set_yscale(Feature2ScaleCount[Feature])
+            ax.set_title("Distribution " + Feature2Label[Feature] + " Rescaled by Mean")
+            ax.legend()
+#            legend_ = plt.legend(legend)
+#            frame = legend_.get_frame()
+#            frame.set_facecolor('white')
+            Date = os.path.basename(PlotDir)
+            fig.savefig(os.path.join(PlotDir,'WithoutFit_{0}_{1}_{2}.png'.format(Aggregation,Feature2SaveName[Feature],Date)),dpi = 200)
+            plt.close()
+
+
+
+"""
 def PlotAggregatedAllDaysPerClass(Aggregation2Feature2StrClass2FcmDistr,                   
                                     Aggregation2Feature2Class2InfoOutputFit,
                                     Feature2IntervalBin,
@@ -475,7 +567,7 @@ def PlotAggregatedAllDaysPerClass(Aggregation2Feature2StrClass2FcmDistr,
                 fig.savefig(os.path.join(PlotDir,'{0}_{1}_{2}_{3}.png'.format(Aggregation,Feature2SaveName[Feature],StrClass,Date)),dpi = 200)
                 plt.close()
         return fig,ax
-
+"""
 
 ##----------------------------------- PLOT FLUXES -----------------------------------##
 
@@ -709,6 +801,13 @@ def ComputeAggregatedMFDVariables(ListDailyNetwork,MFDAggregated):
         NOTE: Each Time interval has its own average speed and population. For 15 minutes,
             since iteration in 1 Day Analysis is set in that way. 
         NOTE: If at time t there is no population, the speed is set to 0.
+
+        NOTE:
+            Speed(Road,Time)
+            NumberCars(Road,Time)
+            Speed(NumberCars) <=> if NumberCars(Road,Time) = NumberCars(Road',Time') => Speed(Road,Time) = Speed(Road',Time') 
+            Compute:
+                sum_{Day} P(Speed|NumberCars,Day)P(NumberCars|Day)P(Day)
     """
     LocalDayCount = 0
     # AGGREGATE MFD FOR ALL DAYS
@@ -746,6 +845,10 @@ def ComputeAggregatedMFDVariables(ListDailyNetwork,MFDAggregated):
     return MFDAggregated
 
 def ComputeDay2PopulationTime(ListDailyNetwork):
+    """
+        Description:
+            Compute for each day the vector of 96 elements of population over time.
+    """
     Day2PopulationTime = {MobDate.StrDate: {"population":[],"time":[]} for MobDate in ListDailyNetwork}
     LocalDayCount = 0
     for MobDate in ListDailyNetwork:
@@ -776,6 +879,7 @@ def PlotDay2PopulationTime(Day2PopulationTime,PlotDir):
     ax.set_title("Population Over Time")
     ax.legend()
     plt.savefig(os.path.join(PlotDir,"AllDaysPopulationOverTime.png"))
+    plt.close()
     return fig,ax    
 
 
@@ -815,6 +919,7 @@ def PlotIntervals(Avareges, std_devs, classes, types,Class2Type2Colors,Class2Typ
     print(legend)
     ax.legend(handles = legend,loc='center left', bbox_to_anchor=(1, 0.5))  # Place legend outside the plot
     plt.savefig(os.path.join(PlotDir,SaveName + ".png"))
+    plt.close()
 
 def ScatterFitParams(A, b, classes, types,Class2Type2Colors,Class2Type2Shapes,Title,Xlabel,Ylabel,PlotDir,SaveName):
     assert len(A) == len(b) == len(classes), 'The input lists must have the same length'
@@ -845,3 +950,4 @@ def ScatterFitParams(A, b, classes, types,Class2Type2Colors,Class2Type2Shapes,Ti
     print(legend)
     ax.legend(handles = legend,loc='center left', bbox_to_anchor=(1, 0.5))  # Place legend outside the plot
     plt.savefig(os.path.join(PlotDir,SaveName + ".png"))
+    plt.close()

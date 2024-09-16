@@ -161,11 +161,8 @@ int main(int argc, char **argv) {
     make_bp_traj(analysis_container.traj,analysis_container.config_,analysis_container.sigma,analysis_container.dataloss,analysis_container.poly,analysis_container.centers_fcm,analysis_container.node,analysis_container.classes_flux);
     make_fluxes(analysis_container.traj,analysis_container.sigma,analysis_container.poly,analysis_container.centers_fcm,analysis_container.classes_flux);
 // OBSOLETO ora utilizzo dump_fluxes_file
-    if (config_.jump2subnet_analysis){
+    if (!config_.jump2subnet_analysis){
 //  dump_fluxes(analysis_container.traj,analysis_container.config_,analysis_container.centers_fcm,analysis_container.poly,analysis_container.classes_flux);
-// FUNDAMENTAL DIAGRAM -> Error in Them. Managed in Python
-        if (config_.enable_FD) dump_FD(poly);
-        if (config_.enable_MFD) make_MFD(jconf,analysis_container.traj,analysis_container.centers_fcm);
 // SUBNET ANALYSIS
         analysis_container.subnets = make_subnet(analysis_container.config_);
         dump_poly_geojson("bologna-provincia",analysis_container.poly); //"city-pro-carto"

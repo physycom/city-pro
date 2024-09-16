@@ -16,7 +16,7 @@ def InitFeature2Function2Fit2InitialGuess(Features2Fit):
             }
         else:
             Feature2Function2Fit2InitialGuess[Feature] = {"exponential":{"initial_guess":[0,0],"interval":[]},
-             "powerlaw":{"initial_guess":[0,0],"interval":[]}
+             "powerlaw":{"initial_guess":[0,0],"interval":[]},"truncated_powerlaw":{"initial_guess":[1,-1,2],"interval":[]}
             }
     if VERBOSE:
         print("Feature2Function2Fit2InitialGuess: ")
@@ -36,7 +36,8 @@ def InitFeature2Class2Function2Fit2InitialGuess(Features2Fit,IntClass2StrClass):
                 }
             else:
                 Feature2Class2Function2Fit2InitialGuess[Feature][IntClass] = {"exponential":{"initial_guess":[0,0],"interval":[]},
-                 "powerlaw":{"initial_guess":[0,0],"interval":[]}
+                 "powerlaw":{"initial_guess":[0,0],"interval":[]},
+                 "truncated_powerlaw":{"initial_guess":[1,-1,2],"interval":[]}
                 }
     if VERBOSE:
         print("Feature2Class2Function2Fit2InitialGuess: ")
@@ -199,3 +200,6 @@ def GetClass2Type2ShapesAndColors(Classes,Types):
             Class2Type2Colors[Class][Type] = PossibleColors[count]
             count += 1
     return Class2Type2Shapes,Class2Type2Colors
+
+
+

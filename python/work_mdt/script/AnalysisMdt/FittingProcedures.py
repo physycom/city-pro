@@ -363,7 +363,8 @@ Name2EstimateParameters = {'powerlaw':best_parameter_powerlaw,
                             'exponential':best_parameter_exponential,
                             'linear':best_parameter_linear,
                             'maxwellian':best_parameter_maxwellian,
-                            'gaussian':best_parameter_gaussian}
+                            'gaussian':best_parameter_gaussian,
+                            'truncated_powerlaw':best_parameter_powerlaw}
 
 def Fitting(x,y_measured,label = 'powerlaw',initial_guess = (6000,0.3),maxfev = 50000,interval = []):
     '''
@@ -386,10 +387,11 @@ def Fitting(x,y_measured,label = 'powerlaw',initial_guess = (6000,0.3),maxfev = 
         x = np.array(x)
         y_measured = np.array(y_measured)
         assert len(x) == len(y_measured), "x and y_measured must have the same length"
-    if label != "gaussian" and label != "maxwellian":
+    if label != "gaussian" and label != "maxwellian" and label != "truncated_powerlaw":
         A,b = Name2EstimateParameters[label](x,y_measured)
 #        print("Estimate Parameters: ",A,b)
         initial_guess = (A,b)
+    
     result_powerlaw = minimize(Name2LossFunction[label], initial_guess, args = (x, y_measured))#,maxfev = maxfev
     optimal_params_plw = result_powerlaw.x
     # Handle powerlaw as linear with log indices
@@ -398,7 +400,14 @@ def Fitting(x,y_measured,label = 'powerlaw',initial_guess = (6000,0.3),maxfev = 
         x = x[mask]
         y_measured = y_measured[mask]
         fit = curve_fit(linear_per_powerlaw, xdata = np.log(x), ydata = np.log(y_measured),p0 = list(optimal_params_plw),maxfev = maxfev)
-    fit = curve_fit(Name2Function[label], xdata = x, ydata = y_measured,p0 = list(optimal_params_plw),maxfev = maxfev)
+    elif label == 'truncated_powerlaw':
+        mask = np.logical_and(np.array(x) > 0, np.array(y_measured) > 0)
+        x = x[mask]
+        y_measured = y_measured[mask]
+        fit = curve_fit(Name2Function[label], xdata = x, ydata = y_measured,p0 = list(optimal_params_plw),maxfev = maxfev)
+    else:
+        fit = curve_fit(Name2Function[label], xdata = x, ydata = y_measured,p0 = list(optimal_params_plw),maxfev = maxfev)
+
     if label == 'powerlaw':
         fit[0][0] = np.exp(fit[0][0])
     if VERBOSE:
@@ -407,6 +416,7 @@ def Fitting(x,y_measured,label = 'powerlaw',initial_guess = (6000,0.3),maxfev = 
         print("Size of x after windowing: ",len(x))
         print("Function: ",label,' Message: ',result_powerlaw.message)
     return fit,result_powerlaw.success,x,y_measured
+    
 
 # City - Pro Usage
 
@@ -415,11 +425,19 @@ def FitAndStdError(x,y_measured,label,initial_guess,maxfev = 50000,interval = []
     if len(fit[0]) == 2:
         A = fit[0][0]
         b = fit[0][1]
+        FittedData = list(Name2Function[label](x,A,b))
+        SqrtN = np.sqrt(len(y_measured))
+        StdError = np.sqrt(np.sum((np.array(y_measured) - np.array(FittedData))**2))/SqrtN
+
+    elif len(fit[0]) == 3:
+        A = fit[0][0]
+        b = fit[0][1]
+        c = fit[0][2]
+        FittedData = list(Name2Function[label](x,A,b,c))
+        SqrtN = np.sqrt(len(y_measured))
+        StdError = np.sqrt(np.sum((np.array(y_measured) - np.array(FittedData))**2))/SqrtN
     else:
         raise ValueError("Fit Of more than 2 parameters need to be handled separately")
-    FittedData = list(Name2Function[label](x,A,b))
-    SqrtN = np.sqrt(len(y_measured))
-    StdError = np.sqrt(np.sum((np.array(y_measured) - np.array(FittedData))**2))/SqrtN
 #    kullback_leibler = kl_div(FittedData, y_measured)
 #    ks_stat, ks_pval = kstest(data, FittedData.cdf)
 
@@ -488,7 +506,11 @@ def ReturnFitInfoFromDict(ObservedData,Function2InitialGuess,FitAllTry,NormBool 
 def ComputeAndChooseBestFit(ObservedData,Function2InitialGuess,FitAllTry,NormBool = True):
     """
         This function is used to compute the best fit for Feature in [lenght,time,lenght_km,time_hours].  .
-        NOTE: Feature2Class2Function2Fit2InitialGuess {Feature: {Class: {Function: {"initial_guess": (A,b),"interval": (start,end)}}}}
+        NOTE: Feature2Class2Function2Fit2InitialGuess 
+        {Feature:
+          {Class:
+            {Function:
+              {"initial_guess": (A,b),"interval": (start,end)}}}}
         Initialized from the configuration file in CreateDictClass2FitInit.
             """
     y,x = np.histogram(ObservedData,bins = 50)
@@ -499,7 +521,7 @@ def ComputeAndChooseBestFit(ObservedData,Function2InitialGuess,FitAllTry,NormBoo
         pass
     if VERBOSE:
         print("interval considered for fit: ",Function2InitialGuess["exponential"]["interval"])
-    # Choose the interval Coming from the Configuration File and Put in Feature2Class2Function2Fit2InitialGuess
+    # Compare exponential and powerlaw
     fit = pwl.Fit(ObservedData,
                   xmin = Function2InitialGuess["exponential"]["interval"][0],
                   xmax = Function2InitialGuess["exponential"]["interval"][1]
@@ -520,6 +542,7 @@ def ComputeAndChooseBestFit(ObservedData,Function2InitialGuess,FitAllTry,NormBoo
         print("xmin: ",fit.xmin)
         print("xmax: ",fit.xmax)
     for Function2Fit in Function2InitialGuess.keys():
+        #  Windowing the data between xmin and xmax
         if fit.xmax is not None:            
             x_windowed = [x_ for x_ in x if (x_>=fit.xmin) and (x_<=fit.xmax)]
             y_windowed = [y_ for i,y_ in enumerate(y) if (x[i]>=fit.xmin) and (x[i]<=fit.xmax)]
@@ -530,23 +553,56 @@ def ComputeAndChooseBestFit(ObservedData,Function2InitialGuess,FitAllTry,NormBoo
             y_windowed = [y_ for i,y_ in enumerate(y) if (x[i]>=fit.xmin)]
             FitAllTry[Function2Fit]["x_windowed"] = x_windowed
             FitAllTry[Function2Fit]["y_windowed"] = y_windowed
+        # Get the parameters for the fit
         if Function2Fit == "powerlaw":
             A = 1
             b = fit.power_law.parameter1
+            FitAllTry[Function2Fit]["fitted_data_windowed"] = list(Name2Function[Function2Fit](np.array(x_windowed),A,b))
+            FitAllTry[Function2Fit]["parameters"] = (A,b)
         elif Function2Fit == "exponential":
             A = 1
             b = Aexp
-        FitAllTry[Function2Fit]["fitted_data_windowed"] = list(Name2Function[Function2Fit](np.array(x_windowed),A,b))
-        FitAllTry[Function2Fit]["parameters"] = (A,b)
+            FitAllTry[Function2Fit]["fitted_data_windowed"] = list(Name2Function[Function2Fit](np.array(x_windowed),A,b))
+            FitAllTry[Function2Fit]["parameters"] = (A,b)
+        elif Function2Fit == "truncated_powerlaw":
+            fit_,StdError,ConvergenceSuccess,FittedData,x_windowed,y_measured = FitAndStdError(x = x[1:],
+                                                                y_measured = y,
+                                                                label = "truncated_powerlaw",
+                                                                initial_guess = Function2InitialGuess[Function2Fit]["initial_guess"],
+                                                                interval=Function2InitialGuess["exponential"]["interval"]
+                                                                )
+
+            A = fit_[0][0]
+            b = fit_[0][1]
+            c = fit_[0][2]
+            FitAllTry[Function2Fit]["fitted_data_windowed"] = list(Name2Function[Function2Fit](np.array(x_windowed),A,b,c))
+            FitAllTry[Function2Fit]["parameters"] = (A,b,c)
+
+        # Compare with truncated powerlaw the fits and choose the best.
+        if BestFit == "powerlaw":
+            kstats, pval = kstest(y_windowed, Name2Function["powerlaw"](x_windowed,A,b))
+        elif BestFit == "exponential":
+            kstats, pval = kstest(y_windowed, Name2Function["exponential"](x_windowed,A,b))
+        if Function2Fit == "truncated_powerlaw":
+            kstats_trun, pval_trun = kstest(y_windowed, Name2Function["truncated_powerlaw"](x_windowed,A,b,c))
+
+        # Fill the error
         if Function2Fit == "powerlaw":
             FitAllTry[Function2Fit]["std_error"] = fit.sigma
-        else:
+        elif Function2Fit == "exponential":
             SqrtN = np.sqrt(len(y))
             StdError = np.sqrt(np.sum((np.array(y_windowed) - np.array(FitAllTry[Function2Fit]["fitted_data_windowed"]))**2))/SqrtN            
+            FitAllTry[Function2Fit]["std_error"] = StdError
+        elif Function2Fit == "truncated_powerlaw":
             FitAllTry[Function2Fit]["std_error"] = StdError
         FitAllTry[Function2Fit]["success"] = True
         FitAllTry[Function2Fit]["start_window"] = fit.xmin
         FitAllTry[Function2Fit]["end_window"] = fit.xmax
+    if kstats_trun > kstats:
+        BestFit = "truncated_powerlaw"
+    else:
+        pass
+
     FitAllTry["best_fit"] = BestFit
     return FitAllTry
 
@@ -615,13 +671,9 @@ if FoundPyMC3:
     """
     def FitWithPymc(x,y,label):
         return x,y,label
-    import pytensor
+    import pytensor.tensor as pt
     from pytensor.graph.op import Op
     class BestFit(Op):
-        __props__ = ()
-
-        #itypes and otypes attributes are
-        #compulsory if make_node method is not defined.
-        #They're the type of input and output respectively
-        itypes = None
-        otypes = None        
+        def make_node(self,Name2DataAndParameters):
+            for Name,DataOrPar in Name2DataAndParameters.items():
+                pt.as_tensor(DataOrPar,Name)

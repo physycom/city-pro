@@ -243,6 +243,7 @@ class NetworkAllDays:
             else:
                 Message = "ConcatenatePerClass: False"
 ## Put together space and time for all days for each class.
+    
 
     def ComputeMFDAllDays(self):
         """
@@ -363,18 +364,31 @@ class NetworkAllDays:
             if self.verbose:
                 print("Aggregation2Feature2StrClass2FcmDistr:\n",self.Aggregation2Feature2StrClass2FcmDistr)
             PlotFeatureAggregatedAllDays(self.Aggregation2Feature2StrClass2FcmDistr,
-                                                  self.Aggregation2Feature2Class2AllFitTry,                   
-                                                self.Feature2Legend,
-                                                self.Feature2IntervalBin,
-                                                self.Feature2IntervalCount,
-                                                self.Feature2Label,
-                                                self.Feature2ShiftBin,
-                                                self.Feature2ShiftCount,
-                                                self.Feature2ScaleBins,
-                                                self.Feature2ScaleCount,
-                                                self.PlotDir,
-                                                self.Feature2SaveName,
-                                                True)
+                                        self.Aggregation2Feature2Class2AllFitTry,                   
+                                        self.Feature2Legend,
+                                        self.Feature2IntervalBin,
+                                        self.Feature2IntervalCount,
+                                        self.Feature2Label,
+                                        self.Feature2ShiftBin,
+                                        self.Feature2ShiftCount,
+                                        self.Feature2ScaleBins,
+                                        self.Feature2ScaleCount,
+                                        self.PlotDir,
+                                        self.Feature2SaveName,
+                                        True)
+            PlotFeatureAggregatedWithoutFitRescaledByMean(self.Aggregation2Feature2StrClass2FcmDistr,
+                                        self.Aggregation2Feature2Class2AllFitTry,                   
+                                        self.Feature2Legend,
+                                        self.Feature2IntervalBin,
+                                        self.Feature2IntervalCount,
+                                        self.Feature2Label,
+                                        self.Feature2ShiftBin,
+                                        self.Feature2ShiftCount,
+                                        self.Feature2ScaleBins,
+                                        self.Feature2ScaleCount,
+                                        self.PlotDir,
+                                        self.Feature2SaveName,
+                                        True)            
 
 
     def PlotGridDistrFeat(self):
@@ -399,6 +413,7 @@ class NetworkAllDays:
                         axs[row_idx, col_idx] = MobDate.Feature2DistributionPlot[Feature]["ax"]
                         ax_idx += 1
                 plt.savefig(os.path.join(self.PlotDir,'Grid_{0}_{1}.png'.format(Aggregation,self.Feature2SaveName[Feature])),dpi = 200)
+                plt.close()
     # MFD Aggregated All Days
 
     def ComputeAggregatedMFDVariablesObj(self):
@@ -552,7 +567,64 @@ class NetworkAllDays:
                             SaveDir = self.PlotDir,
                             Title = "Fondamental Diagram New {}".format(StrClass),
                             NameFile = "MFDNew_{}_AllDays.png".format(StrClass))
+                self.PlotMFDPerClassCompared()           
 
+    def PlotMFDPerClassCompared(self):
+        """
+            Plots the MFD for all the different days together in the same plot for each class .
+        """
+        StrClasses = list(self.ListDailyNetwork[0].Class2MFD.keys())
+        # AGGREGATE MFD FOR ALL DAYS
+        for StrClass in StrClasses:
+            fig, ax = plt.subplots(1,1,figsize = (10,8))
+            for MobDate in self.ListDailyNetwork:
+                MFD = MobDate.Class2MFDNew
+                MFD2Plot = {"binned_av_speed": [], "binned_sqrt_err_speed": [], "bins_population": []}
+                n, bins = np.histogram(MFD[StrClass]["population"],bins = 12)
+                labels = range(len(bins) - 1)
+                for i in range(len(labels)):
+                    # Fill Average/Std Speed (to plot)
+                    MFD2Plot['binned_av_speed'].append(GetAverageConditional(MFD[StrClass],"population","speed_kmh",bins[i],bins[i+1]))
+                    MFD2Plot['binned_sqrt_err_speed'].append(GetStdErrorConditional(MFD[StrClass],"population","speed_kmh",bins[i],bins[i+1]))
+                MFD2Plot["bins_population"] = bins
+                MFD2Plot['binned_av_speed'] = fill_zeros_with_average(np.array(MFD2Plot['binned_av_speed']))
+                MFD2Plot['binned_sqrt_err_speed'] = fill_zeros_with_average(np.array(MFD2Plot['binned_sqrt_err_speed']))
+                print("Plotting MFD:\n")
+                ax.plot(MFD2Plot['bins_population'][1:],MFD2Plot['binned_av_speed'],label=MobDate.StrDate)
+                ax.fill_between(MFD2Plot['bins_population'][1:],
+                                np.array(MFD2Plot['binned_av_speed']) - np.array(MFD2Plot['binned_sqrt_err_speed']), 
+                                np.array(MFD2Plot['binned_av_speed']) + np.array(MFD2Plot['binned_sqrt_err_speed']), color='gray', alpha=0.2, label=None)
+                ax.set_title("Fondamental Diagram All Days {}".format(StrClass))
+            ax.set_xlabel("number people")
+            ax.set_ylabel("speed (km/h)")
+            ax.legend()
+            plt.savefig(os.path.join(self.PlotDir,f"ComparisonMFD_{StrClass}"),dpi = 200)
+            plt.close()
+        fig, ax = plt.subplots(1,1,figsize = (10,8))
+        for MobDate in self.ListDailyNetwork:
+            MFD = MobDate.MFD
+            MFD2Plot = {"binned_av_speed": [], "binned_sqrt_err_speed": [], "bins_population": []}
+            n, bins = np.histogram(MFD["population"],bins = 12)
+            labels = range(len(bins) - 1)
+            for i in range(len(labels)):
+                # Fill Average/Std Speed (to plot)
+                MFD2Plot['binned_av_speed'].append(GetAverageConditional(MFD,"population","speed_kmh",bins[i],bins[i+1]))
+                MFD2Plot['binned_sqrt_err_speed'].append(GetStdErrorConditional(MFD,"population","speed_kmh",bins[i],bins[i+1]))
+            MFD2Plot["bins_population"] = bins
+            MFD2Plot['binned_av_speed'] = fill_zeros_with_average(np.array(MFD2Plot['binned_av_speed']))
+            MFD2Plot['binned_sqrt_err_speed'] = fill_zeros_with_average(np.array(MFD2Plot['binned_sqrt_err_speed']))
+            ax.plot(MFD2Plot['bins_population'][1:],MFD2Plot['binned_av_speed'])
+            ax.fill_between(MFD2Plot['bins_population'][1:],
+                            np.array(MFD2Plot['binned_av_speed']) - np.array(MFD2Plot['binned_sqrt_err_speed']), 
+                            np.array(MFD2Plot['binned_av_speed']) + np.array(MFD2Plot['binned_sqrt_err_speed']), color='gray', alpha=0.2, label=MobDate.StrDate)
+        ax.set_title("Fondamental Diagram All Days")
+        ax.set_xlabel("number people")
+        ax.set_ylabel("speed (km/h)")
+        ax.legend()
+        plt.savefig(os.path.join(self.PlotDir,f"ComparisonMFD"),dpi = 200)
+        plt.close()
+            
+                    
 # HTML SESSION FOR SUBNETS AGGREGATED
 
     def CreateClass2SubNetAllDays(self):
@@ -689,6 +761,7 @@ class NetworkAllDays:
             with open(os.path.join(self.PlotDir,f"LatexTableAvFeat_{Feature}.txt"), "w") as file:
                 file.write(LatexTableAvFeat)
             self.GenerateAndSaveTabFit()    
+
     def GenerateAndSaveTabFit(self):
         """
             Description:
@@ -816,3 +889,347 @@ class NetworkAllDays:
                             LocalFeature2ParFitClass[Feature]["class"].append(StrClass)
                             LocalFeature2ParFitClass[Feature]["type"].append(Type)
         return LocalFeature2ParFitClass
+    
+
+# PLOT FEATURES FOR ALL DAYS
+
+    def PlotComparisonDistributionEachFeatureAllDays(self):
+        """
+            Description:
+                Plot the distribution of each feature given the class for all days
+        """
+        Colors = ["blue","red","green","yellow","black","orange","purple","pink","brown","grey"]
+        Features = ["speed_kmh","lenght_km","time_hours"]
+        Feature2Label = {"lenght_km":"L (km)","speed_kmh":"v (kmh)","time_hours":"t (h)"}
+        if self.AddStrClassColumn2FcmBool:
+            if self.AssociateAvSpeed2StrClassBool:
+                for Aggregation in self.Aggregation2Class2Fcm.keys():
+                    for StrClass in self.Aggregation2Class2Fcm[Aggregation]:
+                        for Feature in Features:
+                            fig,ax = plt.subplots(1,1,figsize = (10,8))                    
+                            legend = []
+                            CountDay = 0
+                            for MobDate in self.ListDailyNetwork:
+                                CountDay += 1
+                                if MobDate.StrDate in self.AggregationLevel2ListDays[Aggregation]:                                
+                                    y,x = np.histogram(MobDate.Fcm.filter(pl.col("str_class") == StrClass)[Feature],bins = 50)
+                                    P = y/np.sum(y)
+                                    x_mean = np.mean(x)
+                                    variance = np.var(x)/np.sqrt(len(x))
+#                                    legend.append(MobDate.StrDate)
+                                    ax.scatter(x[:-1],P,color = Colors[CountDay],label=MobDate.StrDate)
+#                                    ax.vlines(x_mean,0,max(P),color = Colors[CountDay],label=None)
+#                                    ax.vlines(x_mean - variance,0,1,color = Colors[CountDay])
+#                                    ax.vlines(x_mean + variance,0,1,color = Colors[CountDay])
+                            ax.set_xlabel(Feature2Label[Feature])
+                            ax.set_ylabel("P({})".format(Feature2Label[Feature]))
+                            ax.set_title("Distribution of {} for {}".format(Feature2Label[Feature],StrClass))
+    #                       ax.legend(legend)
+                            if "speed" not in Feature:
+                                ax.set_yscale("log")
+                                ax.set_xscale("log")
+                            plt.savefig(os.path.join(self.PlotDir,"Distribution_{0}_{1}_{2}.png".format(Feature,Aggregation,StrClass)),dpi = 200)
+                            plt.close()
+            else:
+                Message = "Plot Classes"
+
+    def PlotComparisonDistributionEachFeatureAllDaysRescaledByMean(self):
+        """
+            Description:
+                Plot the distribution of each feature given the class for all days
+        """
+        Colors = ["blue","red","green","yellow","black","orange","purple","pink","brown","grey"]
+        Features = ["speed_kmh","lenght_km","time_hours"]
+        Feature2Label = {"lenght_km":"L","speed_kmh":"v","time_hours":"t"}
+        Feature2AvgLabel = {"lenght_km":"<L>","speed_kmh":"<v>","time_hours":"<t>"}
+        if self.AddStrClassColumn2FcmBool:
+            if self.AssociateAvSpeed2StrClassBool:
+                for Aggregation in self.Aggregation2Class2Fcm.keys():
+                    for StrClass in self.Aggregation2Class2Fcm[Aggregation]:
+                        for Feature in Features:
+                            fig,ax = plt.subplots(1,1,figsize = (10,8))                    
+                            legend = []
+                            CountDay = 0
+                            for MobDate in self.ListDailyNetwork:
+                                CountDay += 1
+                                if MobDate.StrDate in self.AggregationLevel2ListDays[Aggregation]:                                
+                                    y,x = np.histogram(MobDate.Fcm.filter(pl.col("str_class") == StrClass)[Feature],bins = 50)
+                                    P = y/np.sum(y)
+                                    x_mean = np.mean(x)
+                                    x = x/x_mean
+                                    x_mean = np.mean(x)
+                                    variance = np.var(x)/np.sqrt(len(x))
+#                                    legend.append(MobDate.StrDate)
+                                    ax.scatter(x[:-1],P,color = Colors[CountDay],label=MobDate.StrDate)
+#                                    ax.vlines(x_mean,0,max(P),color = Colors[CountDay],label=None)
+#                                    ax.vlines(x_mean - variance,0,1,color = Colors[CountDay])
+#                                    ax.vlines(x_mean + variance,0,1,color = Colors[CountDay])
+                            ax.set_xlabel("{0}/{1}".format(Feature2Label[Feature],Feature2AvgLabel[Feature]))
+                            ax.set_ylabel("P({0}/{1})".format(Feature2Label[Feature],Feature2AvgLabel[Feature]))
+                            ax.set_title("Distribution of {0} for {1} ".format(Feature,StrClass))
+                            ax.legend()
+                            if "speed" not in Feature:
+                                ax.set_yscale("log")
+                                ax.set_xscale("log")
+                            plt.savefig(os.path.join(self.PlotDir,"RescaledX_Distribution_{0}_{1}_{2}.png".format(Feature,Aggregation,StrClass)),dpi = 200)
+                            plt.close()
+
+            else:
+                Message = "Plot Classes"
+
+
+    def PlotComparisonDistributionInDays(self):
+        """
+            Description:
+                Plot the distribution of each feature not conditioned on the class for all days
+        """
+        Colors = ["blue","red","green","yellow","black","orange","purple","pink","brown","grey"]
+        Features = ["speed_kmh","lenght_km","time_hours"]
+        Feature2Label = {"lenght_km":"L","speed_kmh":"v","time_hours":"t"}
+        Feature2AvgLabel = {"lenght_km":"<L>","speed_kmh":"<v>","time_hours":"<t>"}        
+        if self.AddStrClassColumn2FcmBool:
+            if self.AssociateAvSpeed2StrClassBool:
+                for Aggregation in self.Aggregation2Class2Fcm.keys():
+                    for Feature in Features:
+                        fig,ax = plt.subplots(1,1,figsize = (10,8))                    
+                        legend = []
+                        CountDay = 0
+                        for MobDate in self.ListDailyNetwork:
+                            CountDay += 1
+                            if MobDate.StrDate in self.AggregationLevel2ListDays[Aggregation]:                                
+                                y,x = np.histogram(MobDate.Fcm[Feature],bins = 50)
+                                P = y/np.sum(y)
+                                x_mean = np.mean(x)
+                                variance = np.var(x)/np.sqrt(len(x))
+#                                legend.append(MobDate.StrDate)
+                                ax.scatter(x[:-1],P,color = Colors[CountDay],label=MobDate.StrDate)
+                                ax.vlines(x_mean,0,max(P),color = Colors[CountDay],linestyle = "--",label=None)
+                        ax.set_xlabel(Feature2Label[Feature])
+                        ax.set_ylabel("P({})".format(Feature2Label[Feature]))
+                        ax.set_title("Distribution of {0} for {1}".format(Feature,Aggregation))
+                        ax.legend()
+                        if "speed" not in Feature:
+                            ax.set_yscale("log")
+                        plt.savefig(os.path.join(self.PlotDir,"Distribution_{0}_{1}.png".format(Feature,Aggregation)),dpi = 200)
+                        plt.close()
+
+            else:
+                Message = "Plot Classes"
+
+
+    def PlotDistrFeaturepowerLawComparisonAllDays(self):
+        """
+            Plots the compared distribution of lenght, time for all days,
+            With power law fit.
+        """
+        colors = ["blue","red","green","yellow","black","orange","purple","pink","brown","grey"]
+        Features = ["speed_kmh","lenght_km","time_hours"]
+        Feature2Label = {"lenght_km":"L","speed_kmh":"v","time_hours":"t"}
+        Feature2AvgLabel = {"lenght_km":"<L>","speed_kmh":"<v>","time_hours":"<t>"}        
+        for Feature in ["lenght_km","time_hours"]:
+            for Aggregation in self.Aggregation2Class2Fcm.keys():
+                fig,ax = plt.subplots(1,1,figsize = (10,10))
+                CountDay = 0
+                legend = []
+                for MobDate in self.ListDailyNetwork:            
+                    CountDay += 1
+                    if MobDate.StrDate in self.AggregationLevel2ListDays[Aggregation]:    
+                        y,x = np.histogram(MobDate.Fcm[Feature],bins = 50)  
+                        y = y/np.sum(y)
+                        x_mean = np.mean(x)
+                        if "time" in Feature:
+                            fit = pwl.Fit(np.array(MobDate.Fcm[Feature]),
+                                        xmin = min(np.array(MobDate.Fcm[Feature])[2:]),
+                                        xmax = max(np.array(MobDate.Fcm[Feature])),
+                                        initial_guess = (-1,1))
+                        else:
+                            fit = pwl.Fit(np.array(MobDate.Fcm[Feature]),
+                                        xmin = min(np.array(MobDate.Fcm[Feature])),
+                                        xmax = max(np.array(MobDate.Fcm[Feature])),
+                                        initial_guess = (-1,1))
+                        ax.scatter(x[:-1],y,color=colors[CountDay],label=MobDate.StrDate)
+                        if "time" in Feature:
+                            ax.plot(x[2:-1],x[2:-1]**(-fit.alpha),color=colors[CountDay],linestyle = "--",label=None)
+                        else:
+                            ax.plot(x[1:-1],x[1:-1]**(-fit.alpha),color=colors[CountDay],linestyle = "--",label=None)
+                        ax.vlines(x_mean,0,max(y),color=colors[CountDay],linestyles = "dashed",label=None)
+                        print(f"Power Law {MobDate.StrDate}: ",fit.alpha)
+#                        print(f"Power Lae Truncated {MobDate.StrDate}: ",fit_[0][0],fit_[0][1],fit_[0][2])
+#                        ax.plot(x[:-1],fit_[0][0]*x[:-1]**(fit_[0][1])*np.exp(-x[:-1]*fit_[0][2]),color=colors[CountDay],linestyle = "--",label=None)
+
+#                        legend.append(MobDate.StrDate)
+                ax.legend()
+                ax.set_yscale("log")
+                ax.set_xlabel(Feature2Label[Feature])
+                ax.set_ylabel("P({})".format(Feature2Label[Feature]))
+                ax.set_title(Feature)
+                plt.savefig(os.path.join(self.PlotDir,"PowerLawFit_{0}_{1}.png".format(Aggregation,Feature)),dpi = 200)
+                plt.close()
+
+    def PlotDistributionTotalNumberPeople(self):
+        """
+            x: Days
+            y: Total Number of People
+        """
+        fig,ax = plt.subplots(1,1,figsize = (10,8))
+        x = [MobDate.StrDate for MobDate in self.ListDailyNetwork]
+        y = [len(MobDate.Fcm) for MobDate in self.ListDailyNetwork]
+        ax.scatter(x,y)
+        ax.set_xticklabels(x,rotation = 90)
+        ax.set_xlabel("Days")
+        ax.set_ylabel("Total Number of People")
+        ax.set_title("Total Number of People")
+        plt.savefig(os.path.join(self.PlotDir,"TotalNumberPeople.png"),dpi = 200)
+        plt.close()
+
+
+# NUMBER OF TRAJECTORIES GIVEN THE CLASS
+
+    def PlotNumberTrajectoriesGivenClass(self):
+        """
+            Description:
+                Plots the number of trajectories given the class for all days.
+        """
+        colors = ["blue","red","green","yellow","black","orange","purple","pink","brown","grey"]
+        Feature2Label = {"lenght_km":"L","time_hours":"t"}
+        fig,ax = plt.subplots(1,1,figsize = (10,8))
+        for Aggregation in ["aggregated"]:
+            for Feature in ["lenght_km","time_hours"]:
+                # Compute the alphas that define for a given day fraction of trajectories that are to a class (RhoK)
+                RhoKGivenDay = []
+                RhoxGivenKGivenDay = []
+                RhoxGivenDay = []
+                for MobDate in self.ListDailyNetwork:
+                    ParametersExpoFitDay = []
+                    for StrClass in self.ListStrClassReference:
+                        IntClass = self.Day2StrClass2IntClass[MobDate.StrDate][StrClass]
+                        StrBestFit = MobDate.Feature2Class2AllFitTry[Feature][IntClass]["best_fit"]
+                        yClass,xClass = np.histogram(MobDate.Fcm.filter(pl.col("str_class")==StrClass)[Feature],bins = 50)  
+                        RhoxGivenKGivenDay.append(yClass/np.sum(yClass)) 
+                        if StrBestFit == "exponential":
+#                            RoundedParam0 = round(MobDate.Feature2Class2AllFitTry[Feature][IntClass][StrBestFit]["parameters"][0],3)
+                            Inversexk = round(MobDate.Feature2Class2AllFitTry[Feature][IntClass][StrBestFit]["parameters"][1],3)
+                            ParametersExpoFitDay.append(Inversexk)
+                        if IntClass == 0:
+                            xmax = Inversexk
+                    xk = [1/Inversexk_ for Inversexk_ in ParametersExpoFitDay]
+                    k = np.arange(len(xk)) + 1
+                    logk = np.log(k) 
+                    fit,StdError,ConvergenceSuccess,FittedData,x_windowed,y_measured = FitAndStdError(x = logk,
+                                                                        y_measured = np.log(xk),
+                                                                        label = "linear",
+                                                                        initial_guess = (1,-xmax)
+                                                                        )
+                    # Extract Distribution Feature For Day
+                    y,x = np.histogram(MobDate.Fcm[Feature],bins = 50) 
+                    if len(k)!=4:
+                        k = np.insert(k,0,2) 
+                    RhoxGivenDay.append(y/np.sum(y))    # Shape (Day,50)
+                    RhoKGivenDay.append(k[:4]**fit[0][0]/xmax)  # Shape (Day,4)
+                    ax.scatter(logk,np.log(xk),label=MobDate.StrDate)
+                    ax.plot(np.log(k)*fit[0][0] + fit[0][1],label=MobDate.StrDate + r" $\alpha$: {}".format(round(fit[0][0],2)))
+                ax.set_xlabel("log(k)")
+                ax.set_ylabel(r"$log(x_k)$")
+                ax.set_title(r"$x_k = \frac{k^{\alpha}}{x_{max}}$")
+                ax.legend()
+                plt.savefig(os.path.join(self.PlotDir,"ScalingClass.png"),dpi = 200)
+                plt.close()
+                # Show that Rhox = \int_k Rho_k RhoXGivenK dK
+                fig,ax = plt.subplots(1,1,figsize = (10,10))
+                legend = []
+                CountDay = 0
+                CountDayPlusClass = 0
+                for MobDate in self.ListDailyNetwork:
+                    ReconstructedClass = np.zeros(50)
+                    for Class in range(len(RhoKGivenDay[CountDay])-1):
+                        ReconstructedClass += RhoKGivenDay[CountDay][Class]*RhoxGivenKGivenDay[CountDayPlusClass]
+                        CountDayPlusClass += 1
+                    ReconstructedClass = ReconstructedClass/len(RhoKGivenDay[CountDay])
+                    ax.plot(x[:-1],ReconstructedClass,color=colors[CountDay],linestyle = "--",label=None)
+                    ax.scatter(x[:-1],RhoxGivenDay[CountDay],color=colors[CountDay],label=MobDate.StrDate)
+                    CountDay += 1
+                ax.legend()
+                ax.set_yscale("log")
+                ax.set_xlabel(Feature2Label[Feature])
+                ax.set_ylabel("P({})".format(Feature2Label[Feature]))
+                ax.set_title(r"$\rho(x) = \int_k \rho(k) \rho(x|k) dk$")
+                plt.savefig(os.path.join(self.PlotDir,"ComparisonHeterogeneityHpRealDistr_{0}_{1}.png".format(Aggregation,Feature)),dpi = 200)
+                plt.close()
+
+
+# Comparison Time Percorrence
+    def CompareTimePercorrenceAllDays(self):
+        """
+          Compute the distribution of roads length for each class.
+          NOTE: The idea is to try to understand if there is some bias in the length of the roads for each class.
+          NOTE: By bias I mean that the distributions are peaked around some length, and the centroid for different
+          classes are different, maybe in the sense of sigmas in a gaussian distribution. 
+        """
+        Slicing = 8
+        MobDate = self.ListDailyNetwork[0]
+        Classes = [IntClass for IntClass in MobDate.Class2DfSpeedAndTimePercorrenceRoads]
+        print("Time Percorrence for Classes: ")
+        print("Classes: ",Classes)
+        print("Classes For Time Distribution: ",self.ListDailyNetwork[0].Class2Time2Distr.keys())
+        print("Classes For Time Percorrence: ",self.ListDailyNetwork[0].Class2AvgTimePercorrence.keys())
+        colors = ["blue","red","green","yellow","black","orange","purple","pink","brown","grey"]
+        for IntClass in Classes:
+            fig,ax = plt.subplots(1,1,figsize = (10,10))
+            IDay = 0
+            for MobDate in self.ListDailyNetwork:
+                # Compute Time (x-axis plot): NOTE: Inefficient, but it is just for the plot 
+                StrTimesLabel = []
+                if IntClass in MobDate.Class2DfSpeedAndTimePercorrenceRoads.keys():
+                    RoadsTimeVel = MobDate.Class2DfSpeedAndTimePercorrenceRoads[IntClass]        
+                    RoadsTimeVel = RoadsTimeVel.sort("start_bin")
+                    t = 0
+                    VarianceVec = []
+                    for time,RTV in RoadsTimeVel.groupby("start_bin"):
+                        StartInterval = datetime.datetime.fromtimestamp(time)
+                        StrTimesLabel.append(StartInterval.strftime("%Y-%m-%d %H:%M:%S").split(" ")[1])
+                        VarianceVec.append(np.std(np.array(MobDate.Class2Time2Distr[IntClass][t])))
+                    if IntClass in MobDate.Class2AvgTimePercorrence.keys():
+                        AvgTimePercorrence = MobDate.Class2AvgTimePercorrence[IntClass]
+                        ax.plot(StrTimesLabel, AvgTimePercorrence, color = colors[IDay], label = MobDate.StrDate)
+                        ax.errorbar(StrTimesLabel, AvgTimePercorrence, yerr=VarianceVec, color = colors[IDay],fmt='o',label=None)
+                IDay += 1
+            ax.set_title("Time Percorrence Distribution for Class {}".format(MobDate.IntClass2StrClass[IntClass]))
+            ax.set_xticks(range(len(StrTimesLabel))[::Slicing])  # Set the ticks to correspond to the labels
+            ax.set_xticklabels(StrTimesLabel[::Slicing], rotation=90)  # Set the labels with rotation    ax.set_title("Time Percorrence Distribution")
+            ax.set_xlabel("Time")
+            ax.set_ylabel("Time Percorrence")
+            ax.legend()
+            plt.savefig(os.path.join(self.PlotDir,"ComparisonTimePercorrence_{}".format(IntClass)),dpi = 200)
+            plt.close()
+
+
+    def PlotComparisonSubnets(self):
+        """
+            Description:
+                Plot the subnetworks for all days
+        """
+        for MobDate in self.ListDailyNetwork:
+            print("Completing the GeoJson for Day: ",MobDate.StrDate)
+            MobDate.CompleteGeoJsonWithClassInfo()
+        NewClasses = np.unique(self.ListDailyNetwork[0].GeoJson["IntClassOrdered_{}".format(self.ListDailyNetwork[0].StrDate)])
+        Colors = ["red","green","yellow","orange","purple","pink","brown","grey"]
+        Index2IJ = {0:(0,0),1:(0,1),2:(0,2),3:(1,0),4:(1,1),5:(1,2),6:(2,0),7:(2,1),8:(2,2)}
+        for CountClass,NewClass in enumerate(NewClasses):
+            fig, ax = plt.subplots(3, 3, figsize=(15, 10))
+            for Index,MobDate in enumerate(self.ListDailyNetwork):
+                print("Class {} for Day {}".format(NewClass,MobDate.StrDate))
+                print("Columns: ",MobDate.GeoJson.columns)
+                GdfClass = MobDate.GeoJson.groupby("IntClassOrdered_{}".format(MobDate.StrDate)).get_group(NewClass)
+                i = Index2IJ[Index][0]
+                j = Index2IJ[Index][1]
+                MobDate.GeoJson.plot(ax=ax[i][j], color="black",alpha = 0.5)
+                GdfClass.plot(ax=ax[i][j], color=Colors[CountClass])
+                ax[i][j].set_title(MobDate.StrDate)
+            # Add legend
+            plt.title('SubNetworks for Class {}'.format(NewClass))
+            plt.xlabel('Longitude')
+            plt.ylabel('Latitude')
+            plt.savefig(os.path.join(self.PlotDir,"SubNetworks_{}.png".format(NewClass)),dpi = 200) 
+            plt.close()       
+
+    

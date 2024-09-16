@@ -1500,7 +1500,7 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
     int num_feat = 4;                                               // v_average, v_max, v_min, sinuosity
     double epsilon_fcm = 0.005;                                     // threshold used to create initial points in FCM
     FCM *fcm;                                                       // fcm object   
-    fcm = new FCM(2, epsilon_fcm);                                  // Can it be done? Declare and then initialized with new? Yes
+    fcm = new FCM(2, epsilon_fcm);                                  // Declare and then initialized with new
     Map<MatrixXf> data_tr(features_data.data(), num_N, num_feat);   // matrix initialized with (features_data, shape (N traj, N features))
     MatrixXf data = data_tr;                                        // 
     fcm->set_data(&data);                                           // Copy the memory to fcm.m_data (N traj, N features)

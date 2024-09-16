@@ -638,12 +638,12 @@ class DailyNetworkStats:
             self.GeoJson["IntClassOrdered_{}".format(self.StrDate)] = ClassOrderedForGeojsonRoads
             self.GeoJson["StrClassOrdered_{}".format(self.StrDate)] = [self.IntClass2StrClass[intclass] for intclass in ClassOrderedForGeojsonRoads]
             # Normal Subnet
-            ClassOrderedForGeojsonRoads = np.zeros(len(self.GeoJson),dtype = int)
-            for Class in self.IntClass2Roads.keys():
-                for Road in self.IntClass2Roads[Class]: 
-                    ClassOrderedForGeojsonRoads[np.where(self.GeoJson["poly_lid"] == Road)[0]] = Class 
-            self.GeoJson["IntClass_{}".format(self.StrDate)] = ClassOrderedForGeojsonRoads
-            self.GeoJson["StrClass_{}".format(self.StrDate)] = [self.IntClass2StrClass[intclass] if intclass in self.IntClass2StrClass else "1 quickest" for intclass in ClassOrderedForGeojsonRoads]
+#            ClassOrderedForGeojsonRoads = np.zeros(len(self.GeoJson),dtype = int)
+#            for Class in self.IntClass2Roads.keys():
+#                for Road in self.IntClass2Roads[Class]: 
+#                    ClassOrderedForGeojsonRoads[np.where(self.GeoJson["poly_lid"] == Road)[0]] = Class 
+#            self.GeoJson["IntClass_{}".format(self.StrDate)] = ClassOrderedForGeojsonRoads
+#            self.GeoJson["StrClass_{}".format(self.StrDate)] = [self.IntClass2StrClass[intclass] if intclass in self.IntClass2StrClass else "1 quickest" for intclass in ClassOrderedForGeojsonRoads]
             if not os.path.isfile(os.path.join(self.InputBaseDir,"BolognaMDTClassInfo.geojson")):
                 self.GeoJson.to_file(os.path.join(self.InputBaseDir,"BolognaMDTClassInfo.geojson"))
             self.GeoJsonWithClassBool = True
@@ -654,7 +654,8 @@ class DailyNetworkStats:
             AddMessageToLog(Message,self.LogFile)
 
     def CompareOld2NewClass(self):
-        """NOTE: Computing the intersection Matrix
+        """
+            NOTE: Computing the intersection Matrix
                 The Intersection Diagonal is the fraction that do not change from N -> I
                 Upper Triangular Matrix is the fraction that change from N -> I (Is the flux we are interested in)
             NOTE:
@@ -1129,25 +1130,28 @@ class DailyNetworkStats:
                         self.GeoJson = BuildListStepsGivenDay(self.GeoJson,self.StrDate,"TimePercorrence_")
                     else:
                         pass
-                if not os.path.isfile(os.path.join(self.PlotDir,"GeoJson_{0}.geojson".format(self.StrDate))): 
-                    self.GeoJson.to_file(os.path.join(self.PlotDir,"GeoJson_{0}.geojson".format(self.StrDate)))
-                else:
-                    self.GeoJson = gpd.read_file(os.path.join(self.PlotDir,"GeoJson_{0}.geojson".format(self.StrDate)))
-                VideoEvolutionTimePercorrence(self.GeoJson,"TimePercorrence_",self.StrDate,self.PlotDir)
-                VideoEvolutionTimePercorrence(self.GeoJson,"AvSpeed_",self.StrDate,self.PlotDir)
-
-                print("GeoJson")
-                print(self.GeoJson)
-
-                SaveProcedure(BaseDir=self.PlotDir,
-                            ListKeys = ["Class2Time2Distr","Class2AvgTimePercorrence"],
-                             ListDicts = [self.Class2Time2Distr,self.Class2AvgTimePercorrence],
-                             ListFormats = [self.StrDate],
-                             Extension = ".json")
-                Upload = False
-            MessagePlotTimePercorrenceDistributionAllClasses(self.CountFunctionsCalled,self.LogFile,Upload)
             self.TimePercorrenceBool = True
             self.PlotTimePercorrenceConditionalLengthRoad()
+                
+                
+    def GenerateVideoEvolutionTimePercorrence(self):
+            if not os.path.isfile(os.path.join(self.PlotDir,"GeoJson_{0}.geojson".format(self.StrDate))): 
+                self.GeoJson.to_file(os.path.join(self.PlotDir,"GeoJson_{0}.geojson".format(self.StrDate)))
+            else:
+                self.GeoJson = gpd.read_file(os.path.join(self.PlotDir,"GeoJson_{0}.geojson".format(self.StrDate)))
+            VideoEvolutionTimePercorrence(self.GeoJson,"TimePercorrence_",self.StrDate,self.PlotDir)
+            VideoEvolutionTimePercorrence(self.GeoJson,"AvSpeed_",self.StrDate,self.PlotDir)
+
+            print("GeoJson")
+            print(self.GeoJson)
+
+            SaveProcedure(BaseDir=self.PlotDir,
+                        ListKeys = ["Class2Time2Distr","Class2AvgTimePercorrence"],
+                            ListDicts = [self.Class2Time2Distr,self.Class2AvgTimePercorrence],
+                            ListFormats = [self.StrDate],
+                            Extension = ".json")
+            Upload = False
+            MessagePlotTimePercorrenceDistributionAllClasses(self.CountFunctionsCalled,self.LogFile,Upload)
 
 
     def PlotTimePercorrenceConditionalLengthRoad(self):
@@ -1157,7 +1161,7 @@ class DailyNetworkStats:
                 2) Draws the time percorrence distribution conditioned to the length of the road.
 
         """
-        self.PlotDistributionLengthRoadPerClass()
+        #self.PlotDistributionLengthRoadPerClass()
         self.CountFunctionsCalled += 1
         
         # Drop rows with NaN values in the 'poly_length' column
@@ -1308,50 +1312,33 @@ class DailyNetworkStats:
                         SecondsInHour = 3600
                         MetersinKm = 1000
                         if self.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass][Function2Test] is not None:
+                            # Change units for intervals
                             if Feature == "time":
-                                self.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass][Function2Test] = FillInitGuessIntervalPlExp(self.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass][Function2Test],
-                                                                                                                        MaxCount,
-                                                                                                                        Avg,
-                                                                                                                        StartWindow,
-                                                                                                                        EndWindow,
-                                                                                                                        Function2Test)
+                                pass
                             elif Feature == "time_hours":
                                 Avg = Avg/SecondsInHour 
                                 StartWindow = StartWindow/SecondsInHour
                                 EndWindow = EndWindow/SecondsInHour 
-                                self.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass][Function2Test] = FillInitGuessIntervalPlExp(self.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass][Function2Test],
-                                                                                                                        MaxCount,
-                                                                                                                        Avg,
-                                                                                                                        StartWindow,
-                                                                                                                        EndWindow,
-                                                                                                                        Function2Test)
                             elif Feature == "lenght":
-                                self.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass][Function2Test] = FillInitGuessIntervalPlExp(self.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass][Function2Test],
-                                                            MaxCount,
-                                                            Avg,
-                                                            StartWindow,
-                                                            EndWindow,
-                                                            Function2Test)
+                                pass
                             elif Feature == "lenght_km":
                                 Avg = Avg/MetersinKm 
                                 StartWindow = StartWindow/MetersinKm
                                 EndWindow = EndWindow/MetersinKm
+                            # Filling the Initial Guess According to the Funtion2Test
+                            if "speed" in Feature:
+                                self.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass][Function2Test] = FillInitGuessIntervalMxGs(self.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass][Function2Test],
+                                                                                                                    self.Fcm,
+                                                                                                                    Feature,
+                                                                                                                    IntClass)                            
+                            else:
                                 self.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass][Function2Test] = FillInitGuessIntervalPlExp(self.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass][Function2Test],
                                                                                                                     MaxCount,
                                                                                                                     Avg,
                                                                                                                     StartWindow,
                                                                                                                     EndWindow,
                                                                                                                     Function2Test)
-                            elif Feature == "av_speed":
-                                self.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass][Function2Test] = FillInitGuessIntervalMxGs(self.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass][Function2Test],
-                                                                                                                    self.Fcm,
-                                                                                                                    Feature,
-                                                                                                                    IntClass)
-                            elif Feature == "speed_kmh":
-                                self.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass][Function2Test] = FillInitGuessIntervalMxGs(self.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass][Function2Test],
-                                                                                                                    self.Fcm,
-                                                                                                                    Feature,
-                                                                                                                    IntClass)
+
                         else:
                             print("Warning: Initial Guess Not Initialized for Class {0} and Feature {1} Day: {2}".format(IntClass,Feature,self.StrDate))
             Message = "{} Create Dictionary Class2InitialGuess: True".format(self.CountFunctionsCalled)
@@ -1503,7 +1490,31 @@ class DailyNetworkStats:
         plt.tight_layout()
         plt.savefig(os.path.join(self.PlotDir,"TimeSpaceConditional.png"),dpi = 200)
         plt.close()
-        
+
+
+    def PlotDistrFeature(self):
+        for Feature in self.Feature2AllFitTry.keys():
+            if "speed" in Feature:
+                pass
+            else:
+                y,x = np.histogram(self.Fcm[Feature],bins = 50)  
+                y = y/np.sum(y)
+                x_mean = np.mean(x)
+                fig,ax = plt.subplots(1,1,figsize = (10,10))
+                fit = pwl.Fit(np.array(self.Fcm[Feature]),
+                            xmin = min(np.array(self.Fcm[Feature])),
+                            xmax = max(np.array(self.Fcm[Feature]))
+                            )
+                ax.plot(x[:-1],y)
+                ax.plot(x[:-1],x[:-1]**[fit.alpha])
+                ax.vlines(x_mean,0,1,linestyles = "dashed")
+                ax.set_yscale("log")
+                ax.set_xlabel(self.Feature2Label[Feature])
+                ax.set_title("Feature: {0} Power Law Fit Alpha: {1} Sigma: {2}".format(Feature,fit.alpha,fit.sigma))
+                plt.savefig(os.path.join(self.PlotDir,"Feature_{0}_PowerLawFit.png".format(Feature)),dpi = 200)
+                plt.close()
+
+
     def PlotDistrPerClass(self):
         """
             Description:

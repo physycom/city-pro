@@ -8,6 +8,32 @@ def Dict2PolarsDF(Dict,schema):
 
 
 
+# FILL TO THE ZEROS
+def fill_zeros_with_average(vector):
+    # Convert the vector to a numpy array for easier manipulation
+    vector = np.array(vector)
+    
+    # Iterate through the vector
+    for i in range(len(vector)):
+        if vector[i] == 0:
+            # Find the previous non-zero element
+            prev_index = i - 1
+            while (prev_index >= 0 and vector[prev_index] == 0):
+                prev_index -= 1
+            # Find the next non-zero element
+            next_index = i + 1
+            while(next_index < len(vector) and vector[next_index] == 0):
+                next_index += 1
+            
+            # Calculate the average of the previous and next non-zero elements
+            if (prev_index >= 0 and next_index < len(vector)):
+                vector[i] = (vector[prev_index] + vector[next_index]) / 2
+            elif (prev_index >= 0):
+                vector[i] = vector[prev_index]
+            elif (next_index < len(vector)):
+                vector[i] = vector[next_index]
+    return vector.tolist()
+
 
 # MFD RELATED FUNCTIONS
 def ComputeMFDVariables(Df,MFD,TimeStampDate,dt,iterations,verbose = False):
@@ -98,7 +124,7 @@ def GetLowerBoundsFromBins(bins,label,MinMaxPlot,Class,case):
         MinMaxPlot[Class][label] = {"min":bins[0],"max":bins[-1]}
         return MinMaxPlot
 
-def GetMFDForPlot(MFD,MFD2Plot,MinMaxPlot,Class,case,verbose = False,bins_ = 15):
+def GetMFDForPlot(MFD,MFD2Plot,MinMaxPlot,Class,case,verbose = False,bins_ = 12):
     """
         Input:
             MFD: {"population":[],"time":[],"speed_kmh":[]} or {Class:pl.DataFrame{"population":[],"time":[],"speed_kmh":[]}}
@@ -132,6 +158,7 @@ def GetMFDForPlot(MFD,MFD2Plot,MinMaxPlot,Class,case,verbose = False,bins_ = 15)
 #        print("Bins Population:\n",MFD2Plot['bins_population'])
 #        print("\nBins Average Speed:\n",MFD2Plot['binned_av_speed'])
 #        print("\nBins Standard Deviation:\n",MFD2Plot['binned_sqrt_err_speed'])
+    fill_zeros_with_average(MFD2Plot['binned_av_speed'])
     MinMaxPlot = GetLowerBoundsFromBins(bins = bins,label = "population",MinMaxPlot = MinMaxPlot,Class = Class,case = case)
     MinMaxPlot = GetLowerBoundsFromBins(bins = MFD2Plot['binned_av_speed'],label = "speed_kmh",MinMaxPlot = MinMaxPlot, Class = Class,case = case)
     Y_Interval = max(MFD2Plot['binned_av_speed']) - min(MFD2Plot['binned_av_speed'])

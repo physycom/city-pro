@@ -156,9 +156,12 @@ def Main(config,StrDate):
     Network.ReadVelocitySubnet()
     Network.PlotTimePercorrenceDistributionAllClasses()
     Network.GetTime2ClassPeople()
-    Network.PlotDistributionLengthRoadPerClass()
-
+#    Network.PlotDistributionLengthRoadPerClass()    # PROBLEMS WITH keys in self.IntClass2StrCLass
+    # FIT ALL CLASSES
+    Network.PlotDistrFeature()
     Network.PlotMFD()
+    # VIDEO TIME PERCORRENCE (Problems) ValueError: The data range provided to the 'scale' variable is too small for the default scaling function. Normalize your data or provide a custom 'scale_func'.
+#    Network.GenerateVideoEvolutionTimePercorrence()
     # HYSTERESIS DIAGRAM
     Network.ReadFluxes()
     
@@ -176,6 +179,12 @@ def MainComparison(ListNetworkDays,PlotDirAggregated,config,verbose):
     # All Days Plot Distribution Velocity Aggregated
     NetAllDays.PlotGridDistrFeat()
     NetAllDays.PlotDistrAggregatedAllDays()
+    # Plot Comparison among distributions of different days: Will be in the common folder
+    NetAllDays.PlotComparisonDistributionEachFeatureAllDays()
+    NetAllDays.PlotComparisonDistributionEachFeatureAllDaysRescaledByMean() 
+    # Comparison Distribution Features not By class
+    NetAllDays.PlotComparisonDistributionInDays()
+    NetAllDays.PlotDistrFeaturepowerLawComparisonAllDays()
     # All Days Plot Distribution Velocity Comparison
     NetAllDays.CreateClass2SubNetAllDays()
 #    NetAllDays.PlotClass2SubNetAllDays()
@@ -185,6 +194,15 @@ def MainComparison(ListNetworkDays,PlotDirAggregated,config,verbose):
 
     NetAllDays.ComputeAggregatedMFDVariablesObj()
     NetAllDays.PlotMFDAggreagated()
+    # Number Of People Per Day
+    NetAllDays.PlotDistributionTotalNumberPeople()
+    # Test Heteorgeneity Hp
+    NetAllDays.PlotNumberTrajectoriesGivenClass()
+    # Compare The Time Percorrence
+    NetAllDays.CompareTimePercorrenceAllDays()
+    # Compare sub-nets
+    NetAllDays.PlotComparisonSubnets()
+
 
 if __name__ == "__main__":
     setup_mpl()
