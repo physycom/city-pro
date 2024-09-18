@@ -60,7 +60,7 @@ def BuildListStepsGivenDay(GpdClasses,StrDay,StrMetric):
         Col = StrMetric + StartInterval + "_" + StrDay
         GpdClasses[Col] = np.zeros(len(GpdClasses))
         for Road in GpdClasses["poly_lid"].to_numpy().astype(int):
-            if not np.isnan(Road):
+            if not np.isnan(Road) and Road>0:
                 GpdClasses.at[Road,Col] = Hour2Road2Metric[StartInterval][Road]
             else:
                 print("Time Interval: ",StartInterval)

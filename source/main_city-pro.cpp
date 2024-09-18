@@ -154,6 +154,7 @@ int main(int argc, char **argv) {
 
 //  ACTIVITY -> TRAJECTORY
     make_traj(analysis_container.activity,analysis_container.dataloss,analysis_container.traj,analysis_container.data_notoncarto,analysis_container.presence);//for t in traj_temp 1) activity->traj_temp 2) t.record -> t.stop_point 3)t.stop_point = sp_on_carto (vector clster_base)
+    make_traj_dataframe(analysis_container.traj,analysis_container.poly);
 // FUZZY ALGORITHM -> fcm
     if (config_.enable_multimodality) make_multimodality(analysis_container.traj,analysis_container.config_,analysis_container.centers_fcm);
 // PROJECT TRAJECTORIES on Cartography

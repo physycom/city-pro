@@ -951,3 +951,85 @@ def ScatterFitParams(A, b, classes, types,Class2Type2Colors,Class2Type2Shapes,Ti
     ax.legend(handles = legend,loc='center left', bbox_to_anchor=(1, 0.5))  # Place legend outside the plot
     plt.savefig(os.path.join(PlotDir,SaveName + ".png"))
     plt.close()
+
+
+# UNION ALL DAYS SUBNETWORK
+def PlotIntersection(GpdClasses,UniqueClasses,StrClasses2Color,StrIntersection = "Intersection_"):
+    First = True
+    for Class in UniqueClasses:
+        filtered_gdf = GpdClasses.loc[GpdClasses[StrIntersection + Class] == True].dropna(subset=['geometry'])
+        if len(filtered_gdf) == 0:
+            continue
+        else:        
+            if not First:
+                print("class: ",Class," Color: ",StrClasses2Color[Class]," Column: ",StrIntersection + Class)
+                print("Number of roads to Color: ",len([True for i in GpdClasses[StrIntersection + Class] if i if i == True]))
+                
+                filtered_gdf.explore(column = StrIntersection + Class,
+                                    color = StrClasses2Color[Class],
+                                    categories = [True,False],
+                                    legend = True,
+                                    legend_kwds = {'loc': 'upper right'},
+                                    figsize = (8,5),
+                                    tooltip = "poly_lid",
+                                    tooltip_kwds = dict(labels= False),
+                                    name = "Intersection All Days " + Class,
+                                    m = m)
+            else:
+                print("First: Class ",Class," Color: ",StrClasses2Color[Class]," Column: ",StrIntersection + Class)
+                print("Number of roads to Color: ",len([True for i in GpdClasses[StrIntersection + Class] if i if i == True]))
+                m = filtered_gdf.explore(column = "Intersection_" + Class,
+                                    color = StrClasses2Color[Class],
+                                    categories = [True,False],
+                                    legend = True,
+                                    legend_kwds = {'loc': 'upper right'},
+                                    figsize = (8,5),
+                                    tooltip = "poly_lid",
+                                    tooltip_kwds = dict(labels= False),
+                                    name = "Intersection All Days " + Class
+                                    )
+                folium.TileLayer("CartoDB positron", show=False).add_to(m)
+                First = False
+    folium.LayerControl().add_to(m)        
+    return m
+
+        
+def PlotUnion(GpdClasses,UniqueClasses,StrClasses2Color,StrUnion = "Union_"):
+    First = True
+    for Class in UniqueClasses:
+        print(StrUnion + Class)
+        filtered_gdf = GpdClasses.loc[GpdClasses[StrUnion + Class] == True].dropna(subset=['geometry'])
+        if len(filtered_gdf) == 0:
+            continue
+        else:
+            if not First:
+                print("class: ",Class," Color: ",StrClasses2Color[Class])
+                print("Number of roads to Color: ",len([True for i in GpdClasses[StrUnion + Class] if i if i == True]))
+                filtered_gdf.explore(column = StrUnion + Class,
+                                    color = StrClasses2Color[Class],
+                                    categories = [True,False],
+                                    legend = True,
+                                    legend_kwds = {'loc': 'upper right'},
+                                    figsize = (8,5),
+                                    tooltip = "poly_lid",
+                                    tooltip_kwds = dict(labels= False),
+                                    name = "Union All Days " + Class,
+                                    m = m)
+            else:
+                print("First: Class ",Class," Color: ",StrClasses2Color[Class])
+                print("Number of roads to Color: ",len([True for i in GpdClasses[StrUnion + Class] if i if i == True]))
+                m = filtered_gdf.explore(column = StrUnion + Class,
+                                    color = StrClasses2Color[Class],
+                                    categories = [True,False],
+                                    legend = True,
+                                    legend_kwds = {'loc': 'upper right'},
+                                    figsize = (8,5),
+                                    tooltip = "poly_lid",
+                                    tooltip_kwds = dict(labels= False),
+                                    name = "Union All Days " + Class
+                                    )
+                folium.TileLayer("CartoDB positron", show=False).add_to(m)
+                First = False
+    folium.LayerControl().add_to(m)        
+    return m
+

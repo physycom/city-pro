@@ -202,6 +202,9 @@ def MainComparison(ListNetworkDays,PlotDirAggregated,config,verbose):
     NetAllDays.CompareTimePercorrenceAllDays()
     # Compare sub-nets
     NetAllDays.PlotComparisonSubnets()
+    # Compare sub-nets
+    NetAllDays.PlotIntersectionSubnets()
+    NetAllDays.PlotIntersectionSubnets()
 
 
 if __name__ == "__main__":

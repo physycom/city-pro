@@ -103,4 +103,5 @@ void analysis_subnets(std::vector<traj_base> &traj,std::vector<poly_base> &poly,
 void dump_longest_traj(std::vector<traj_base> &traj);
 std::map<std::string,std::vector<int>> hierarchical_deletion_of_intersection(std::map<std::string, std::vector<int>> subnets80);
 void assign_new_class(std::vector<traj_base> &traj,std::vector<poly_base> &poly,std::map<std::string, std::vector<int>> subnets80);
+void make_traj_dataframe(std::vector<traj_base> &traj,std::vector<poly_base> &poly);
 // ALBI

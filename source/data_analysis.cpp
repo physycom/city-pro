@@ -958,6 +958,22 @@ void dump_longest_traj(std::vector<traj_base> &traj)
     outtraj1.close();
 }
 
+/*
+    make_bp_traj: compute the best path trajectories
+    @param traj: vector of trajectories
+    @param config_: configuration parameters
+    @param sigma: standard deviation DEPRECATED
+    @param dataloss: data loss -> counts the number of trajectories that are not considered due to threshold of time
+    @param poly: vector of polies (the roads)
+    @param centers_fcm: vector of fcm centers
+    @param node: vector of nodes
+    @param classes_flux: vector of classes fluxes
+    Description: 
+        compute the best path trajectories
+
+*/
+
+
 void make_bp_traj(std::vector<traj_base> &traj,config &config_,double &sigma,data_loss &dataloss,std::vector<poly_base> &poly,std::vector<centers_fcm_base> &centers_fcm,std::vector<node_base> &node,std::vector<std::map<int,int>> &classes_flux)
 {
     std::cout << "Computing Best Path Trajectories..." << std::endl;
@@ -2668,3 +2684,55 @@ double measure_representativity(const string &label,std::vector<poly_base> &poly
     return sub / all;
 }
 //----------------------------------------------------------------------------------------------------
+
+/*
+*   @brief make_traj_dataframe: Computes the trajectory dataframe:
+*   @param traj vector of trajectories
+*   @details
+*   - Open the file 'config_.cartout_basename + "/" + config_.name_pro + "_traj_dataframe.csv"'
+*   - Write the header "user_id;latitude;longitude;timestamp;speed;road_id"
+*   - For each trajectory in 'traj'
+*       - For each stop_point in the trajectory
+*           - Write the 'id_act' of the trajectory
+*           - Write the 'latitude' of the stop_point
+*           - Write the 'longitude' of the stop_point
+*           - Write the 'itime' of the stop_point
+*           - Write the 'inst_speed' of the stop_point
+*           - Write the 'first' element of the 'path' of the stop_point
+*   - Close the file
+
+*/
+void make_traj_dataframe(std::vector<traj_base> &traj,std::vector<poly_base> &poly){
+    ofstream out_traj(config_.cartout_basename + "/" + config_.name_pro + "_traj_dataframe.csv");
+    ofstream size_path(config_.cartout_basename + "/" + config_.name_pro + "_size_path.csv");
+    out_traj << "user_id;latitude;longitude;timestamp;speed;node_front;node_tail;road_id" << std::endl;
+    for (auto &t : traj)
+    {
+        auto it = t.path.begin();
+        size_path << t.id_act << ";" << t.path.size() << std::endl;
+        size_path.close();
+        for (int sp = 0; sp < t.stop_point.size(); ++sp)
+        {
+//            if (it == t.path.end()) {
+//                break;  // Ensure we don't go past the end of the list
+//            }    
+
+            if (it->first<0){
+                    int index_ = -it->first;
+                    int PolyFront = poly[index_].cid_Fjnct; 
+                    int PolyTail = poly[index_].cid_Tjnct;
+                    int LidPoly = poly[index_].id_local;
+                    out_traj << t.id_act << ";" << t.stop_point[sp].centroid.lat << ";" << t.stop_point[sp].centroid.lon << ";" << t.stop_point[sp].points.front().itime << ";" << t.stop_point[sp].inst_speed << ";" << it->first << ";"<< PolyFront << ";"<< PolyTail << ";"<< LidPoly << std::endl;
+                }
+            else{
+                    int index_ = it->first;
+                    int PolyFront = poly[index_].cid_Fjnct; 
+                    int PolyTail = poly[index_].cid_Tjnct;
+                    int LidPoly = poly[index_].id_local;
+                    out_traj << t.id_act << ";" << t.stop_point[sp].centroid.lat << ";" << t.stop_point[sp].centroid.lon << ";" << t.stop_point[sp].points.front().itime << ";" << t.stop_point[sp].inst_speed << ";" << it->first << ";"<< PolyFront << ";"<< PolyTail << ";"<< LidPoly << std::endl;
+                }
+            ++it;
+        }
+    }
+    out_traj.close();
+}

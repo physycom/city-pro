@@ -4,7 +4,7 @@ from collections import defaultdict
 import numpy as np
 from LatexFunctions import *
 from UsefulStructures import *
-
+import contextily as ctx
 
 
 class NetworkAllDays:
@@ -1092,13 +1092,13 @@ class NetworkAllDays:
         """
         colors = ["blue","red","green","yellow","black","orange","purple","pink","brown","grey"]
         Feature2Label = {"lenght_km":"L","time_hours":"t"}
-        fig,ax = plt.subplots(1,1,figsize = (10,8))
         for Aggregation in ["aggregated"]:
             for Feature in ["lenght_km","time_hours"]:
                 # Compute the alphas that define for a given day fraction of trajectories that are to a class (RhoK)
                 RhoKGivenDay = []
                 RhoxGivenKGivenDay = []
                 RhoxGivenDay = []
+                fig,ax = plt.subplots(1,1,figsize = (10,8))
                 for MobDate in self.ListDailyNetwork:
                     ParametersExpoFitDay = []
                     for StrClass in self.ListStrClassReference:
@@ -1208,28 +1208,89 @@ class NetworkAllDays:
             Description:
                 Plot the subnetworks for all days
         """
-        for MobDate in self.ListDailyNetwork:
-            print("Completing the GeoJson for Day: ",MobDate.StrDate)
-            MobDate.CompleteGeoJsonWithClassInfo()
-        NewClasses = np.unique(self.ListDailyNetwork[0].GeoJson["IntClassOrdered_{}".format(self.ListDailyNetwork[0].StrDate)])
-        Colors = ["red","green","yellow","orange","purple","pink","brown","grey"]
+        NewClasses = [0,1,2,3]
+        GeoJson = gpd.read_file("/home/aamad/codice/city-pro/output/bologna_mdt_detailed/BolognaMDTClassInfo.geojson")
+        Colors = ["red","green","purple","orange","yellow","pink","brown","grey"]
         Index2IJ = {0:(0,0),1:(0,1),2:(0,2),3:(1,0),4:(1,1),5:(1,2),6:(2,0),7:(2,1),8:(2,2)}
         for CountClass,NewClass in enumerate(NewClasses):
             fig, ax = plt.subplots(3, 3, figsize=(15, 10))
             for Index,MobDate in enumerate(self.ListDailyNetwork):
                 print("Class {} for Day {}".format(NewClass,MobDate.StrDate))
-                print("Columns: ",MobDate.GeoJson.columns)
-                GdfClass = MobDate.GeoJson.groupby("IntClassOrdered_{}".format(MobDate.StrDate)).get_group(NewClass)
+                try:
+                    GdfClass = MobDate.GeoJson.groupby("StrClassOrdered_{}".format(MobDate.StrDate)).get_group(MobDate.IntClass2StrClass[NewClass])
+                except:
+                    pass
                 i = Index2IJ[Index][0]
                 j = Index2IJ[Index][1]
-                MobDate.GeoJson.plot(ax=ax[i][j], color="black",alpha = 0.5)
-                GdfClass.plot(ax=ax[i][j], color=Colors[CountClass])
+                GeoJson.plot(ax=ax[i][j], color="black",alpha = 0.01, linewidth=0.1)
+                try:
+                    GdfClass.plot(ax=ax[i][j], color=Colors[CountClass], linewidth=2)
+                except:
+                    pass
+                try:
+                    ctx.add_basemap(ax[i][j], crs="EPSG:32632")
+                except:
+                    print("No Basemap")
                 ax[i][j].set_title(MobDate.StrDate)
+                ax[i][j].set_axis_off()
             # Add legend
-            plt.title('SubNetworks for Class {}'.format(NewClass))
+#            plt.title('SubNetworks for Class {}'.format(MobDate.IntClass2StrClass[NewClass]))
             plt.xlabel('Longitude')
             plt.ylabel('Latitude')
+            fig.suptitle('SubNetworks for Class {}'.format(MobDate.IntClass2StrClass[NewClass]), fontsize=16)
+            plt.tight_layout(rect=[0, 0.03, 1, 0.95])
             plt.savefig(os.path.join(self.PlotDir,"SubNetworks_{}.png".format(NewClass)),dpi = 200) 
             plt.close()       
 
-    
+    def PlotUnionSubnets(self):
+        """
+            This snippet works just if I consider 4 classes.
+
+        """
+        UniqueClasses = [0,1,2,3]
+        Colors = ["red","green","purple","orange","yellow","pink","brown","grey"]
+        StrUnion = "OrderedUnion_"
+        GeoJson = gpd.read_file("/home/aamad/codice/city-pro/output/bologna_mdt_detailed/BolognaMDTClassInfo.geojson")
+        fig, ax = plt.subplots(2, 2, figsize=(15, 10))
+        Class2Ax = {0:(0,0),1:(0,1),2:(1,0),3:(1,1)}
+        IntClass2StrClass = {0:"1 slowest",1:"2 slowest",2:"middle velocity class",3:"1 quickest"}
+        for Class in UniqueClasses:
+            i = Class2Ax[Class][0]
+            j = Class2Ax[Class][1]
+            filtered_gdf = GeoJson.loc[GeoJson[StrUnion + IntClass2StrClass[Class]] == True].dropna(subset=['geometry'])
+            filtered_gdf.plot(ax=ax[i][j], color=Colors[Class], linewidth=2)
+            try:
+                ctx.add_basemap(ax[i][j], crs="EPSG:32632")
+            except:
+                print("No Basemap")
+            ax[i][j].set_title("Union All Days Class {}".format(Class))
+            ax[i][j].set_axis_off()
+        plt.savefig(os.path.join(self.PlotDir,"UnionSubNetworks.png"),dpi = 200) 
+        plt.close()
+
+
+    def PlotIntersectionSubnets(self):
+        """
+            This snippet works just if I consider 4 classes.
+
+        """
+        UniqueClasses = [0,1,2,3]
+        Colors = ["red","green","purple","orange","yellow","pink","brown","grey"]
+        StrUnion = "OrderedIntersection_"
+        IntClass2StrClass = {0:"1 slowest",1:"2 slowest",2:"middle velocity class",3:"1 quickest"}
+        GeoJson = gpd.read_file("/home/aamad/codice/city-pro/output/bologna_mdt_detailed/BolognaMDTClassInfo.geojson")
+        fig, ax = plt.subplots(2, 2, figsize=(15, 10))
+        Class2Ax = {0:(0,0),1:(0,1),2:(1,0),3:(1,1)}
+        for Class in UniqueClasses:
+            i = Class2Ax[Class][0]
+            j = Class2Ax[Class][1]
+            filtered_gdf = GeoJson.loc[GeoJson[StrUnion + IntClass2StrClass[Class]] == True].dropna(subset=['geometry'])
+            filtered_gdf.plot(ax=ax[i][j], color=Colors[Class], linewidth=2)
+            try:
+                ctx.add_basemap(ax[i][j], crs="EPSG:32632")
+            except:
+                print("No Basemap")
+            ax[i][j].set_title("Union All Days Class {}".format(Class))
+            ax[i][j].set_axis_off()
+        plt.savefig(os.path.join(self.PlotDir,"UnionSubNetworks.png"),dpi = 200) 
+        plt.close()
