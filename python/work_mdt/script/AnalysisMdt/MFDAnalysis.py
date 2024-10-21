@@ -3,12 +3,17 @@ import os
 import numpy as np
 import polars as pl
 import matplotlib.pyplot as plt
+from collections import defaultdict
+import logging
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 def Dict2PolarsDF(Dict,schema):
     return pl.DataFrame(Dict,schema=schema)
 
 
 
-# FILL TO THE ZEROS
+# FILL TO THE ZEROS 
 def fill_zeros_with_average(vector):
     # Convert the vector to a numpy array for easier manipulation
     vector = np.array(vector)
@@ -36,45 +41,121 @@ def fill_zeros_with_average(vector):
 
 
 # MFD RELATED FUNCTIONS
-def ComputeMFDVariables(Df,MFD,TimeStampDate,dt,iterations,verbose = False):
+def AddColumns2MFD(MFD,FcmClass,Class,BinTimeStamp,NewClass):
     """
         NOTE: The bins in time that have 0 trajectories have 0 average speed
         NOTE: Speed in MFD in km/h
     """
-    print("Compute MFD Variables:")
-    TmpDict = {"time":[],"population":[],"speed_kmh":[],"av_speed":[]}
-    for t in range(int(iterations)):
-        StartInterval = datetime.datetime.fromtimestamp(int(TimeStampDate)+t*dt)
-        EndInterval = datetime.datetime.fromtimestamp(int(TimeStampDate)+(t+1)*dt)                    
-        TmpDf = Df.with_columns(pl.col('start_time').apply(lambda x: datetime.datetime.fromtimestamp(x), return_dtype=pl.Datetime).alias("start_time_datetime"),
+    if not NewClass:
+        TmpDict = {"time":[],f"population_{Class}":[],f"speed_kmh_{Class}":[]}
+    else:
+        TmpDict = {"time":[],f"new_population_{Class}":[],f"new_speed_kmh_{Class}":[]}
+    if MFD is None:
+        MFD = {"time":[]}
+    for t in range(len(BinTimeStamp)-1):
+        StartInterval = datetime.datetime.fromtimestamp(int(BinTimeStamp[t]))
+        EndInterval = datetime.datetime.fromtimestamp(int(BinTimeStamp[t+1]))                    
+        TmpFcm = FcmClass.with_columns(pl.col('start_time').apply(lambda x: datetime.datetime.fromtimestamp(x), return_dtype=pl.Datetime).alias("start_time_datetime"),
                                     pl.col('end_time').apply(lambda x: datetime.datetime.fromtimestamp(x), return_dtype=pl.Datetime).alias("end_time_datetime"))
 
-        TmpFcm = TmpDf.filter(pl.col('start_time_datetime').is_between(StartInterval,EndInterval))
+        TmpFcm = TmpFcm.filter(pl.col('start_time_datetime').is_between(StartInterval,EndInterval))
         Hstr = StartInterval.strftime("%Y-%m-%d %H:%M:%S").split(" ")[1]
         TmpDict["time"].append(Hstr)
-        TmpDict["population"].append(len(TmpFcm))
-
-        if len(TmpFcm) > 0:
-            AvSpeed = TmpFcm.select(pl.col("speed_kmh").mean()).to_pandas().iloc[0]["speed_kmh"]
-            TmpDict["speed_kmh"].append(AvSpeed)
-            AvSpeed = TmpFcm.select(pl.col("av_speed").mean()).to_pandas().iloc[0]["av_speed"]
-            TmpDict["av_speed"].append(AvSpeed)
-            MoreThan0Traj = True
+        if not NewClass:
+            TmpDict[f"population_{Class}"].append(len(TmpFcm))
+            if len(TmpFcm) > 0:
+                AvSpeed = TmpFcm.select(pl.col("speed_kmh").mean()).to_pandas().iloc[0]["speed_kmh"]
+                TmpDict[f"speed_kmh_{Class}"].append(AvSpeed)
+            else:
+                TmpDict[f"speed_kmh_{Class}"].append(0)
         else:
-            TmpDict["speed_kmh"].append(0)
-            TmpDict["av_speed"].append(0)
-            MoreThan0Traj = False
-#        if verbose:
-#            print("Iteration: ",t)
-#            print("Considered Hour: ",Hstr)
-#            print("Population: ",len(TmpFcm))
-#            print("Size dict: ",len(TmpDict["time"]))
-#            if MoreThan0Traj:
-#                print("Speed: ",AvSpeed)
-#    if verbose:
-#        print("Dict: ",TmpDict)
-    MFD = Dict2PolarsDF(TmpDict,schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64})
-    return MFD,Df
+            TmpDict[f"new_population_{Class}"].append(len(TmpFcm))
+            if len(TmpFcm) > 0:
+                AvSpeed = TmpFcm.select(pl.col("speed_kmh").mean()).to_pandas().iloc[0]["speed_kmh"]
+                TmpDict[f"new_speed_kmh_{Class}"].append(AvSpeed)
+            else:
+                TmpDict[f"new_speed_kmh_{Class}"].append(0)
+    if not NewClass:
+        TmpDict = Dict2PolarsDF(TmpDict,schema = {"time":pl.datatypes.Utf8,f"population_{Class}":pl.Int64,f"speed_kmh_{Class}":pl.Float64})
+    else:
+        TmpDict = Dict2PolarsDF(TmpDict,schema = {"time":pl.datatypes.Utf8,f"new_population_{Class}":pl.Int64,f"new_speed_kmh_{Class}":pl.Float64})
+    if not isinstance(MFD, pl.DataFrame):
+        MFD = pl.DataFrame(MFD)    
+    if len(MFD) == 0:
+        MFD = TmpDict
+    else:
+        # Merge MFD and TmpDict on the column 'time'
+        MFD = MFD.join(TmpDict, on="time", how="left")
+    return MFD
+def ComputeAggregatedMFDVariables(ListDailyNetwork,MFDAggregated,Class,NewClass):
+    """
+        Description:
+            Every Day I count for each hour, how many people and the speed of the 
+            1. Network -> MFDAggregated = {"population":[],"time":[],"speed_kmh":[]}
+            2. SubNetwork -> Class2MFDAggregated = {StrClass: {"population":[sum_i pop_{t0,dayi},...,sum_i pop_{iteration,dayi}],"time":[t0,...,iteration],"speed_kmh":[sum_i speed_{t0,dayi},...,sum_i speed_{iteration,dayi}]}}
+            NOTE: time is pl.DateTime
+        NOTE: Each Time interval has its own average speed and population. For 15 minutes,
+            since iteration in 1 Day Analysis is set in that way. 
+        NOTE: If at time t there is no population, the speed is set to 0.
+
+        NOTE:
+            Speed(Road,Time)
+            NumberCars(Road,Time)
+            Speed(NumberCars) <=> if NumberCars(Road,Time) = NumberCars(Road',Time') => Speed(Road,Time) = Speed(Road',Time') 
+            Compute:
+                sum_{Day} P(Speed|NumberCars,Day)P(NumberCars|Day)P(Day)
+    """
+    if NewClass:
+        ColPopulation = f"new_population_{Class}"
+        ColSpeed = f"new_speed_kmh_{Class}"
+    else:
+        ColPopulation = f"population_{Class}"
+        ColSpeed = f"speed_kmh_{Class}"
+    LocalDayCount = 0
+    # AGGREGATE MFD FOR ALL DAYS
+    for MobDate in ListDailyNetwork:
+        if LocalDayCount == 0:
+            MFDAggregated = MobDate.MFD
+            if isinstance(MFDAggregated,pl.DataFrame):
+                MFDAggregated = MFDAggregated.to_pandas()
+            else:
+                pass
+            MFDAggregated["count_days"] = list(np.zeros(len(MFDAggregated["time"])))
+            MFDAggregated["total_number_people"] = list(np.zeros(len(MFDAggregated["time"])))
+            LocalDayCount += 1
+        else:            
+            for t in range(len(MobDate.MFD["time"])):
+                WeightedSpeedAtTime = MobDate.MFD[ColSpeed][t]*MobDate.MFD[ColPopulation][t]
+                PopulationAtTime = MobDate.MFD[ColPopulation][t]
+                if PopulationAtTime != 0 and WeightedSpeedAtTime !=0:
+                    MFDAggregated[ColSpeed][t] += WeightedSpeedAtTime
+                    MFDAggregated[ColPopulation][t] += PopulationAtTime
+                    MFDAggregated["count_days"][t] += 1
+                    MFDAggregated["total_number_people"][t] += PopulationAtTime
+                else:
+                    pass
+    for t in range(len(MFDAggregated["time"])):
+        if MFDAggregated["count_days"][t] != 0:
+            MFDAggregated[ColSpeed][t] = MFDAggregated[ColSpeed][t]/(MFDAggregated["count_days"][t]*MFDAggregated["total_number_people"][t])
+            MFDAggregated[ColPopulation][t] = int(MFDAggregated[ColPopulation][t]/(MFDAggregated["count_days"][t]*MFDAggregated["total_number_people"][t]))
+        else:
+            pass
+    from pandas import DataFrame
+    MFDAggregated = pl.DataFrame(DataFrame(MFDAggregated))
+#    MFDAggregated = Dict2PolarsDF(MFDAggregated,schema = {"time":pl.datatypes.Utf8,ColPopulation:pl.Int64,ColSpeed:pl.Float64,"count_days":pl.Int64,"total_number_people":pl.Int64})
+    return MFDAggregated
+
+def AggregateMFDByHolidays(ListDailyNetwork,AggregationLevel2ListDays):
+    """
+        Returns:
+            {"Aggregation":[MFD_{DayInAggregation1},...,MFD_{DayInAggregationN}]}
+    """
+    Aggregation2MFD = defaultdict()
+    for MobDate in ListDailyNetwork:
+        for Aggregation in AggregationLevel2ListDays:
+            if MobDate.StrDate in AggregationLevel2ListDays[Aggregation]:
+                Aggregation2MFD[Aggregation] = MobDate.MFD
+    return Aggregation2MFD
 
 def GetAverageConditional(Df,ConditioningLabel,ConditionedLabel,binsi,binsi1):
     """
@@ -123,8 +204,24 @@ def GetLowerBoundsFromBins(bins,label,MinMaxPlot,Class,case):
         print("Get Lower Bounds From Bins: {0} Class {1}".format(label,Class))
         MinMaxPlot[Class][label] = {"min":bins[0],"max":bins[-1]}
         return MinMaxPlot
+def GetRelativeChange(MFD2Plot,Classes,NewClass):
+    Class2RelativeChange = defaultdict()
+    for Class in Classes:
+        if NewClass:
+            PopulationColumn = "new_population_{}".format(Class)
+            SpeedColumn = "new_speed_kmh_{}".format(Class)
+        else:
+            PopulationColumn = "population_{}".format(Class)
+            SpeedColumn = "speed_kmh_{}".format(Class) 
+        Y_Interval = max(MFD2Plot[f'bin_{SpeedColumn}']) - min(MFD2Plot[f'bin_{SpeedColumn}'])
+        if max(MFD2Plot[f'bin_{SpeedColumn}'])/100!=0:
+            RelativeChange = Y_Interval/max(MFD2Plot[f'bin_{SpeedColumn}'])/100
+        else:
+            RelativeChange = 0
+        Class2RelativeChange[Class] = RelativeChange
+    return Class2RelativeChange
 
-def GetMFDForPlot(MFD,MFD2Plot,MinMaxPlot,Class,case,verbose = False,bins_ = 12):
+def GetMFDForPlot(MFD,MFD2Plot,MinMaxPlot,Class,case,NewClass,bins_ = 12):
     """
         Input:
             MFD: {"population":[],"time":[],"speed_kmh":[]} or {Class:pl.DataFrame{"population":[],"time":[],"speed_kmh":[]}}
@@ -132,59 +229,55 @@ def GetMFDForPlot(MFD,MFD2Plot,MinMaxPlot,Class,case,verbose = False,bins_ = 12)
         NOTE: Modifies MDF2Plot = {"bins_population":[p0,..,p19],"binned_av_speed":[v0,..,v19],"binned_sqrt_err_speed":[e0,..,e19]}
         NOTE: Modifies MinMaxPlot = {"speed_kmh":{"min":v0,"max":v19},"population":{"min":p0,"max":p19}}    
     """
-#    assert "population" in MFD.columns, "population not in MFD"
-#    assert "speed_kmh" in MFD.columns, "speed not in MFD"
-#    assert "bins_population" in MFD2Plot.columns, "bins_population not in MFD2Plot"
-#    assert "binned_av_speed" in MFD2Plot.columns, "binned_av_speed not in MFD2Plot"
-#    assert "binned_sqrt_err_speed" in MFD2Plot.columns, "binned_sqrt_err_speed not in MFD2Plot"
-    print("Get MFD For Plot: {}".format(Class))
-    if isinstance(MFD,dict):
-        MFD = Dict2PolarsDF(MFD,schema = {"population":pl.Int64,"time":pl.datatypes.Utf8,"speed_kmh":pl.Float64,"av_speed":pl.Float64})
-    n, bins = np.histogram(MFD["population"],bins = bins_)
+    logger.info("Get MFD For Plot: {}".format(Class))
+    if NewClass:
+        PopulationColumn = "new_population_{}".format(Class)
+        SpeedColumn = "new_speed_kmh_{}".format(Class)
+    else:
+        PopulationColumn = "population_{}".format(Class)
+        SpeedColumn = "speed_kmh_{}".format(Class) 
+    if MFD2Plot is None:
+        MFD2Plot = {f'bin_{SpeedColumn}':[],f'binned_sqrt_err_{SpeedColumn}':[],f"bins_{PopulationColumn}":[]}
+    else:
+        MFD2Plot[f'bin_{SpeedColumn}'] = []
+        MFD2Plot[f'binned_sqrt_err_{SpeedColumn}'] = []
+        MFD2Plot[f"bins_{PopulationColumn}"] = []
+    n, bins = np.histogram(MFD[PopulationColumn],bins = bins_)
     labels = range(len(bins) - 1)
     for i in range(len(labels)):
         # Fill Average/Std Speed (to plot)
-        BinnedAvSpeed = GetAverageConditional(MFD,"population","speed_kmh",bins[i],bins[i+1])
-        MFD2Plot['binned_av_speed'].append(BinnedAvSpeed)
-        BinnedSqrtSpeed = GetStdErrorConditional(MFD,"population","speed_kmh",bins[i],bins[i+1])
-        MFD2Plot['binned_sqrt_err_speed'].append(BinnedSqrtSpeed)
-#        if verbose:
-#            print("Bin [",bins[i],',',bins[i+1],']')
-#            print("Av Speed: ",BinnedAvSpeed)
-#            print("SqrtError: ",BinnedSqrtSpeed)
-    MFD2Plot["bins_population"] = bins
-    if verbose:
-        print("MFD Features Aggregated: ")
-#        print("Bins Population:\n",MFD2Plot['bins_population'])
-#        print("\nBins Average Speed:\n",MFD2Plot['binned_av_speed'])
-#        print("\nBins Standard Deviation:\n",MFD2Plot['binned_sqrt_err_speed'])
-    fill_zeros_with_average(MFD2Plot['binned_av_speed'])
+        BinnedAvSpeed = GetAverageConditional(MFD,PopulationColumn,SpeedColumn,bins[i],bins[i+1])
+        MFD2Plot[f'bin_{SpeedColumn}'].append(float(BinnedAvSpeed))
+        BinnedSqrtSpeed = GetStdErrorConditional(MFD,PopulationColumn,SpeedColumn,bins[i],bins[i+1])
+        MFD2Plot[f'binned_sqrt_err_{SpeedColumn}'].append(float(BinnedSqrtSpeed))
+    MFD2Plot[f"bins_{PopulationColumn}"] = bins[1:]
+    fill_zeros_with_average(MFD2Plot[f'bin_{SpeedColumn}'])
     MinMaxPlot = GetLowerBoundsFromBins(bins = bins,label = "population",MinMaxPlot = MinMaxPlot,Class = Class,case = case)
-    MinMaxPlot = GetLowerBoundsFromBins(bins = MFD2Plot['binned_av_speed'],label = "speed_kmh",MinMaxPlot = MinMaxPlot, Class = Class,case = case)
-    Y_Interval = max(MFD2Plot['binned_av_speed']) - min(MFD2Plot['binned_av_speed'])
-    if max(MFD2Plot['binned_av_speed'])/100!=0:
-        RelativeChange = Y_Interval/max(MFD2Plot['binned_av_speed'])/100
+    MinMaxPlot = GetLowerBoundsFromBins(bins = MFD2Plot[f'bin_{SpeedColumn}'],label = "speed_kmh",MinMaxPlot = MinMaxPlot, Class = Class,case = case)
+    Y_Interval = max(MFD2Plot[f'bin_{SpeedColumn}']) - min(MFD2Plot[f'bin_{SpeedColumn}'])
+    if max(MFD2Plot[f'bin_{SpeedColumn}'])/100!=0:
+        RelativeChange = Y_Interval/max(MFD2Plot[f'bin_{SpeedColumn}'])/100
     else:
         RelativeChange = 0
-#    if verbose:
-#        print("\nMinMaxPlot:\n",MinMaxPlot)
-#        print("\nInterval Error: ",Y_Interval)            
     return MFD2Plot,MinMaxPlot,RelativeChange
 
-def SaveMFDPlot(binsPop,binsAvSpeed,binsSqrt,RelativeChange,SaveDir,Title = "Fondamental Diagram Aggregated",NameFile = "MFD.png"):
+def PlotMFD(binsPop,binsAvSpeed,binsSqrt,RelativeChange,SaveDir,Title = "Fondamental Diagram Aggregated",NameFile = "MFD.png"):
     """
         
     """
-#    assert "bins_population" in MFD2Plot.columns, "bins_population not in MFD2Plot"
-#    assert "binned_av_speed" in MFD2Plot.columns, "binned_av_speed not in MFD2Plot"
-#    assert "binned_sqrt_err_speed" in MFD2Plot.columns, "binned_sqrt_err_speed not in MFD2Plot"
-    print("Plotting MFD:\n")
+    logger.info("Plotting MFD:\n")
     fig, ax = plt.subplots(1,1,figsize = (10,8))
     text = "Relative change : {}%".format(round(RelativeChange,2))
-    ax.plot(binsPop[1:],binsAvSpeed)
-    ax.fill_between(np.array(binsPop[1:]),
-                        np.array(binsAvSpeed) - np.array(binsSqrt), 
-                        np.array(binsAvSpeed) + np.array(binsSqrt), color='gray', alpha=0.2, label='Std')
+    if len(binsPop) != len(binsAvSpeed): 
+        ax.plot(binsPop[1:],binsAvSpeed)
+        ax.fill_between(np.array(binsPop[1:]),
+                            np.array(binsAvSpeed) - np.array(binsSqrt), 
+                            np.array(binsAvSpeed) + np.array(binsSqrt), color='gray', alpha=0.2, label='Std')
+    else:
+        ax.plot(binsPop,binsAvSpeed)
+        ax.fill_between(np.array(binsPop),
+                            np.array(binsAvSpeed) - np.array(binsSqrt), 
+                            np.array(binsAvSpeed) + np.array(binsSqrt), color='gray', alpha=0.2, label='Std')
     props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
     ax.text(0.05, 0.95, text, transform=plt.gca().transAxes, fontsize=10,
     verticalalignment='top', bbox=props)
@@ -194,13 +287,14 @@ def SaveMFDPlot(binsPop,binsAvSpeed,binsSqrt,RelativeChange,SaveDir,Title = "Fon
     plt.savefig(os.path.join(SaveDir,NameFile),dpi = 200)
     plt.close()
 
-def PlotHysteresis(MFD,Title,SaveDir,NameFile):
+def PlotHysteresis(MFD,ColSpeed,ColPop,Title,SaveDir,NameFile):
+    logger.info("Plot Hysteresis: {}".format(NameFile))
     if isinstance(MFD,pl.DataFrame):
-        x = MFD['population'].to_list()
-        y = MFD['speed_kmh'].to_list()
+        x = MFD[ColPop].to_list()
+        y = MFD[ColSpeed].to_list()
     else:
-        x = MFD['population']
-        y = MFD['speed_kmh']
+        x = MFD[ColPop]
+        y = MFD[ColSpeed]
     if len(x)!= 0 and len(y)!=0:
         u = [x[i+1]-x[i] for i in range(len(x)-1)]
         v = [y[i+1]-y[i] for i in range(len(y)-1)]
@@ -215,3 +309,28 @@ def PlotHysteresis(MFD,Title,SaveDir,NameFile):
     else:
         print("No Data for: ",os.path.join(SaveDir,NameFile))
 # END MFD RELATED FUNCTIONS
+def PlotMFDComparison(ListDailyNetwork,Class,Colors,NewClass,PlotDir):
+    if NewClass:
+        PopulationColumn = "new_population_{}".format(Class)
+        SpeedColumn = "new_speed_kmh_{}".format(Class)
+    else:
+        PopulationColumn = "population_{}".format(Class)
+        SpeedColumn = "speed_kmh_{}".format(Class) 
+    fig, ax = plt.subplots(1,1,figsize = (10,8))
+    CountDate = 0
+    for MobDate in ListDailyNetwork:
+        MFD2Plot = MobDate.MFD2Plot
+        ax.plot(MFD2Plot[f'bins_{PopulationColumn}'],MFD2Plot[f'bin_{SpeedColumn}'],color = Colors[CountDate],label=MobDate.StrDate)
+        ax.fill_between(MFD2Plot[f'bins_{PopulationColumn}'],
+                        np.array(MFD2Plot[f'bin_{SpeedColumn}']) - np.array(MFD2Plot[f'binned_sqrt_err_{SpeedColumn}']), 
+                        np.array(MFD2Plot[f'bin_{SpeedColumn}']) + np.array(MFD2Plot[f'binned_sqrt_err_{SpeedColumn}']), color='gray', alpha=0.2, label=None)
+        CountDate += 1
+    ax.set_title("Fondamental Diagram All Days {}".format(Class))
+    ax.set_xlabel("number people")
+    ax.set_ylabel("speed (km/h)")
+    ax.legend()
+    if NewClass:
+        plt.savefig(os.path.join(PlotDir,f"ComparisonMFD_{Class}_NewClass"),dpi = 200)
+    else:
+        plt.savefig(os.path.join(PlotDir,f"ComparisonMFD_{Class}"),dpi = 200)
+    plt.close()

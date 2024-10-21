@@ -10,8 +10,6 @@
                 2) MFD2Plot = {"bins_population":[p0,..,p19],"binned_av_speed":[v0,..,v19],"binned_sqrt_err_speed":[e0,..,e19]} Stored in: os.path.join(self.PlotDir,"MFD_{0}_2Plot.csv".format(self.StrDate))
                     Description: For each bin (15 NOTE: set by hand in this script) (self.iterations = 96) compute the average speed and the average speed for the population in the interval.
             Class Case:
-                1) Class2MFD = {Class:pl.DataFrame{"population":[],"time":[],"speed_kmh":[],"av_speed"}:[]} Stored in: os.path.join(self.PlotDir,"MFD_{0}_{1}.csv".format(self.StrDate,Class))
-                2) Class2MFD2Plot = {Class:{"bins_population":[p0,..,p19],"binned_av_speed":[v0,..,v19],"binned_sqrt_err_speed":[e0,..,e19]}} Stored in: os.path.join(self.PlotDir,"MFD_{0}_{1}_2Plot.csv".format(self.StrDate,Class))
 ''' 
 from collections import defaultdict
 import geopandas as gpd
@@ -35,7 +33,11 @@ from LoggingInfo import *
 from UsefulStructures import *
 from GeoPlot import *
 import matplotlib.ticker as ticker
-
+from FunctionsOnTrajectories import *
+from ReadFiles import *
+from GeographyFunctions import *
+import logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Ignore all warnings
 warnings.filterwarnings("ignore")
@@ -97,30 +99,36 @@ class DailyNetworkStats:
                         "timed_fluxes": os.path.join(self.InputBaseDir,self.BaseFileName+'_'+ self.StrDate+'_'+ self.StrDate + '_timed_fluxes.csv'),
                         "fluxes": os.path.join(self.InputBaseDir,"weights",self.BaseFileName+'_'+ self.StrDate+'_'+ self.StrDate + '.fluxes'),
                         "fluxes_sub": os.path.join(self.InputBaseDir,"weights",self.BaseFileName+'_'+ self.StrDate+'_'+ self.StrDate + '.fluxes.sub')}        
-        if "geojson" in config.keys():
-            self.GeoJsonFile = os.path.join(config["geojson"])
-        else:
-            self.GeoJsonFile = os.path.join(os.environ['WORKSPACE'],"city-pro","bologna-provincia.geojson")
-        self.PlotDir = os.path.join(os.environ['WORKSPACE'],"city-pro","output","bologna_mdt_detailed","plots",self.StrDate)
-        self.PlotDirAggregated = os.path.join(os.environ['WORKSPACE'],"city-pro","output","bologna_mdt_detailed","plots")
+        self.PlotDir = os.path.join(self.InputBaseDir,"plots",self.StrDate)
+        self.PlotDirAggregated = os.path.join(self.InputBaseDir,"plots")
         if not os.path.exists(self.PlotDir):
             os.makedirs(self.PlotDir)
+        if "geojson" in config.keys():
+            if os.path.exists(os.path.join(self.PlotDir,"GeoJson_{0}.geojson".format(self.StrDate))):
+                self.GeoJsonFile = os.path.join(self.PlotDir,"GeoJson_{0}.geojson".format(self.StrDate))
+            else:
+                self.GeoJsonFile = os.path.join(config["geojson"])
+        else:
+            self.GeoJsonFile = os.path.join(os.environ['WORKSPACE'],"city-pro","bologna-provincia.geojson")
         # BOUNDING BOX
         if "bounding_box" in config.keys():
             try:
                 self.bounding_box = [(config["bounding_box"]["lat_min"],config["bounding_box"]["lon_min"]),(config["bounding_box"]["lat_max"],config["bounding_box"]["lon_min"]),(config["bounding_box"]["lat_max"],config["bounding_box"]["lon_max"]),(config["bounding_box"]["lat_min"],config["bounding_box"]["lon_max"])]
                 bbox = box(config["bounding_box"]["lat_min"],config["bounding_box"]["lon_min"],config["bounding_box"]["lat_max"],config["bounding_box"]["lon_max"])
                 self.centroid = gpd.GeoDataFrame([1], geometry=[bbox], crs="EPSG:4326").centroid
+                self.BoxNumeric = [self.bounding_box[0][1], self.bounding_box[0][0], self.bounding_box[2][1], self.bounding_box[2][0]]
             except:
                 exit("bounding_box not defined well in config. Should be 'bounding_box': {'lat_min': 44.463121,'lon_min': 11.287085,'lat_max': 44.518165,'lon_max': 11.367472}")
         else:
+            # Bologna Mdt Detailed
             self.bounding_box = [(44.463121,11.287085),(44.518165,11.287085),(44.518165,11.367472),(44.463121,11.367472)]
             bbox = box((44.463121,11.287085,44.518165,11.367472))
             self.centroid = gpd.GeoDataFrame([1], geometry=[bbox], crs="EPSG:4326").centroid
+            self.BoxNumeric = [self.bounding_box[0][1], self.bounding_box[0][0], self.bounding_box[2][1], self.bounding_box[2][0]]
         ## CONVERSIONS and CONSTANTS
         self.day_in_sec = 24*3600
         self.dt = 15*60
-        self.iterations = self.day_in_sec/self.dt
+        self.iterations = int(self.day_in_sec/self.dt)
         yy,mm,dd = StrDate2DateFormatLocalProject(self.StrDate)
         self.Date = datetime.datetime(int(yy),int(mm),int(dd),0,0,0)
         self.TimeStampDate = datetime.datetime.timestamp(self.Date)
@@ -231,19 +239,9 @@ class DailyNetworkStats:
         else:
             self.Feature2ScaleBins = {"av_speed": "linear","speed_kmh": "linear","lenght": "linear","lenght_km": "linear","time": "linear","time_hours": "linear","av_accel": "linear"}
         assert self.Feature2ScaleBins.keys() == self.Feature2ScaleCount.keys() == self.Feature2IntervalCount.keys() == self.Feature2IntervalBin.keys() == self.Feature2ShiftBin.keys() == self.Feature2ShiftCount.keys() == self.Feature2Label.keys() == self.Feature2SaveName.keys() == self.Feature2Legend.keys(), "Error: Features not consistent"
-        # FUNDAMENTAL DIAGRAM
-        self.MFD = Dict2PolarsDF({"time":[],"population":[],"speed_kmh":[],"av_speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64})
-        self.MFDNew = Dict2PolarsDF({"time":[],"population":[],"speed_kmh":[],"av_speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64})
-        self.MFD2Plot = {"binned_av_speed":[],"binned_sqrt_err_speed":[],"bins_population":[]}
-        self.MFDNew2Plot = {"binned_av_speed":[],"binned_sqrt_err_speed":[],"bins_population":[]}
-        if self.BoolStrClass2IntClass:
-            self.Class2MFD = {class_:Dict2PolarsDF({"time":[],"population":[],"speed_kmh":[],"av_speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64}) for class_ in self.IntClass2StrClass.keys()}
-            self.Class2MFDNew = {class_:Dict2PolarsDF({"time":[],"population":[],"speed_kmh":[],"av_speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64}) for class_ in self.IntClass2StrClass.keys()}
-        else:
-            self.Class2MFD = defaultdict(dict)
-            self.Class2MFDNew = defaultdict(dict)
-            print("Warning: Not Initialized Class2MFD")
         # MINIMUM VALUES FOR (velocity,population,lenght,time) for trajectories of the day
+        self.MFD = None
+        self.MFD2Plot = None
         self.MinMaxPlot = defaultdict()
 
         # STATS about TRAJECTORIES
@@ -259,20 +257,10 @@ class DailyNetworkStats:
             Read ../ouputdir/basename_date_date_timed_fluxes.csv
         """
         self.CountFunctionsCalled += 1
-        if self.verbose:
-            print("Reading timed_fluxes")
-            print(self.DictDirInput["timed_fluxes"])
         if os.path.isfile(self.DictDirInput["timed_fluxes"]):
-            self.TimedFluxes = pd.read_csv(self.DictDirInput["timed_fluxes"],delimiter = ';')
-            self.TimedFluxes = pl.from_pandas(self.TimedFluxes)
-            self.ReadTime2FluxesBool = True
-            Message = "{} Read Timed Fluxes: True".format(self.CountFunctionsCalled)
-            AddMessageToLog(Message,self.LogFile)
+            self.TimedFluxes,self.ReadTime2FluxesBool = ReadTimedFluxes(self.DictDirInput["timed_fluxes"])
         else:   
-            Message = "{} Read Timed Fluxes: False".format(self.CountFunctionsCalled)
-            AddMessageToLog(Message,self.LogFile)
-            print("No timed_fluxes")    
-
+            pass
     def ReadFluxes(self):
         """
             Read ../ouputdir/weights/basename_date_date.fluxes
@@ -282,16 +270,9 @@ class DailyNetworkStats:
             print("Reading fluxes")
             print(self.DictDirInput["fluxes"])
         if os.path.isfile(self.DictDirInput["fluxes"]):
-            self.Fluxes = pd.read_csv(self.DictDirInput["fluxes"],delimiter = ';')
-            self.Fluxes = pl.from_pandas(self.Fluxes)
-            self.ReadFluxesBool = True     
-            Message = "{} Read Fluxes: True".format(self.CountFunctionsCalled)
-            AddMessageToLog(Message,self.LogFile)   
+            self.Fluxes,self.ReadFluxesBool = ReadFluxes(self.DictDirInput["fluxes"])
         else:
-            Message = "{} Read Fluxes: False".format(self.CountFunctionsCalled)
-            AddMessageToLog(Message,self.LogFile)
-            print("No fluxes")    
-
+            pass
     def ReadFcm(self):
         """
             Read ../ouputdir/basename_date_date_fcm.csv
@@ -301,21 +282,9 @@ class DailyNetworkStats:
             print("Reading fcm")
             print(self.DictDirInput["fcm"])
         if os.path.isfile(self.DictDirInput["fcm"]):
-            self.Fcm = pd.read_csv(self.DictDirInput["fcm"],delimiter = ';')
-            self.Fcm = pl.from_pandas(self.Fcm)
-            self.Fcm = self.Fcm.filter(pl.col("av_speed")<43.0)
-            self.Fcm = self.Fcm.with_columns(pl.col("av_speed").apply(lambda x: ms2kmh(x), return_dtype=pl.Float64).alias("speed_kmh"))
-            self.Fcm = self.Fcm.with_columns(pl.col("lenght").apply(lambda x: m2km(x), return_dtype=pl.Float64).alias("lenght_km"))
-            self.Fcm = self.Fcm.with_columns(pl.col("time").apply(lambda x: s2h(x), return_dtype=pl.Float64).alias("time_hours"))
-            self.ReadFcmBool = True
-            Message = "{} Read Fcm: True".format(self.CountFunctionsCalled)
-            Message += "\n\tInitialize self.Fcm"
-            AddMessageToLog(Message,self.LogFile)
+            self.Fcm, self.ReadFcmBool = ReadFcm(self.DictDirInput["fcm"])
         else:
-            Message = "{} Read Fcm: False".format(self.CountFunctionsCalled)
-            AddMessageToLog(Message,self.LogFile)
-            print("No fcm")
-
+            pass
     def ReadStats(self):
         """
             Read ../ouputdir/basename_date_date_stats.csv
@@ -325,20 +294,9 @@ class DailyNetworkStats:
             print("Reading stats")
             print(self.DictDirInput["stats"])
         if os.path.isfile(self.DictDirInput["stats"]):
-            self.Stats = pd.read_csv(self.DictDirInput["stats"],delimiter = ';')
-            self.Stats = pl.from_pandas(self.Stats)
-            self.Stats = self.Stats.filter(pl.col("av_speed")<43.0)
-            self.Stats = self.Stats.with_columns(pl.col("av_speed").apply(lambda x: ms2kmh(x), return_dtype=pl.Float64).alias("speed_kmh"))
-            self.Stats = self.Stats.with_columns(pl.col("lenght").apply(lambda x: m2km(x), return_dtype=pl.Float64).alias("lenght_km"))
-            self.Stats = self.Stats.with_columns(pl.col("time").apply(lambda x: s2h(x), return_dtype=pl.Float64).alias("time_hours"))
-            self.ReadStatsBool = True
-            Message = "{} Read Stats: True".format(self.CountFunctionsCalled)
-            AddMessageToLog(Message,self.LogFile)
+            self.Stats,self.ReadStatsBool = ReadStats(self.DictDirInput["stats"])
         else:
-            Message = "{} Read Stats: False".format(self.CountFunctionsCalled)
-            AddMessageToLog(Message,self.LogFile)
-            print("No stats")    
-
+            pass
     def ReadFcmNew(self):
         """
             Read ../ouputdir/basename_date_date_fcm_new.csv
@@ -348,17 +306,10 @@ class DailyNetworkStats:
             print("Reading fcm_new")
             print(self.DictDirInput["fcm_new"])
         if os.path.isfile(self.DictDirInput["fcm_new"]):
-            self.FcmNew = pd.read_csv(self.DictDirInput["fcm_new"],delimiter = ';')
-            self.FcmNew = pl.from_pandas(self.FcmNew)
-            self.ReadFcmNewBool = True
-            Message = "{} Read Fcm New: True".format(self.CountFunctionsCalled)
-            AddMessageToLog(Message,self.LogFile)
+            self.FcmNew,self.ReadFcmNewBool = ReadFcmNew(self.DictDirInput["fcm_new"])
         else:
-            Message = "{} Read Fcm New: False".format(self.CountFunctionsCalled)
-            AddMessageToLog(Message,self.LogFile)
-            print("No fcm_new")    
-
-    def ReadFcmCenters(self,verbose=False):
+            pass
+    def ReadFcmCenters(self):
         """
             Description:
                 Read the centers of the FCM
@@ -366,136 +317,10 @@ class DailyNetworkStats:
             IntClass2StrClass
         """
         self.CountFunctionsCalled += 1
-        if self.verbose:
-            print("Reading fcm_centers")
-            print(self.DictDirInput["fcm_centers"])
-        Features = {"class":[],"av_speed":[],"v_max":[],"v_min":[],"sinuosity":[],"people":[]}
         if os.path.isfile(self.DictDirInput["fcm_centers"]):
-            FcmCenters = pd.read_csv(self.DictDirInput["fcm_centers"],delimiter = ';') 
-            FcmCenters = pl.from_pandas(FcmCenters)
-            FlattenedFcmCenters = FcmCenters.to_numpy().flatten()    
-            Row2Jump = False   
-            idxcol = 0
-            # Initialize Features by Reading the the columns as 1st row.
-            for col in FcmCenters.columns:
-                if idxcol == 0 or idxcol == len(FcmCenters.columns)-1:
-                    Features[list(Features.keys())[idxcol]].append(int(col))
-                else:
-                    Features[list(Features.keys())[idxcol]].append(float(col))
-                idxcol += 1
-            # Fill the other rows
-            for val in range(len(FlattenedFcmCenters)):
-                # Check that is the first row
-                if int(val/len(FcmCenters.columns)) == 0: 
-                    if verbose:
-                        print("Iteration: ", val," case Row {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[val])
-                    # Check that is the first element of the row
-                    if val%len(FcmCenters.columns) == 0: 
-                        if verbose:
-                            print("\tIteration: ", val," case Row {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[val])
-                        Row2Jump = False
-                        # Check that the velocity is not too high
-                        if float(FlattenedFcmCenters[val + 1]) > 50:
-                            if verbose:                
-                                print("\t\tDiscarded Row: ", val/len(FcmCenters.columns))
-                            Row2Jump = True
-                            pass
-                        else:
-                            if verbose:
-                                print("\t\tRow2Jump: ",Row2Jump)
-                            if not Row2Jump:
-                                if verbose:
-                                    print("\t\tIteration: ", val," not Jump:")
-                                keyidx = val
-                                if list(Features.keys())[keyidx] == "class" or list(Features.keys())[keyidx] == "people":
-                                    Features[list(Features.keys())[keyidx]].append(int(FlattenedFcmCenters[val]))
-                                    if verbose:
-                                        print("\t\t\tIteration: ", val," Col: " ,list(Features.keys())[keyidx]," Appending: ", int(FlattenedFcmCenters[val]))
-                                else:
-                                    Features[list(Features.keys())[keyidx]].append(float(FlattenedFcmCenters[val]))
-                                    if verbose:
-                                        print("\t\t\tIteration: ", val," Col: " ,list(Features.keys())[keyidx]," Appending: ", float(FlattenedFcmCenters[val]))
-                            else:
-                                if verbose:
-                                    print("\t\tJump: ", "Iteration: ", val,"Row: {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[keyidx],"Value FCM info: ", float(FlattenedFcmCenters[val]))
-                    else:
-                        if verbose:
-                            print("\tIteration: ",  val,"Row: {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[keyidx],"Value FCM info: ", float(FlattenedFcmCenters[val]))
-                        if not Row2Jump:
-                            if verbose:
-                                print("\t\tIteration: ", val," not Jump:")
-                            keyidx = val
-                            if list(Features.keys())[keyidx] == "class" or list(Features.keys())[keyidx] == "people":
-                                Features[list(Features.keys())[keyidx]].append(int(FlattenedFcmCenters[val]))
-                                if verbose:
-                                    print("\t\t\tIteration: ", val," Col: " ,list(Features.keys())[keyidx]," Appending: ", int(FlattenedFcmCenters[val]))
-                            else:
-                                Features[list(Features.keys())[keyidx]].append(float(FlattenedFcmCenters[val]))
-                                if verbose:
-                                    print("\t\t\tIteration: ", val," Col: " ,list(Features.keys())[keyidx]," Appending: ", float(FlattenedFcmCenters[val]))
-                        else:
-                            if verbose:
-                                print("\t\tJump: ", "Iteration: ", val,"Row: {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[keyidx],"Value FCM info: ", float(FlattenedFcmCenters[val]))
-                # Not first row
-                else:
-                    if verbose:        
-                        print("Iteration: ", val," case Row {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[val%len(FcmCenters.columns)])                    
-                    # Check that is the first element of the row
-                    if val%len(FcmCenters.columns) == 0:
-                        if verbose:                
-                            print("\tIteration: ", val," case Row {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[val%len(FcmCenters.columns)])                    
-                        # Check that the velocity is not too high
-                        Row2Jump = False
-                        if float(FlattenedFcmCenters[val + 1]) > 50:
-                            Row2Jump = True
-                            if verbose:                
-                                print("\t\tDiscarded Row: ", val/len(FcmCenters.columns))
-                            pass
-                        else:
-                            if not Row2Jump:
-                                if verbose:                
-                                    print("\t\tIteration: ", val," not Jump:")
-                                keyidx = int(val%len(FcmCenters.columns))
-                                if list(Features.keys())[keyidx] == "class" or list(Features.keys())[keyidx] == "people":
-                                    Features[list(Features.keys())[keyidx]].append(int(FlattenedFcmCenters[val]))
-                                    if verbose:
-                                        print("\t\t\tIteration: ", val," Col: " ,list(Features.keys())[keyidx]," Appending: ", int(FlattenedFcmCenters[val]))
-                                else:
-                                    Features[list(Features.keys())[keyidx]].append(float(FlattenedFcmCenters[val]))
-                                    if verbose:
-                                        print("\t\t\tIteration: ", val," Col: " ,list(Features.keys())[keyidx]," Appending: ", float(FlattenedFcmCenters[val]))
-                            else:
-                                if verbose:
-                                    print("\t\tJump: ", "Iteration: ", val,"Row: {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[keyidx],"Value FCM info: ", float(FlattenedFcmCenters[val]))
-                    else:
-                        if verbose:
-                            print("\tIteration: ",  val,"Row: {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[keyidx],"Value FCM info: ", float(FlattenedFcmCenters[val]))
-                        if not Row2Jump:
-                            if verbose:
-                                print("\t\tIteration: ", val," not Jump:")
-                            keyidx = val%len(FcmCenters.columns)
-                            if list(Features.keys())[keyidx] == "class" or list(Features.keys())[keyidx] == "people":
-                                Features[list(Features.keys())[keyidx]].append(int(FlattenedFcmCenters[val]))
-                                if verbose:
-                                    print("\t\t\tIteration: ", val," Col: " ,list(Features.keys())[keyidx]," Appending: ", int(FlattenedFcmCenters[val]))
-                            else:
-                                Features[list(Features.keys())[keyidx]].append(float(FlattenedFcmCenters[val]))
-                                if verbose:
-                                    print("\t\t\tIteration: ", val," Col: " ,list(Features.keys())[keyidx]," Appending: ", float(FlattenedFcmCenters[val]))
-                        else:
-                            if verbose:
-                                print("\t\tJump: ", "Iteration: ", val,"Row: {}".format(int(val/len(FcmCenters.columns)))," Col: " ,list(Features.keys())[keyidx],"Value FCM info: ", float(FlattenedFcmCenters[val]))
-
-                
-            self.FcmCenters = pl.DataFrame(Features)
-            self.ReadFcmCentersBool = True    
-            Message = "{} Read Fcm Centers: True".format(self.CountFunctionsCalled)
-            AddMessageToLog(Message,self.LogFile)
+            self.FcmCenters,self.ReadFcmCentersBool = ReadFcmCenters(self.DictDirInput["fcm_centers"])
         else:
-            Message = "{} Read Fcm Centers: False".format(self.CountFunctionsCalled)
-            AddMessageToLog(Message,self.LogFile)
-            print("No fcm_centers")
-
+            pass
     def ReadFluxesSub(self):
         '''
             Input:
@@ -506,36 +331,9 @@ class DailyNetworkStats:
                 self.IntClass2RoadsInit: (bool) -> Boolean value to Say I have stored the SubnetInts For each Class
         '''
         self.CountFunctionsCalled += 1
-        if self.verbose:
-            print("Reading fluxes_sub")
-            print(self.DictDirInput["fluxes_sub"])
-        DoNothing = False
-        self.IntClass2Roads = defaultdict(list)
         # Read Fluxes.sub
         if os.path.isfile(self.DictDirInput["fluxes_sub"]):
-            with open(self.DictDirInput["fluxes_sub"],'r') as f:
-                FluxesSub = f.readlines()
-            for ClassLines in FluxesSub:
-                ClassandID = ClassLines.split('\t')
-                ClassId  = ClassandID[0].split('_')[1]
-                if self.verbose:
-                    print("Class: ",ClassId)
-                try:
-                    ClassFractionRoadsConsidered = ClassandID[0].split('_')[2]
-                    if self.verbose:
-                        print("Fraction of roads considered: ",ClassFractionRoadsConsidered)
-                except IndexError:
-                    DoNothing = True
-                    if self.verbose:
-                        print("Considering the Total Subnetwork indipendent on the Subclass")
-                if DoNothing:
-                    pass
-                else:
-                    IdRoads = [int(RoadId) for RoadId in ClassandID[1:] if RoadId != '\n']
-                    self.IntClass2Roads[int(ClassId)] = IdRoads
-                    if self.verbose:
-                        print("Number of Roads SubNetwork: ",len(IdRoads))     
-            self.ReadFluxesSubBool = True
+            self.IntClass2Roads, self.ReadFluxesSubBool = ReadFluxesSub(self.DictDirInput["fluxes_sub"])
             Message = "{} Read Fluxes Sub: True".format(self.CountFunctionsCalled)
             for Class in self.IntClass2Roads.keys():
                 Message += "Class: {0} -> {1} Roads, ".format(Class,len(self.IntClass2Roads[Class]))
@@ -544,166 +342,51 @@ class DailyNetworkStats:
             Message = "{} Read Fluxes Sub: False".format(self.CountFunctionsCalled)
             AddMessageToLog(Message,self.LogFile)
             print("FluxesSubFile not found")
-
     def ReadGeoJson(self):
         """
-            Read the GeoJson File and store it in self.GeoJson
+            Read the GeoJson File and store it in:
+                1) self.GeoJson (Base GeoJson)
+                2) self.GeoJsonClassInfo (the GeoJson Used for Plotting the Subnets)
         """
         self.CountFunctionsCalled += 1
-        if self.verbose:
-            print("Reading GeoJson")
-        if not os.path.isfile(self.GeoJsonFile) and not os.path.isfile(os.path.join(self.InputBaseDir,"BolognaMDTClassInfo.geojson")):
-            Message = "{} Read GeoJson: False".format(self.CountFunctionsCalled)
-            AddMessageToLog(Message,self.LogFile)
-            exit("GeoJsonFile not found")
+        # Read GeoJson Without Class Info
+        if os.path.isfile(self.GeoJsonFile):
+            self.GeoJson, self.ReadGeojsonBool= ReadGeoJson(self.GeoJsonFile)
         if os.path.exists(os.path.join(self.InputBaseDir,"BolognaMDTClassInfo.geojson")):
-            self.GeoJson = gpd.read_file(os.path.join(self.InputBaseDir,"BolognaMDTClassInfo.geojson"))
-            self.ReadGeojsonBool = True
-            Message = "{} Read GeoJson: True".format(self.CountFunctionsCalled)
-            AddMessageToLog(Message,self.LogFile)
+            DirgeoJsonClassInfo = os.path.join(self.InputBaseDir,"BolognaMDTClassInfo.geojson")
+#            self.GeoJsonClassInfo,self.ReadGeojsonClassInfoBool = ReadGeoJsonClassInfo(DirgeoJsonClassInfo)
         else:
-            self.GeoJson = gpd.read_file(self.GeoJsonFile)
-            self.ReadGeojsonBool = True
-            Message = "{} Read GeoJson: True".format(self.CountFunctionsCalled)
-            AddMessageToLog(Message,self.LogFile)
-
+            self.ReadGeojsonClassInfoBool = False
+            pass
+    def GetPathFile(self):
+        """
+            Description:
+                Get the Path File
+        """
+        self.PathFile = os.path.join(self.InputBaseDir,self.BaseFileName+'_'+ self.StrDate+'_'+ self.StrDate + '_paths_on_road.csv')
+        if os.path.isfile(self.PathFile):
+            self.PathDf,self.ReadPathFileBool = ReadPathFile(self.PathFile)
+        else:
+            self.ReadPathFileBool = False
+    def GetTrajDataFrame(self):
+        """
+            Description:
+                Get the Traj Data Frame
+        """
+        self.PathTraj = os.path.join(self.InputBaseDir,self.BaseFileName+'_'+ self.StrDate+'_'+ self.StrDate + 'traj_dataframe.csv')
+        if os.path.isfile(self.PathTraj):
+            self.TrajDf = pl.read_csv(self.PathTraj,separator = ";")
     def GetIncreasinglyIncludedSubnets(self):
         """
             Description:
                 Get the Increasingly Included Subnets
         """
         self.CountFunctionsCalled += 1
-        Message = "{} Get Increasingly Included Subnets: True".format(self.CountFunctionsCalled)
-        AddMessageToLog(Message,self.LogFile)
-        self.DictSubnetsTxtDir = defaultdict(dict)
         if self.BoolStrClass2IntClass:
-            for Class in self.IntClass2StrClass.keys():
-                self.DictSubnetsTxtDir[Class] = os.path.join(self.InputBaseDir,self.BaseFileName+'_'+ self.StrDate+'_'+ self.StrDate + '{}_class_subnet.txt'.format(Class))
-            self.ReadFluxesSubIncreasinglyIncludedIntersection()
-            if self.verbose:
-                print("Get increasingly included subnets")
-                for class_ in self.DictSubnetsTxtDir:
-                    print(self.DictSubnetsTxtDir[class_])
+            self.DictSubnetsTxtDir = GenerateDictSubnetsTxtDir(self.InputBaseDir,self.BaseFileName,self.StrDate,self.IntClass2StrClass)            
+            self.IntClass2RoadsIncreasinglyIncludedIntersection,self.ReadFluxesSubIncreasinglyIncludedIntersectionBool = ReadFluxesHierarchicallyOrdered(self.DictSubnetsTxtDir)
         else:
-            Message = "{} Get Increasingly Included Subnets: False".format(self.CountFunctionsCalled)
-            AddMessageToLog(Message,self.LogFile)
-            print("Warning: Not Initialized DictSubnetsTxtDir -> Will not have Increasingly Included SubNetworks")
-
-    def ReadFluxesSubIncreasinglyIncludedIntersection(self):
-        '''
-            Input:
-                FluxesSubFile: (str) -> FluxesSubFile = '../{basename}_{start}_{start}/fluxes.sub'
-                verbose: (bool) -> verbose = False
-            Output:
-                self.IntClass2RoadsIncreasinglyIncludedIntersection: (dict) -> {IntClass:[] for IntClass in self.IntClasses}
-        '''
-        self.CountFunctionsCalled += 1
-        DoNothing = False
-        self.IntClass2RoadsIncreasinglyIncludedIntersection = defaultdict(list)
-        try:
-            for Class in self.DictSubnetsTxtDir.keys():
-                with open(self.DictSubnetsTxtDir[Class],'r') as f:
-                    FluxesSub = f.readlines()
-                for Road in FluxesSub[0].split(" "):
-                    intRoad,BoolInt = CastString2Int(Road)
-                    if BoolInt:
-                        self.IntClass2RoadsIncreasinglyIncludedIntersection[Class].append(intRoad)
-                    else:
-                        pass
-    #            self.IntClass2RoadsIncreasinglyIncludedIntersection[Class] = [CastString2Int(Road) for Road in FluxesSub[0].split(" ")] 
-            self.ReadFluxesSubIncreasinglyIncludedIntersectionBool = True
-            Message = "{} Read Fluxes Sub Increasingly Included Intersection: True".format(self.CountFunctionsCalled)
-            for Class in self.IntClass2RoadsIncreasinglyIncludedIntersection.keys():
-                Message += "Class: {0} -> {1} Roads, ".format(Class,len(self.IntClass2RoadsIncreasinglyIncludedIntersection[Class]))
-            AddMessageToLog(Message,self.LogFile)
-        except:
-            Message = "{} Read Fluxes Sub Increasingly Included Intersection: False".format(self.CountFunctionsCalled)
-            AddMessageToLog(Message,self.LogFile)
-            print("FluxesSubFile not found")
-
-#--------- COMPLETE GEOJSON ------- ##
-    def CompleteGeoJsonWithClassInfo(self):
-        """
-            Computes "IntClassOrdered" and "StrClassOrdered" columns for the Geojson.
-            NOTE:
-                Each road for each day will have the Int, Str, IntOrdered and StrOrdered Class.
-        """
-        self.CountFunctionsCalled += 1
-        if self.ReadGeojsonBool and self.ReadFluxesSubIncreasinglyIncludedIntersectionBool:
-            print("Completing GeoJson with Class Info" )
-            ClassOrderedForGeojsonRoads = np.zeros(len(self.GeoJson),dtype = int)
-            for Class in self.IntClass2RoadsIncreasinglyIncludedIntersection.keys():
-                for Road in self.IntClass2RoadsIncreasinglyIncludedIntersection[Class]: 
-                    ClassOrderedForGeojsonRoads[np.where(self.GeoJson["poly_lid"] == Road)[0]] = Class 
-            self.GeoJson["IntClassOrdered_{}".format(self.StrDate)] = ClassOrderedForGeojsonRoads
-            self.GeoJson["StrClassOrdered_{}".format(self.StrDate)] = [self.IntClass2StrClass[intclass] for intclass in ClassOrderedForGeojsonRoads]
-            # Normal Subnet
-#            ClassOrderedForGeojsonRoads = np.zeros(len(self.GeoJson),dtype = int)
-#            for Class in self.IntClass2Roads.keys():
-#                for Road in self.IntClass2Roads[Class]: 
-#                    ClassOrderedForGeojsonRoads[np.where(self.GeoJson["poly_lid"] == Road)[0]] = Class 
-#            self.GeoJson["IntClass_{}".format(self.StrDate)] = ClassOrderedForGeojsonRoads
-#            self.GeoJson["StrClass_{}".format(self.StrDate)] = [self.IntClass2StrClass[intclass] if intclass in self.IntClass2StrClass else "1 quickest" for intclass in ClassOrderedForGeojsonRoads]
-            if not os.path.isfile(os.path.join(self.InputBaseDir,"BolognaMDTClassInfo.geojson")):
-                self.GeoJson.to_file(os.path.join(self.InputBaseDir,"BolognaMDTClassInfo.geojson"))
-            self.GeoJsonWithClassBool = True
-            Message = "{} GeoJson with Class Info: True".format(self.CountFunctionsCalled)
-            AddMessageToLog(Message,self.LogFile)
-        else:
-            Message = "{} GeoJson with Class Info: False".format(self.CountFunctionsCalled)
-            AddMessageToLog(Message,self.LogFile)
-
-    def CompareOld2NewClass(self):
-        """
-            NOTE: Computing the intersection Matrix
-                The Intersection Diagonal is the fraction that do not change from N -> I
-                Upper Triangular Matrix is the fraction that change from N -> I (Is the flux we are interested in)
-            NOTE:
-            The Iterative inclusion of subnetworks is done in the following way:
-                Let's call Road2Subnets -> Vector that contains the list of subnetworks that a road belongs to.
-                Example:
-                Road2Subnet[R1] = [0,1,3]
-                    The transition seen is 0 -> 3
-                Making intersection among different classes we can see the transition from one class to another.
-                Taking the set of roads I consider the characterization in Old and New Class.
-                |N_i| = sum_{j \diff i} |Intersection(N_i,O_j)| + |Intersection(N_i,O_i)|
-            Goal:    
-                Look at the fraction of roads that change from one class to another. -> |Intersection(N_j,O_i)|/|O_i|
-        """
-        self.CountFunctionsCalled += 1
-        if self.GeoJsonWithClassBool:
-            print("Comparison of trajectories from Old to New Class {}".format(self.StrDate))
-            # Compare from Subnetworks
-            KeysNormal = ["NormalSubnet_{}".format(IntClass) for IntClass in self.IntClass2Roads.keys()]
-            KeysIncr = ["IncrSubnet_{}".format(IntClass) for IntClass in self.IntClass2RoadsIncreasinglyIncludedIntersection.keys()]
-            DfComparison = pd.DataFrame(index = KeysNormal,columns = KeysIncr)     
-            self.Normal2Incr = {Key_Norm:{Key_Incr: (set(self.IntClass2Roads[int(Key_Norm.split("_")[1])]),set(self.IntClass2RoadsIncreasinglyIncludedIntersection[int(Key_Incr.split("_")[1])])) for Key_Incr in KeysIncr} for Key_Norm in KeysNormal}
-            for Key_Norm in self.Normal2Incr.keys():
-                for Key_Incr,(VecI,VecN) in self.Normal2Incr[Key_Norm].items():
-                    # Elements in I and N
-                    Intersection = VecN.intersection(VecI)          # Intersection(N_i,O_j)
-                    FractionTransition = len(Intersection)/len(VecN) # |Intersection(N_i,O_j)|/|O_j|
-                    DfComparison[Key_Incr].loc[Key_Norm] = FractionTransition
-            DfComparison.to_csv(os.path.join(self.PlotDir,"Comparison_Network_Old2NewClass_FromRoads.csv"))
-            Message = "{} Comparison of trajectories from Old to New Class: True".format(self.CountFunctionsCalled)
-            AddMessageToLog(Message,self.LogFile)
-        if self.ReadFcmBool and self.ReadFcmNewBool:
-            print("Comparison of trajectories from Old to New Class {}".format(self.StrDate))
-            # Compare from Fcm 
-            KeysNormal = ["Class_{}".format(IntClass) for IntClass in np.unique(self.Fcm["class"])]
-            KeysIncr = ["New_Class_{}".format(IntClass) for IntClass in np.unique(self.Fcm["class_new"])] 
-            DfComparison = pd.DataFrame(index = KeysNormal,columns = KeysIncr)
-            self.Normal2Incr = {Key_Norm:{Key_Incr: (set(self.Fcm.filter(pl.col("class") == int(Key_Norm.split("_")[1]))["id_act"].to_list()),set(self.Fcm.filter(pl.col("class") == int(Key_Norm.split("_")[1]))["id_act"].to_list())) for Key_Incr in KeysIncr} for Key_Norm in KeysNormal}               
-            for Key_Norm in self.Normal2Incr.keys():
-                for Key_Incr,(VecI,VecN) in self.Normal2Incr[Key_Norm].items():
-                    # Elements in I and N
-                    Intersection = VecN.intersection(VecI)          # Intersection(N_i,O_j)
-                    FractionTransition = len(Intersection)/len(VecN) # |Intersection(N_i,O_j)|/|O_j|
-                    DfComparison[Key_Incr].loc[Key_Norm] = FractionTransition
-            DfComparison.to_csv(os.path.join(self.PlotDir,"Comparison_Network_Old2NewClass_FromFcm.csv"))
-            Message = "{} Comparison of trajectories from Old to New Class: True".format(self.CountFunctionsCalled)
-            AddMessageToLog(Message,self.LogFile)
-    
+            pass
     def ReadVelocitySubnet(self):
         """
             Description:
@@ -727,7 +410,39 @@ class DailyNetworkStats:
         else:
             print("Warning: No Initialization of Class2DfSpeedAndTimePercorrenceRoads due to lack of definition of IntClass2Str")
 
-    def AddFcmNew2Fcm(self,verbose = True):
+### HANDLE TIME
+    def BinTime(self):
+        """
+        @return self.BinTimeTimestamp [self.TimeStampDate,...,self.TimeStampDate+self.iterations*self.dt]
+        """
+        self.BinTimestamp,self.BinStringDayHour,self.BinStringHour = BinTimeTimestampGivenDay(self.TimeStampDate,self.dt,self.iterations)
+        pl.DataFrame({"timestamp":self.BinTimestamp,"day_hour":self.BinStringDayHour,"hour":self.BinStringHour}).write_csv(os.path.join(self.PlotDir,"BinTime.csv"))
+#--------- COMPLETE GEOJSON ------- ##
+    def BoundGeoJsonWithBbox(self):
+        """
+            @brief: Bound the GeoJson with the Bounding Box (Whenever you change the area you want to analyze)
+        """
+        if os.path.exists(os.path.join(self.PlotDir,"GeoJson_{0}.geojson".format(self.StrDate))):
+            pass
+        else:
+            self.GeoJson = RestrictGeoJsonWithBbox(self.GeoJson,self.BoxNumeric)
+            self.GeoJson.to_file(os.path.join(self.PlotDir,"GeoJson_{0}.geojson".format(self.StrDate)))
+    def CompleteGeoJsonWithClassInfo(self):
+        """
+            Computes "IntClassOrdered" and "StrClassOrdered" columns for the Geojson.
+            NOTE:
+                Each road for each day will have the Int, Str, IntOrdered and StrOrdered Class.
+        """
+        self.CountFunctionsCalled += 1
+        if self.ReadGeojsonBool and self.ReadFluxesSubIncreasinglyIncludedIntersectionBool:
+            Path2GeoJson = os.path.join(self.InputBaseDir,"GeoJson_{0}.geojson".format(self.StrDate))
+            self.GeoJson, self.GeoJsonWithClassBool = AddColumnsAboutClassesRoad2GeoJson(self.GeoJson,self.IntClass2RoadsIncreasinglyIncludedIntersection,self.IntClass2StrClass,self.StrDate)
+            self.GeoJson, self.GeoJsonWithClassBool = AddColumnsAboutClassesRoad2GeoJson(self.GeoJson,self.IntClass2Roads,self.IntClass2StrClass,self.StrDate)
+            if False:
+                self.GeoJson.to_file(Path2GeoJson)
+        else:
+            self.GeoJsonWithClassBool = False
+    def AddFcmNew2Fcm(self):
         """
             Description:
                 Convert the class column of the FcmNew to class_new and join it to the Fcm.
@@ -735,502 +450,86 @@ class DailyNetworkStats:
         """
         self.CountFunctionsCalled += 1
         if self.ReadFcmBool and self.ReadFcmNewBool:
-            FcmNew = self.FcmNew.with_columns([self.FcmNew['class'].alias('class_new')])
-            self.Fcm = self.Fcm.join(FcmNew[['id_act', 'class_new']], on='id_act', how='left')
-            if verbose:
-                print("1st join Fcm: ",self.Fcm.columns)
-                print("Date: ",self.StrDate)
-            self.Fcm =self.Fcm.with_columns([self.Fcm['class'].alias('class_new')])
-            Message = "{} Add Fcm New to Fcm: True".format(self.CountFunctionsCalled)
-            AddMessageToLog(Message,self.LogFile)
-            if verbose:
-                print("renamed: ",self.Fcm.columns)
+            self.Fcm = AssociateHierarchicalClass2Users(self.Fcm,self.FcmNew)  
+            self.Fcm.write_csv(self.DictDirInput["fcm"])          
         if self.ReadStatsBool and self.ReadFcmNewBool:
-            FcmNew = self.FcmNew.with_columns([self.FcmNew['class'].alias('class_new')])
-            self.Stats["class_new"] = self.Stats.join(self.FcmNew[['id_act', 'class_new']], on='id_act', how='left')
-            if verbose:
-                print("1st join Stats: ",self.Stats.columns)
-                print("Date: ",self.StrDate)
-            self.Stats =self.Stats.with_columns([self.Stats['class'].alias('class_new')])
-            if verbose:
-                print("renamed: ",self.Stats.columns)
-
-##--------------- Plot Network --------------## 
-    def PlotIncrementSubnetHTML(self):
-        """
-            NOTE: Informations about the subnet are taken from Subnet Files
-            Description:
-                Plots the subnetwork. Considers the case of intersections
-        """
-        self.CountFunctionsCalled += 1
-        Message = PlotIncrementSubnetHTML(self.GeoJson,
-                                self.IntClass2StrClass,
-                                self.centroid,
-                                self.PlotDir,
-                                self.StrDate,
-                                self.ReadFluxesSubIncreasinglyIncludedIntersectionBool,
-                                self.ReadGeojsonBool,
-                                self.Class2Color,
-                                "SubnetsIncrementalInclusion",
-                                self.verbose)
-        Message = "{} ".format(self.CountFunctionsCalled) + Message
-        AddMessageToLog(Message,self.LogFile)
-
-    def PlotSubnetHTML(self):
+            self.Stats = AssociateHierarchicalClass2Users(self.Stats,self.FcmNew)            
+    def CompareOld2NewClass(self):
         """
             Description:
-                Plots in HTML the road network with its subnets.
-                NOTE: 
-                    Does not consider the intersection
+                Compare the old class with the new class
+            Output:
+                DfComparison: (pd.DataFrame) -> DfComparison = pd.DataFrame(["NewNumber","OldNumber","NewClass","OldClass","LengthIntersection"])
+                TransitionUsers: (dict) -> TransitionUsers = {(OldClass,NewClass): [ids]}
         """
         self.CountFunctionsCalled += 1
-        Message = PlotSubnetHTML(self.GeoJson,
-                                 self.IntClass2StrClass,
-                                 self.centroid,
-                                 self.PlotDir,
-                                 self.StrDate,
-                                 self.ReadFluxesSubBool,
-                                 self.ReadGeojsonBool,
-                                 self.BoolStrClass2IntClass,
-                                 self.Class2Color,
-                                 self.verbose)
-        Message = "{} ".format(self.CountFunctionsCalled) + Message
-        AddMessageToLog(Message,self.LogFile)
-        
-    def PlotFluxesHTML(self):
-        '''
-            Description:
-                Plots in .html the map of the bounding box considered.
-                For each road color with the fluxes.
-                    1) FT
-                    2) TF
-                    3) TF + FT
-        '''
-        self.CountFunctionsCalled += 1
-        Message = PlotFluxesHTML(self.GeoJson,
-                       self.TimedFluxes,
-                       self.centroid,
-                       self.StrDate,
-                       self.PlotDir,
-                       self.ReadTime2FluxesBool,
-                       "Fluxes",
-                       "TailFrontFluxes",
-                       "FrontTailFluxes")
-        Message = "{} ".format(self.CountFunctionsCalled) + Message
-        AddMessageToLog(Message,self.LogFile)
-    
-    def PlotTimePercorrenceHTML(self):
+        if self.GeoJsonWithClassBool:
+#                self.DfComparison,_ = ReadTransitionClassMatrix(os.path.join(self.PlotDir,"TransitionClassMatrix.csv"))    
+#                with open(os.path.join(self.PlotDir,"TransitionUsers.json"),'r') as f:
+#                    self.TransitionUsers = json.load(f)
+#            else:
+            self.DfComparison,self.TransitionUsers = ComputeTransitionClassMatrix(self.Fcm)
+            self.DfComparison.write_csv(os.path.join(self.PlotDir,"TransitionClassMatrix.csv"))  
+            with open(os.path.join(self.PlotDir,"TransitionUsers.json"),'w') as f:
+                json.dump(self.TransitionUsers,f,indent=2)
+    def SplitPeopleInClasses(self):
         """
-            Description:
-                Plots in .html the map of the bounding box considered.
-                For each class color the road subnetwork according to time of percorrence.
+            return:
+                self.OrderedClass2TimeDeparture2UserId = {OrderedIntClass: TimeDeparture: [ids]}
+                self.Class2TimeDeparture2UserId = {IntClass: TimeDeparture: [ids]}
         """
-        self.CountFunctionsCalled += 1
-        Message = PlotTimePercorrenceHTML(self.GeoJson,
-                                self.Class2DfSpeedAndTimePercorrenceRoads,
-                                self.IntClass2BestFit,
-                                self.ReadGeojsonBool,
-                                self.ReadVelocitySubnetBool,
-                                self.centroid,
-                                self.PlotDir,
-                                self.StrDate,
-                                self.Class2Color,
-                                "AvSpeed","TimePercorrence",
-                                self.verbose)
-        Message = "{} ".format(self.CountFunctionsCalled) + Message
-        AddMessageToLog(Message,self.LogFile)
-## ------- FUNDAMENTAL DIAGRAM ------ ##
-    def ComputeMFDVariablesClass(self):
-        '''
-            Description:
-                Computes the MFD variables (t,population,speed) -> and the hysteresis diagram:
-                    1) Aggregated data for the day
-                    2) Conditional to class
-            Save them in two dictionaries 
-                1) self.MFD = {time:[],population:[],speed:[]}
-                2) self.Class2MFD = {Class:pl.DataFrame{"time":[],"population":[],"speed_kmh":[]}}
-        '''
-        if self.ReadFcmBool:
-            print("Computing MFD Variables from Fcm")
-            if "start_time" in self.Fcm.columns:
-                if os.path.isfile(os.path.join(self.PlotDir,"MFD_{}.csv".format(self.StrDate))):
-                    self.MFD = pd.read_csv(os.path.join(self.PlotDir,"MFD_{}.csv".format(self.StrDate)))
-                    self.MFD = pl.from_pandas(self.MFD)
-                    self.CountFunctionsCalled += 1
-                    Message = "{} Compute MFD Variables: True\n".format(self.CountFunctionsCalled)
-                    Message += "\tUpload self.MFD from CSV"
-                    AddMessageToLog(Message,self.LogFile)
-                else:
-                    # ALL TOGETHER MFD
-                    self.MFD,self.Fcm = ComputeMFDVariables(self.Fcm,self.MFD,self.TimeStampDate,self.dt,self.iterations)
-                    self.MFD.write_csv(os.path.join(self.PlotDir,"MFD_{}.csv".format(self.StrDate)))
-                    self.CountFunctionsCalled += 1
-                    Message = "{} Compute MFD Variables: True\n".format(self.CountFunctionsCalled)
-                    Message += "\tComputed self.MFD "
-                    AddMessageToLog(Message,self.LogFile)
-                # PER CLASS
-                self.Class2MFD = {class_:Dict2PolarsDF({"time":[],"population":[],"speed_kmh":[],"av_speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64}) for class_ in self.IntClass2StrClass.keys()}
-                self.Class2MFDNew = {class_:Dict2PolarsDF({"time":[],"population":[],"speed_kmh":[],"av_speed":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64}) for class_ in self.IntClass2StrClass.keys()}
-                if self.verbose:
-                    print(self.Class2MFD.keys())
-                for Class in self.Class2MFD.keys():
-                    if os.path.isfile(os.path.join(self.PlotDir,"Class2MFD_{0}_{1}.csv".format(Class,self.StrDate))):
-                        print("Upload ClassMFD, ClassMFDNew from CSV")
-                        self.Class2MFD[Class] = pd.read_csv(os.path.join(self.PlotDir,"Class2MFD_{0}_{1}.csv".format(Class,self.StrDate)))
-                        self.Class2MFD[Class] = pl.from_pandas(self.Class2MFD[Class])
-                        self.Class2MFDNew[Class] = pd.read_csv(os.path.join(self.PlotDir,"Class2MFDNew_{0}_{1}.csv".format(Class,self.StrDate)))
-                        self.Class2MFDNew[Class] = pl.from_pandas(self.Class2MFDNew[Class])
-                        # Log
-                        Upload = True
-                    else:
-                        print("Computing Class2MFD, Class2MFDNew")
-                        Fcm2Class = self.Fcm.filter(pl.col("class") == Class)
-                        self.Class2MFD[Class],Fcm2Class = ComputeMFDVariables(Fcm2Class,self.Class2MFD[Class],self.TimeStampDate,self.dt,self.iterations)
-                        FcmNew2Class = self.Fcm.filter(pl.col("class_new") == Class)
-                        self.Class2MFDNew[Class],FcmNew2Class = ComputeMFDVariables(FcmNew2Class,self.Class2MFDNew[Class],self.TimeStampDate,self.dt,self.iterations)
-                        if self.verbose:
-                            PrintMFDDictInfo(self.Class2MFD[Class],StartingString = "Class 2 MFD: ")
-                            PrintMFDDictInfo(self.Class2MFDNew[Class],StartingString = "Class 2 MFD New: ")
-                        self.Class2MFD[Class].write_csv(os.path.join(self.PlotDir,"Class2MFD_{0}_{1}.csv".format(Class,self.StrDate)))
-                        self.Class2MFDNew[Class].write_csv(os.path.join(self.PlotDir,"Class2MFDNew_{0}_{1}.csv".format(Class,self.StrDate)))
-                        # Log
-                        Upload = False
-                if Upload:
-                    self.CountFunctionsCalled += 1
-                    Message = "{} Compute MFD Variables: True\n".format(self.CountFunctionsCalled)
-                    Message += "\tUpload ClassMFD, ClassMFDNew from CSV"
-                    AddMessageToLog(Message,self.LogFile)
-                else:
-                    self.CountFunctionsCalled += 1
-                    Message = "{} Compute MFD Variables: True\n".format(self.CountFunctionsCalled)
-                    Message += "\tComputed ClassMFD, ClassMFDNew"
-                    AddMessageToLog(Message,self.LogFile)
-                self.ComputedMFD = True    
-            else:
-                self.CountFunctionsCalled += 1
-                Message = "{} Compute MFD Variables: False".format(self.CountFunctionsCalled)
-                AddMessageToLog(Message,self.LogFile)
-                pass
-                
-        if self.ReadStatsBool:
-            print("Computing MFD Variables from Stats")
-            # ALL TOGETHER MFD
-            self.Stats = self.Stats.join(self.Fcm[['id_act', 'class']], on='id_act', how='left')
-            self.MFD,self.Stats = ComputeMFDVariables(self.Stats,self.MFD,self.TimeStampDate,self.dt,self.iterations)
-            # PER CLASS
-            if self.verbose:
-                PrintMFDDictInfo(self.MFD,StartingString = "MFD: ")
-            if self.BoolStrClass2IntClass:
-                print("Filling Class2MFD: ")
-                for class_ in self.IntClass2StrClass.keys():
-                    if self.verbose:
-                        print("Class: ",class_)
-                    self.Class2MFD[class_] = Dict2PolarsDF({"time":[],"population":[],"speed_kmh":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64})
-                    self.Class2MFDNew[class_] = Dict2PolarsDF({"time":[],"population":[],"speed_kmh":[]},schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64})
-            else:
-                print("Warning: No Plotting MFD due to not Definition of StrInt2Class")
-            for Class in self.Class2MFD.keys():
-                Stats2Class = self.Stats.filter(pl.col("class") == Class)
-                self.Class2MFD[Class],Stats2Class = ComputeMFDVariables(Stats2Class,self.Class2MFD[Class],self.TimeStampDate,self.dt,self.iterations,self.verbose)
-                StatsNew2Class = self.Stats.filter(pl.col("class_new") == Class)
-                self.Class2MFDNew[Class],StatsNew2Class = ComputeMFDVariables(StatsNew2Class,self.Class2MFDNew[Class],self.TimeStampDate,self.dt,self.iterations,self.verbose)
-#                if self.verbose:
-#                    PrintMFDDictInfo(self.Class2MFD[Class],StartingString = "Class 2 MFD: ")
-            self.ComputedMFD = True
+        self.OrderedClass2TimeDeparture2UserId = GroupByClassAndTimeDeparture(self.Fcm,self.BinTimestamp)
+        self.Class2TimeDeparture2UserId = GroupByClassAndTimeDeparture(self.Fcm,self.BinTimestamp,"class")
+        self.OrderedClass2UserId = GroupByClass(self.Fcm,'class_new')
+        self.Class2UserId = GroupByClass(self.Fcm,'class')
+        with open(os.path.join(self.PlotDir,"Class2TimeDeparture2UserId.json"),'w') as f:
+            json.dump(self.Class2TimeDeparture2UserId,f,indent=2)
+        with open(os.path.join(self.PlotDir,"OrderedClass2TimeDeparture2UserId.json"),'w') as f:
+            json.dump(self.OrderedClass2TimeDeparture2UserId,f,indent=2)
+        with open(os.path.join(self.PlotDir,"Class2UserId.json"),'w') as f:
+            json.dump(self.Class2UserId,f,indent=2)
+        with open(os.path.join(self.PlotDir,"OrderedClass2UserId.json"),'w') as f:
+            json.dump(self.OrderedClass2UserId,f,indent=2)
 
-    def PlotMFD(self):
+    def GetAverageSpeedGeoJson(self):
         """
-        Description:
-            Plots the Fundamental Diagram for the calculated MFD (Mobility Fundamental Diagram) and per class.
-        <<<
-            This function plots the Fundamental Diagram for the calculated MFD (Mobility Fundamental Diagram) and per class. 
-            The Fundamental Diagram shows the average speed and the standard deviation of the speed for each population bin.
-            The population bins are determined by the number of vehicles in each bin.
-        >>>
-        Parameters:
-            self (object): The instance of the class.
-        
-        Returns:
-            NOTE: Aggregated Important Variables Initialized
-            self.MFD2Plot (dict): {"binned_av_speed": [], "binned_sqrt_err_speed": [], "bins_population": []}
-            self.MinMaxPlot (dict): {"aggregated": {"population": {"min": int, "max": int}, "speed_kmh": {"min": int, "max": int}}}
-            NOTE: Per Class Important Variables Initialized
-            self.Class2MFD2Plot (dict): {Class: {"binned_av_speed": [], "binned_sqrt_err_speed": [], "bins_population": []}}
-            self.MinMaxPlotPerClass (dict): {Class: {"population": {"min": int, "max": int}, "speed_kmh": {"min": int, "max": int}}}
-        
-        Raises:
-            None
+            self.Class2TimeInterval2Road2SpeedNew {Class:{TimeInterval:{Road:<speed>_{new class}}}}
+            self.Class2TimeInterval2Road2Speed {Class:{TimeInterval:<speed>_{class}}}
+            self.ColumnsPlotIntervalSpeedNew = ["{0}_Speed_{1}_{2}".format(Type,StrDate,TimeDeparture)]
         """
-        if self.ComputedMFD: 
-            if os.path.isfile(os.path.join(self.PlotDir,"MFD2Plot_{0}.png".format(self.StrDate))):
-                print("Upload MFD2Plot")
-                with open(os.path.join(self.PlotDir,"MFD2Plot_{0}.json".format(self.StrDate)),'r') as f:
-                    self.MFD2Plot = json.load(f)
-                with open(os.path.join(self.PlotDir,"MinMaxPlot_{0}.json".format(self.StrDate)),'r') as f:
-                    self.MinMaxPlot = json.load(f)
-                self.CountFunctionsCalled += 1
-                Message = "{} Plot MFD: True\n".format(self.CountFunctionsCalled)
-                Message += "\tUpload MFD2Plot"
-                AddMessageToLog(Message,self.LogFile)
-            else:
-                print("Computing MFD Plot")
-                    
-                # AGGREGATED 
-                self.MFD2Plot, self.MinMaxPlot,RelativeChange = GetMFDForPlot(MFD = self.MFD,
-                                                                            MFD2Plot = self.MFD2Plot,
-                                                                            MinMaxPlot = self.MinMaxPlot,
-                                                                            Class = None,
-                                                                            case = "no-classes",
-                                                                            verbose = self.verbose,
-                                                                            bins_ = 20)
-                
-                self.CountFunctionsCalled += 1
-                Message = "{} Plot MFD: True\n".format(self.CountFunctionsCalled)
-                Message += "\tComputed MFD2Plot"
-                AddMessageToLog(Message,self.LogFile)
-                PlotHysteresis(MFD = self.MFD,
-                            Title = "Hysteresis Cycle Aggregated",
-                            SaveDir = self.PlotDir,
-                            NameFile = "Hysteresys.png")
-                self.CountFunctionsCalled += 1
-                Message = "\tComputed Hysteresis"
-                AddMessageToLog(Message,self.LogFile)
-                with open(os.path.join(self.PlotDir,"MFD2Plot_{0}.json".format(self.StrDate)),'w') as f:
-                    json.dump(self.MFD2Plot,f,cls = NumpyArrayEncoder,indent=2)
-                with open(os.path.join(self.PlotDir,"MinMaxPlot_{0}.json".format(self.StrDate)),'w') as f:
-                    json.dump(self.MinMaxPlot,f,cls = NumpyArrayEncoder,indent=2)
-                if self.verbose:
-                    print("After GetMFDForPlot:\n")
-                SaveMFDPlot(self.MFD2Plot["bins_population"],
-                            self.MFD2Plot["binned_av_speed"],
-                            self.MFD2Plot["binned_sqrt_err_speed"],
-                            RelativeChange,
-                            self.PlotDir,
-                            NameFile = "MFD.png") 
-                Message = "\tSaved MFD Plot"
-                AddMessageToLog(Message,self.LogFile)           
-            if os.path.exists(os.path.join(self.PlotDir,"Class2MFD2Plot_{0}.json".format(self.StrDate))) and os.path.exists(os.path.join(self.PlotDir,"Class2MFDNew2Plot_{0}.json".format(self.StrDate))):
-                print("Loading Class2MFD2Plot and Class2MFDNew2Plot")
-                with open(os.path.join(self.PlotDir,"Class2MFD2Plot_{0}.json".format(self.StrDate)),'r') as f:
-                    self.Class2MFD2Plot = json.load(f)
-                with open(os.path.join(self.PlotDir,"Class2MFDNew2Plot_{0}.json".format(self.StrDate)),'r') as f:
-                    self.Class2MFDNew2Plot = json.load(f)
-                self.CountFunctionsCalled += 1
-                Message = "{} Plot Class2MFD: True\n".format(self.CountFunctionsCalled)
-                Message += "\tUpload Class2MFD2Plot and Class2MFDNew2Plot in csv"
-                AddMessageToLog(Message,self.LogFile)
-            else:
-                print("Computing MFD Variables for Classes")
-                # PER CLASS 
-                self.MinMaxPlotPerClass = {Class: defaultdict() for Class in self.Class2MFD.keys()}
-                self.MinMaxPlotPerClassNew = {Class: defaultdict() for Class in self.Class2MFDNew.keys()}       
-                self.Class2MFD2Plot = {Class:{"binned_av_speed": [], "binned_sqrt_err_speed": [], "bins_population": []} for Class in self.Class2MFD.keys()}
-                self.Class2MFDNew2Plot = {Class:{"binned_av_speed": [], "binned_sqrt_err_speed": [], "bins_population": []} for Class in self.Class2MFD.keys()}
-                Message = "{} Plot Class2MFD: True\n".format(self.CountFunctionsCalled)
-                for Class in self.Class2MFD.keys():
-                    # Fill Average/Std Speed (to plot)
-                    # OLD CLASSIFICATION
-                    self.Class2MFD2Plot[Class], self.MinMaxPlotPerClass,RelativeChange = GetMFDForPlot(MFD = self.Class2MFD[Class],
-                                                                                                        MFD2Plot = self.Class2MFD2Plot[Class],
-                                                                                                        MinMaxPlot = self.MinMaxPlotPerClass,
-                                                                                                        Class = Class,
-                                                                                                        case = None,
-                                                                                                        verbose = self.verbose,
-                                                                                                        bins_ = 20)
-
-                    # NEW CLASSIFICATION
-                    self.Class2MFDNew2Plot[Class], self.MinMaxPlotPerClassNew,RelativeChangeNew = GetMFDForPlot(MFD = self.Class2MFDNew[Class],
-                                                                                                        MFD2Plot = self.Class2MFDNew2Plot[Class],
-                                                                                                        MinMaxPlot = self.MinMaxPlotPerClassNew,
-                                                                                                        Class = Class,
-                                                                                                        case = None,
-                                                                                                        verbose = self.verbose,
-                                                                                                        bins_ = 20)
-                    Message += "\tComputed Class2MFD2Plot and Class2MFDNew2Plot Class {}\n".format(Class)
-                    AddMessageToLog(Message,self.LogFile)
-                    
-                    PlotHysteresis(MFD = self.Class2MFD[Class],
-                                Title = "Hysteresis Cycle Class {}".format(self.IntClass2StrClass[Class]),
-                                SaveDir = self.PlotDir,
-                                NameFile = "HysteresysClass_{}.png".format(self.IntClass2StrClass[Class]))
-                    
-                    PlotHysteresis(MFD = self.Class2MFDNew[Class],
-                                Title = "Hysteresis Cycle Class New {}".format(self.IntClass2StrClass[Class]),
-                                SaveDir = self.PlotDir,
-                                NameFile = "HysteresysClassNew_{}.png".format(self.IntClass2StrClass[Class]))
-                    Message += "\tPlot Hysteresis {}\n".format(Class)
-                    AddMessageToLog(Message,self.LogFile)
-                    
-                    with open(os.path.join(self.PlotDir,"Class2MFD2Plot_{0}.json".format(self.StrDate)),'w') as f:
-                        json.dump(self.Class2MFD2Plot,f,cls = NumpyArrayEncoder,indent=2)
-                    with open(os.path.join(self.PlotDir,"Class2MFDNew2Plot_{0}.json".format(self.StrDate)),'w') as f:
-                        json.dump(self.Class2MFDNew2Plot,f,cls = NumpyArrayEncoder,indent=2)
-                    
-                    if self.verbose:
-                        print("After GetMFDForPlot Class {}:\n".format(Class))
-    #                    print("\nClass2MFD2Plot:\n",self.Class2MFD2Plot)
-
-                    if self.BoolStrClass2IntClass:
-                        # Plotting and Save Per Class
-                        # OLD CLASSIFICATION
-                        SaveMFDPlot(self.Class2MFD2Plot[Class]["bins_population"],
-                                    self.Class2MFD2Plot[Class]["binned_av_speed"],
-                                    self.Class2MFD2Plot[Class]["binned_sqrt_err_speed"],
-                                    RelativeChange = RelativeChange,
-                                    SaveDir = self.PlotDir,
-                                    Title = "Fondamental Diagram {}".format(self.IntClass2StrClass[Class]),
-                                    NameFile = "MFD_{}.png".format(Class))
-                        # NEW CLASSIFICATION
-                        SaveMFDPlot(self.Class2MFDNew2Plot[Class]["bins_population"],
-                                    self.Class2MFDNew2Plot[Class]["binned_av_speed"],
-                                    self.Class2MFDNew2Plot[Class]["binned_sqrt_err_speed"],
-                                    RelativeChange = RelativeChangeNew,
-                                    SaveDir = self.PlotDir,
-                                    Title = "Fondamental Diagram New {}".format(self.IntClass2StrClass[Class]),
-                                    NameFile = "MFDNew_{}.png".format(Class))
-                        Message += "\tSaved MFD Plot Class {}\n".format(Class)
-                        AddMessageToLog(Message,self.LogFile)
-                else:
-                    print("Warning: Fondamental Diagram Not Computed for Class Since IntClass2Str is Not Initialized")
-
-# --- TIME PERCORRENCE PLOT --- #
-    def PlotTimePercorrenceDistributionAllClasses(self):
-        """
-            NOTE: We compute for 96 bins (15 minutes each), the time of percorrence estimated as the lenght of the road divided by the average speed.
-            NOTE: We consider the distribution for the network indipendently of the class.
-                and the subnetwork associated to the class. (This second is the one we look at to look for traffic)
-        """
-        self.CountFunctionsCalled += 1
-        if self.ReadVelocitySubnetBool:
-            print("Plotting TimePercorrence Distribution")
-            ListNames = ["Class2Time2Distr_{0}.json".format(self.StrDate),"Class2AvgTimePercorrence_{0}.json".format(self.StrDate)]
-            ListFileNames = GenerateListFilesCommonBaseDir(self.PlotDir,ListNames)
-            ListDict,Upload = UploadDictsFromListFilesJson(ListFileNames)
-            if Upload:
-                self.Class2Time2Distr = ListDict[0]
-                self.Class2AvgTimePercorrence = ListDict[1]
-                pass
-            else:
-                pass
-            if True:
-                self.Class2Time2Distr = {IntClass:[] for IntClass in self.IntClass2StrClass.keys()} # For key Shape (96,Number of Roads)
-                self.Class2AvgTimePercorrence = {IntClass:[] for IntClass in self.IntClass2StrClass.keys()} # For key Shape (96,)
-                # Per Class
-                for IntClass in self.IntClass2StrClass.keys():
-                    File2Save = os.path.join(self.PlotDir,"TimePercorrenceDistribution_Class_{0}_{1}.png".format(IntClass,self.StrDate))
-                    StrTimesLabel = []
-                    self.Class2Time2Distr[IntClass],self.Class2AvgTimePercorrence[IntClass] = PlotTimePercorrenceDistribution(self.Class2DfSpeedAndTimePercorrenceRoads[IntClass],
-                                                                                                                              self.Class2Time2Distr[IntClass],
-                                                                                                                              self.Class2AvgTimePercorrence[IntClass],
-                                                                                                                              StrTimesLabel,
-                                                                                                                              File2Save)
-                    if not os.path.isfile(os.path.join(self.PlotDir,"GeoJson_{0}.geojson".format(self.StrDate))): 
-                        self.GeoJson = ComputeTimePercorrence(self.GeoJson,self.Class2DfSpeedAndTimePercorrenceRoads[IntClass],IntClass,self.StrDate)
-                        self.GeoJson = BuildListStepsGivenDay(self.GeoJson,self.StrDate,"AvSpeed_")
-                        self.GeoJson = BuildListStepsGivenDay(self.GeoJson,self.StrDate,"TimePercorrence_")
-                    else:
-                        pass
-            self.TimePercorrenceBool = True
-            self.PlotTimePercorrenceConditionalLengthRoad()
-                
-                
-    def GenerateVideoEvolutionTimePercorrence(self):
-            if not os.path.isfile(os.path.join(self.PlotDir,"GeoJson_{0}.geojson".format(self.StrDate))): 
-                self.GeoJson.to_file(os.path.join(self.PlotDir,"GeoJson_{0}.geojson".format(self.StrDate)))
-            else:
-                self.GeoJson = gpd.read_file(os.path.join(self.PlotDir,"GeoJson_{0}.geojson".format(self.StrDate)))
-            VideoEvolutionTimePercorrence(self.GeoJson,"TimePercorrence_",self.StrDate,self.PlotDir)
-            VideoEvolutionTimePercorrence(self.GeoJson,"AvSpeed_",self.StrDate,self.PlotDir)
-
-            print("GeoJson")
-            print(self.GeoJson)
-
-            SaveProcedure(BaseDir=self.PlotDir,
-                        ListKeys = ["Class2Time2Distr","Class2AvgTimePercorrence"],
-                            ListDicts = [self.Class2Time2Distr,self.Class2AvgTimePercorrence],
-                            ListFormats = [self.StrDate],
-                            Extension = ".json")
-            Upload = False
-            MessagePlotTimePercorrenceDistributionAllClasses(self.CountFunctionsCalled,self.LogFile,Upload)
-
-
-    def PlotTimePercorrenceConditionalLengthRoad(self):
-        """
-            Description:
-                1) Draws the distribution of road lengths
-                2) Draws the time percorrence distribution conditioned to the length of the road.
-
-        """
-        #self.PlotDistributionLengthRoadPerClass()
-        self.CountFunctionsCalled += 1
-        
-        # Drop rows with NaN values in the 'poly_length' column
-        self.GeoJson = self.GeoJson.dropna(subset=['poly_length'])
-        # Calculate the histogram
-        CountLengths,Lengths = np.histogram(self.GeoJson["poly_length"][~np.isnan(self.GeoJson["poly_length"])],bins = 10)
-        self.Lenght2Roads = GetLengthPartitionInGeojSon(self.GeoJson,Lengths)
-        self.Length2Class2Time2Distr = {Length:{IntClass:[] for IntClass in self.IntClass2StrClass.keys()} for Length in Lengths}
-        self.Length2Class2AvgTimePercorrence = {Length:{IntClass:[] for IntClass in self.IntClass2StrClass.keys()} for Length in Lengths}
-        for IntClass in self.IntClass2StrClass.keys():
-            for Length,Roads in self.Lenght2Roads.items():
-                File2Json = os.path.join(self.PlotDir,"Length2Class2Time2Distr_{0}.json".format(self.StrDate))
-                if not os.path.isfile(File2Json):
-                    StrTimesLabel = []
-                    File2Save = os.path.join(self.PlotDir,"TimePercorrenceDistribution_Class_{0}_{1}_Length_{2}.png".format(IntClass,self.StrDate,round(Length,2)))
-                    Length2VelTimePerccorenceClass = self.Class2DfSpeedAndTimePercorrenceRoads[IntClass].filter(pl.col("poly_id").is_in(Roads))
-                    if len(Roads)>0:
-                        self.Length2Class2Time2Distr[Length][IntClass],self.Length2Class2AvgTimePercorrence[Length][IntClass] = PlotTimePercorrenceDistribution(Length2VelTimePerccorenceClass,
-                                                    self.Length2Class2Time2Distr[Length][IntClass],
-                                                    self.Length2Class2AvgTimePercorrence[Length][IntClass],
-                                                    StrTimesLabel,
-                                                    File2Save)
-
-                        Upload = False
-                    else:
-                        # Do not need to add any road inside the length partition
-                        pass
-                else:
-                    Upload = True
-                    with open(os.path.join(self.PlotDir,"Length2Class2Time2Distr_{0}.json".format(self.StrDate)),'w') as f:
-                        json.dump(self.Length2Class2Time2Distr,f,cls = NumpyArrayEncoder,indent=2)
-                    with open(os.path.join(self.PlotDir,"Length2Class2AvgTimePercorrence_{0}.json".format(self.StrDate)),'w') as f:
-                        json.dump(self.Length2Class2AvgTimePercorrence,f,cls =NumpyArrayEncoder,indent=2)
-        if Upload:
-            Message = "{} Plotting TimePercorrence Distribution Conditioned to Length Road: True\n".format(self.CountFunctionsCalled)
-            Message += "\tUpload Length2Class2Time2Distr, Length2Class2AvgTimePercorrence"
-            AddMessageToLog(Message,self.LogFile)
+        # New Classification
+        if not os.path.exists(os.path.join(self.PlotDir,"Class2TimeInterval2Road2SpeedNew.json")):
+            self.Class2TimeInterval2Road2SpeedNew = ComputeSpeedRoadsPerTimeInterval(self.Fcm,self.OrderedClass2TimeDeparture2UserId,self.IntClass2RoadsIncreasinglyIncludedIntersection)
+            with open(os.path.join(self.PlotDir,"Class2TimeInterval2Road2SpeedNew.json"),'w') as f:
+                json.dump(self.Class2TimeInterval2Road2SpeedNew,f,indent=2)
+            self.GeoJson,self.ColumnsPlotIntervalSpeedNew = AddColumnAverageSpeedGeoJson(self.GeoJson,self.Class2TimeInterval2Road2SpeedNew,self.StrDate,"new_class")
         else:
-            Message = "{} Plotting TimePercorrence Distribution Conditioned to Length Road: True\n".format(self.CountFunctionsCalled)
-            Message += "\tComputed Length2Class2Time2Distr, Length2Class2AvgTimePercorrence"
-            AddMessageToLog(Message,self.LogFile)
-
-    def PlotDistributionLengthRoadPerClass(self):
-        """
-          Compute the distribution of roads length for each class.
-          NOTE: The idea is to try to understand if there is some bias in the length of the roads for each class.
-          NOTE: By bias I mean that the distributions are peaked around some length, and the centroid for different
-          classes are different, maybe in the sense of sigmas in a gaussian distribution. 
-        """
-        plt.subplots(1,1,figsize = (10,10))
-        self.IntClass2RoadLengthDistr = {IntClass:[] for IntClass in self.IntClass2StrClass.keys()}
-        for IntClass in self.IntClass2StrClass.keys():
-            Lengths = self.Class2DfSpeedAndTimePercorrenceRoads[IntClass]["poly_length"]
-            n,bins = np.histogram(Lengths,bins = 100)
-            self.IntClass2RoadLengthDistr[IntClass] = {"n":n,"bins":bins}
-            sns.histplot(Lengths,bins = 100,label = self.IntClass2StrClass[IntClass],kde = True)
-        plt.legend()
-        plt.xlabel("Length [m]")
-        plt.ylabel("Counts")
-        plt.title("Distribution of Roads Length for Each Class")
-        plt.savefig(os.path.join(self.PlotDir,"DistributionRoadLengthPerClass_{0}.png".format(self.StrDate)))
-        plt.close()
-
-    def GetTime2ClassPeople(self):
-        """
-            Get the number of people for each quarter of hour for each class.
-        """
-        self.Class2Time2NPeople = GetPartitionClass2Time2Npeople(self.Class2DfSpeedAndTimePercorrenceRoads)
-        PlotTime2NumberPeopleClasses(self.Class2Time2NPeople,self.IntClass2StrClass,self.PlotDir)
+            with open(os.path.join(self.PlotDir,"Class2TimeInterval2Road2SpeedNew.json"),'r') as f:
+                self.Class2TimeInterval2Road2SpeedNew = json.load(f)
+            self.ColumnsPlotIntervalSpeedNew = ReturnColumnPlot(self.Class2TimeInterval2Road2SpeedNew,"new_class",self.StrDate)
+#            self.GeoJson,self.ColumnsPlotIntervalSpeedNew = AddColumnAverageSpeedGeoJson(self.GeoJson,self.Class2TimeInterval2Road2SpeedNew,self.StrDate,"new_class")
+        # Old Classification
+        if not os.path.exists(os.path.join(self.PlotDir,"Class2TimeInterval2Road2Speed.json")):
+            self.Class2TimeInterval2Road2Speed = ComputeSpeedRoadsPerTimeInterval(self.Fcm,self.Class2TimeDeparture2UserId,self.IntClass2RoadsIncreasinglyIncludedIntersection)
+            # Compute {Class:{TimeInterval:<speed>_{class}}}
+#            self.Class2TimeInterval2Road2SpeedActualRoads = ComputeSpeedRoadsPerTimeIntervalByRoadsTravelledByAllUsers(self.Fcm,self.PathDf,self.Class2TimeDeparture2UserId)
+            with open(os.path.join(self.PlotDir,"Class2TimeInterval2Road2Speed.json"),'w') as f:
+                json.dump(self.Class2TimeInterval2Road2Speed,f,indent=2)    
+            self.GeoJson,self.ColumnsPlotIntervalSpeed = AddColumnAverageSpeedGeoJson(self.GeoJson,self.Class2TimeInterval2Road2Speed,self.StrDate,"class")
+            self.GeoJson.to_file(os.path.join(self.PlotDir,"GeoJson_{0}.geojson".format(self.StrDate)))
+        else:
+            with open(os.path.join(self.PlotDir,"Class2TimeInterval2Road2Speed.json"),'r') as f:
+                self.Class2TimeInterval2Road2Speed = json.load(f)
+            self.ColumnsPlotIntervalSpeed = ReturnColumnPlot(self.Class2TimeInterval2Road2Speed,"class",self.StrDate)
+#            self.GeoJson,self.ColumnsPlotIntervalSpeed = AddColumnAverageSpeedGeoJson(self.GeoJson,self.Class2TimeInterval2Road2Speed,self.StrDate,"class")
+#            self.GeoJson.to_file(os.path.join(self.PlotDir,"GeoJson_{0}.geojson".format(self.StrDate)))
+        # Get People that change class and their speed on the network
+        self.ClassOld2ClassNewTimeInterval2Road2SpeedNew, self.ClassOld2ClassNewTimeInterval2Road2Transition = ComputeSpeedRoadPerTimePeopleChangedClass(self.Fcm,self.OrderedClass2TimeDeparture2UserId,self.Class2TimeDeparture2UserId,self.IntClass2RoadsIncreasinglyIncludedIntersection)
+        with open(os.path.join(self.PlotDir,"ClassOld2ClassNewTimeInterval2Road2SpeedNew.json"),'w') as f:
+            json.dump(self.ClassOld2ClassNewTimeInterval2Road2SpeedNew,f,indent=2)
+        with open(os.path.join(self.PlotDir,"ClassOld2ClassNewTimeInterval2Road2Transition.json"),'w') as f:
+            json.dump(self.ClassOld2ClassNewTimeInterval2Road2Transition,f,indent=2)
+    
 ##--------------- Dictionaries --------------##
     def CreateDictionaryIntClass2StrClass(self):
         '''
@@ -1241,27 +540,9 @@ class DailyNetworkStats:
         '''
         self.CountFunctionsCalled += 1
         if self.ReadFcmCentersBool:
-            number_classes = len(self.FcmCenters["class"]) 
-            for i in range(number_classes):
-                if self.FcmCenters.filter(pl.col("class") == i)["av_speed"].to_list()[0] > 130:
-                    pass
-                else:
-                    if i<number_classes/2:
-                        self.IntClass2StrClass[list(self.FcmCenters["class"])[i]] = '{} slowest'.format(i+1)
-                        self.StrClass2IntClass['{} slowest'.format(i+1)] = list(self.FcmCenters["class"])[i]
-                    elif i == number_classes/2:
-                        self.IntClass2StrClass[list(self.FcmCenters["class"])[i]] = 'middle velocity class'
-                        self.StrClass2IntClass['middle velocity class'] = list(self.FcmCenters["class"])[i]
-                    else:
-                        self.IntClass2StrClass[list(self.FcmCenters["class"])[i]] = '{} quickest'.format(number_classes - i)             
-                        self.StrClass2IntClass['{} quickest'.format(number_classes - i)] = list(self.FcmCenters["class"])[i]
-            self.BoolStrClass2IntClass = True
-            Message = "{} Create Dictionary IntClass2StrClass: True".format(self.CountFunctionsCalled)
-            AddMessageToLog(Message,self.LogFile)
+            self.IntClass2StrClass, self.StrClass2IntClass, self.BoolStrClass2IntClass = CreateIntClass2StrClass(self.FcmCenters,self.IntClass2StrClass,self.StrClass2IntClass)
         else:
             self.BoolStrClass2IntClass = False
-            Message = "{} Create Dictionary IntClass2StrClass: False".format(self.CountFunctionsCalled)
-            AddMessageToLog(Message,self.LogFile)
     def CreateDictClass2FitInit(self):
         """
             NOTE: DictInitialGuess Must Be Initialized and Have the Form Specified Below
@@ -1479,6 +760,360 @@ class DailyNetworkStats:
         self.Feature2FitDf = FitDataFrame(self.Feature2Class2AllFitTry,self.PlotDir)        
 
 
+## ------- FUNDAMENTAL DIAGRAM ------ ##
+    def ComputeMFDVariablesClass(self):
+        '''
+            Description:
+                Computes the MFD variables (t,population,speed) -> and the hysteresis diagram:
+                    1) Aggregated data for the day
+                    2) Conditional to class
+            Save them in two dictionaries 
+                1) self.MFD = {time:[],population:[],speed:[]}
+        '''
+        if self.ReadFcmBool:
+            if "start_time" in self.Fcm.columns:
+                if os.path.isfile(os.path.join(self.PlotDir,"MFD_{}.csv".format(self.StrDate))):
+                    self.MFD = pd.read_csv(os.path.join(self.PlotDir,"MFD_{}.csv".format(self.StrDate)))
+                    self.MFD = pl.from_pandas(self.MFD)
+                else:
+                    self.MFD = pl.DataFrame({"time":[]})
+                    for Class,FcmClass in self.Fcm.groupby("class"): 
+                        self.MFD = AddColumns2MFD(self.MFD,FcmClass,Class,self.BinTimestamp,False)
+                    for NewClass,FcmNewClass in self.Fcm.groupby("class_new"):
+                        self.MFD = AddColumns2MFD(self.MFD,FcmNewClass,NewClass,self.BinTimestamp,True)
+                    self.MFD.write_csv(os.path.join(self.PlotDir,"MFD_{}.csv".format(self.StrDate)))    
+            self.ComputedMFD = True
+
+    def ComputeVariablesForMFDPlot(self):
+        """
+        Description:
+            Computes the variables for the MFD Plot.
+        """
+        self.MFDPlotDir = os.path.join(self.PlotDir,"MFDPlot_{0}.csv".format(self.StrDate))
+        if os.path.exists(self.MFDPlotDir):
+            Classes = [Class for Class,_ in self.Fcm.groupby("class")]
+            self.MFD2Plot = ReadFilePlotMFD(self.PlotDir,self.StrDate)
+            self.Class2RelativeChange = GetRelativeChange(self.MFD2Plot,Classes,False)
+            self.Class2NewRelativeChange = GetRelativeChange(self.MFD2Plot,Classes,True)
+        else:
+            self.MinMaxPlotPerClass = {Class: defaultdict() for Class,_ in self.Fcm.groupby("class")}
+            self.MinMaxPlotPerClassNew = {Class: defaultdict() for Class,_ in self.Fcm.groupby("class")}  
+            self.Class2RelativeChange = {Class: defaultdict() for Class,_ in self.Fcm.groupby("class")}
+            self.Class2NewRelativeChange = {Class: defaultdict() for Class,_ in self.Fcm.groupby("class_new")}     
+            for Class,_ in self.Fcm.groupby("class"):
+                # OLD CLASSIFICATION
+                self.MFD2Plot, self.MinMaxPlotPerClass,self.Class2RelativeChange[Class] = GetMFDForPlot(MFD = self.MFD,
+                                                                                        MFD2Plot = self.MFD2Plot,
+                                                                                        MinMaxPlot = self.MinMaxPlotPerClass,
+                                                                                        Class = Class,
+                                                                                        case = None,
+                                                                                        NewClass= False,
+                                                                                        bins_ = 20)
+            for Class,_ in self.Fcm.groupby("class_new"):
+                # NEW CLASSIFICATION
+                self.MFD2Plot, self.MinMaxPlotPerClassNew,self.Class2NewRelativeChange[Class] = GetMFDForPlot(MFD = self.MFD,
+                                                                                                    MFD2Plot = self.MFD2Plot,
+                                                                                                    MinMaxPlot = self.MinMaxPlotPerClassNew,
+                                                                                                    Class = Class,
+                                                                                                    case = None,
+                                                                                                    NewClass= True,
+                                                                                                    bins_ = 20)
+            self.MFD2Plot = pl.DataFrame(pd.DataFrame(self.MFD2Plot))
+            self.MFD2Plot.write_csv(self.MFDPlotDir)
+            
+
+    def PlotSpeedEvolutionAllSubnets(self):
+        PlotSpeedEvolutionFromGeoJson(self.Class2TimeInterval2Road2Speed,self.Class2TimeInterval2Road2SpeedNew,self.BinStringHour,self.PlotDir)        
+
+
+    def PlotMFD(self):
+        """
+        Description:
+            Plots the Fundamental Diagram for the calculated MFD (Mobility Fundamental Diagram) and per class.
+        <<<
+            This function plots the Fundamental Diagram for the calculated MFD (Mobility Fundamental Diagram) and per class. 
+            The Fundamental Diagram shows the average speed and the standard deviation of the speed for each population bin.
+            The population bins are determined by the number of vehicles in each bin.
+        >>>
+        Parameters:
+            self (object): The instance of the class.
+        
+        Returns:
+            NOTE: Aggregated Important Variables Initialized
+            self.MFD2Plot (dict): {"binned_av_speed": [], "binned_sqrt_err_speed": [], "bins_population": []}
+            self.MinMaxPlot (dict): {"aggregated": {"population": {"min": int, "max": int}, "speed_kmh": {"min": int, "max": int}}}
+            NOTE: Per Class Important Variables Initialized
+            self.Class2MFD2Plot (dict): {Class: {"binned_av_speed": [], "binned_sqrt_err_speed": [], "bins_population": []}}
+            self.MinMaxPlotPerClass (dict): {Class: {"population": {"min": int, "max": int}, "speed_kmh": {"min": int, "max": int}}}
+        
+        Raises:
+            None
+        """
+        if self.ComputedMFD: 
+            for Class,_ in self.Fcm.groupby("class"):
+                ColSpeed = f"speed_kmh_{Class}"
+                ColPop = f"population_{Class}"
+                PlotHysteresis(MFD = self.MFD,
+                            Title = "Hysteresis Cycle Class {}".format(self.IntClass2StrClass[Class]),
+                            ColPop= ColPop,
+                            ColSpeed= ColSpeed,
+                            SaveDir = self.PlotDir,
+                            NameFile = "HysteresysClass_{}.png".format(self.IntClass2StrClass[Class]))
+                ColNewSpeed = f"new_speed_kmh_{Class}"
+                ColNewPop = f"new_population_{Class}"
+                PlotHysteresis(MFD = self.MFD,
+                            Title = "Hysteresis Cycle Class {}".format(self.IntClass2StrClass[Class]),
+                            ColPop= ColNewPop,
+                            ColSpeed= ColNewSpeed,
+                            SaveDir = self.PlotDir,
+                            NameFile = "New_HysteresysClass_{}.png".format(self.IntClass2StrClass[Class]))                
+                if self.BoolStrClass2IntClass:
+                    # OLD CLASSIFICATION
+                    ColumnSpeed = f"bin_{ColSpeed}"
+                    ColumnPop = f"bins_{ColPop}"
+                    VarianceSpeed = f'binned_sqrt_err_{ColSpeed}'
+                    PlotMFD(self.MFD2Plot[ColumnPop],
+                                self.MFD2Plot[ColumnSpeed],
+                                self.MFD2Plot[VarianceSpeed],
+                                RelativeChange = self.Class2RelativeChange[Class],
+                                SaveDir = self.PlotDir,
+                                Title = "Fondamental Diagram {}".format(self.IntClass2StrClass[Class]),
+                                NameFile = "MFD_{}.png".format(Class))
+                    ColumnSpeed = f"bin_{ColNewSpeed}"
+                    ColumnPop = f"bins_{ColNewPop}"
+                    VarianceSpeed = f'binned_sqrt_err_{ColNewSpeed}'                    
+                    # NEW CLASSIFICATION
+                    PlotMFD(self.MFD2Plot[ColumnPop],
+                                self.MFD2Plot[ColumnSpeed],
+                                self.MFD2Plot[VarianceSpeed],
+                                RelativeChange = self.Class2NewRelativeChange[Class],
+                                SaveDir = self.PlotDir,
+                                Title = "Fondamental Diagram New {}".format(self.IntClass2StrClass[Class]),
+                                NameFile = "MFDNew_{}.png".format(Class))
+                else:
+                    print("Warning: Fondamental Diagram Not Computed for Class Since IntClass2Str is Not Initialized")
+
+# --- TIME PERCORRENCE PLOT --- #
+    def PlotTimePercorrenceDistributionAllClasses(self):
+        """
+            NOTE: We compute for 96 bins (15 minutes each), the time of percorrence estimated as the lenght of the road divided by the average speed.
+            NOTE: We consider the distribution for the network indipendently of the class.
+                and the subnetwork associated to the class. (This second is the one we look at to look for traffic)
+        """
+        self.CountFunctionsCalled += 1
+        if self.ReadVelocitySubnetBool:
+            print("Plotting TimePercorrence Distribution")
+            ListNames = ["Class2Time2Distr_{0}.json".format(self.StrDate),"Class2AvgTimePercorrence_{0}.json".format(self.StrDate)]
+            ListFileNames = GenerateListFilesCommonBaseDir(self.PlotDir,ListNames)
+            ListDict,Upload = UploadDictsFromListFilesJson(ListFileNames)
+            if Upload:
+                self.Class2Time2Distr = ListDict[0]
+                self.Class2AvgTimePercorrence = ListDict[1]
+                pass
+            else:
+                pass
+            if True:
+                self.Class2Time2Distr = {IntClass:[] for IntClass in self.IntClass2StrClass.keys()} # For key Shape (96,Number of Roads)
+                self.Class2AvgTimePercorrence = {IntClass:[] for IntClass in self.IntClass2StrClass.keys()} # For key Shape (96,)
+                # Per Class
+                for IntClass in self.IntClass2StrClass.keys():
+                    File2Save = os.path.join(self.PlotDir,"TimePercorrenceDistribution_Class_{0}_{1}.png".format(IntClass,self.StrDate))
+                    StrTimesLabel = []
+                    self.Class2Time2Distr[IntClass],self.Class2AvgTimePercorrence[IntClass] = PlotTimePercorrenceDistribution(self.Class2DfSpeedAndTimePercorrenceRoads[IntClass],
+                                                                                                                              self.Class2Time2Distr[IntClass],
+                                                                                                                              self.Class2AvgTimePercorrence[IntClass],
+                                                                                                                              StrTimesLabel,
+                                                                                                                              File2Save)
+                    if not os.path.isfile(os.path.join(self.PlotDir,"GeoJson_{0}.geojson".format(self.StrDate))): 
+                        self.GeoJson = ComputeTimePercorrence(self.GeoJson,self.Class2DfSpeedAndTimePercorrenceRoads[IntClass],IntClass,self.StrDate)
+                        self.GeoJson = BuildListStepsGivenDay(self.GeoJson,self.StrDate,"AvSpeed_")
+                        self.GeoJson = BuildListStepsGivenDay(self.GeoJson,self.StrDate,"TimePercorrence_")
+                    else:
+                        pass
+
+            self.TimePercorrenceBool = True
+            self.PlotTimePercorrenceConditionalLengthRoad()
+                
+                
+    def GenerateVideoEvolutionTimePercorrence(self):
+            if not os.path.isfile(os.path.join(self.PlotDir,"GeoJson_{0}.geojson".format(self.StrDate))): 
+                self.GeoJson.to_file(os.path.join(self.PlotDir,"GeoJson_{0}.geojson".format(self.StrDate)))
+            else:
+                self.GeoJson = gpd.read_file(os.path.join(self.PlotDir,"GeoJson_{0}.geojson".format(self.StrDate)))
+            VideoEvolutionTimePercorrence(self.GeoJson,"TimePercorrence_",self.StrDate,self.PlotDir)
+            VideoEvolutionTimePercorrence(self.GeoJson,"AvSpeed_",self.StrDate,self.PlotDir)
+
+            print("GeoJson")
+            print(self.GeoJson)
+
+            SaveProcedure(BaseDir=self.PlotDir,
+                        ListKeys = ["Class2Time2Distr","Class2AvgTimePercorrence"],
+                            ListDicts = [self.Class2Time2Distr,self.Class2AvgTimePercorrence],
+                            ListFormats = [self.StrDate],
+                            Extension = ".json")
+            Upload = False
+            MessagePlotTimePercorrenceDistributionAllClasses(self.CountFunctionsCalled,self.LogFile,Upload)
+
+
+
+    def PlotTimePercorrenceConditionalLengthRoad(self):
+        """
+            Description:
+                1) Draws the distribution of road lengths
+                2) Draws the time percorrence distribution conditioned to the length of the road.
+
+        """
+        #self.PlotDistributionLengthRoadPerClass()
+        self.CountFunctionsCalled += 1
+        
+        # Drop rows with NaN values in the 'poly_length' column
+        self.GeoJson = self.GeoJson.dropna(subset=['poly_length'])
+        # Calculate the histogram
+        CountLengths,Lengths = np.histogram(self.GeoJson["poly_length"][~np.isnan(self.GeoJson["poly_length"])],bins = 10)
+        self.Lenght2Roads = GetLengthPartitionInGeojSon(self.GeoJson,Lengths)
+        self.Length2Class2Time2Distr = {Length:{IntClass:[] for IntClass in self.IntClass2StrClass.keys()} for Length in Lengths}
+        self.Length2Class2AvgTimePercorrence = {Length:{IntClass:[] for IntClass in self.IntClass2StrClass.keys()} for Length in Lengths}
+        for IntClass in self.IntClass2StrClass.keys():
+            for Length,Roads in self.Lenght2Roads.items():
+                File2Json = os.path.join(self.PlotDir,"Length2Class2Time2Distr_{0}.json".format(self.StrDate))
+                if not os.path.isfile(File2Json):
+                    StrTimesLabel = []
+                    File2Save = os.path.join(self.PlotDir,"TimePercorrenceDistribution_Class_{0}_{1}_Length_{2}.png".format(IntClass,self.StrDate,round(Length,2)))
+                    Length2VelTimePerccorenceClass = self.Class2DfSpeedAndTimePercorrenceRoads[IntClass].filter(pl.col("poly_id").is_in(Roads))
+                    if len(Roads)>0:
+                        self.Length2Class2Time2Distr[Length][IntClass],self.Length2Class2AvgTimePercorrence[Length][IntClass] = PlotTimePercorrenceDistribution(Length2VelTimePerccorenceClass,
+                                                    self.Length2Class2Time2Distr[Length][IntClass],
+                                                    self.Length2Class2AvgTimePercorrence[Length][IntClass],
+                                                    StrTimesLabel,
+                                                    File2Save)
+
+                        Upload = False
+                    else:
+                        # Do not need to add any road inside the length partition
+                        pass
+                else:
+                    Upload = True
+                    with open(os.path.join(self.PlotDir,"Length2Class2Time2Distr_{0}.json".format(self.StrDate)),'w') as f:
+                        json.dump(self.Length2Class2Time2Distr,f,cls = NumpyArrayEncoder,indent=2)
+                    with open(os.path.join(self.PlotDir,"Length2Class2AvgTimePercorrence_{0}.json".format(self.StrDate)),'w') as f:
+                        json.dump(self.Length2Class2AvgTimePercorrence,f,cls =NumpyArrayEncoder,indent=2)
+        if Upload:
+            Message = "{} Plotting TimePercorrence Distribution Conditioned to Length Road: True\n".format(self.CountFunctionsCalled)
+            Message += "\tUpload Length2Class2Time2Distr, Length2Class2AvgTimePercorrence"
+            AddMessageToLog(Message,self.LogFile)
+        else:
+            Message = "{} Plotting TimePercorrence Distribution Conditioned to Length Road: True\n".format(self.CountFunctionsCalled)
+            Message += "\tComputed Length2Class2Time2Distr, Length2Class2AvgTimePercorrence"
+            AddMessageToLog(Message,self.LogFile)
+
+    def PlotDistributionLengthRoadPerClass(self):
+        """
+          Compute the distribution of roads length for each class.
+          NOTE: The idea is to try to understand if there is some bias in the length of the roads for each class.
+          NOTE: By bias I mean that the distributions are peaked around some length, and the centroid for different
+          classes are different, maybe in the sense of sigmas in a gaussian distribution. 
+        """
+        plt.subplots(1,1,figsize = (10,10))
+        self.IntClass2RoadLengthDistr = {IntClass:[] for IntClass in self.IntClass2StrClass.keys()}
+        for IntClass in self.IntClass2StrClass.keys():
+            Lengths = self.Class2DfSpeedAndTimePercorrenceRoads[IntClass]["poly_length"]
+            n,bins = np.histogram(Lengths,bins = 100)
+            self.IntClass2RoadLengthDistr[IntClass] = {"n":n,"bins":bins}
+            sns.histplot(Lengths,bins = 100,label = self.IntClass2StrClass[IntClass],kde = True)
+        plt.legend()
+        plt.xlabel("Length [m]")
+        plt.ylabel("Counts")
+        plt.title("Distribution of Roads Length for Each Class")
+        plt.savefig(os.path.join(self.PlotDir,"DistributionRoadLengthPerClass_{0}.png".format(self.StrDate)))
+        plt.close()
+
+##--------------- Plot Network --------------## 
+    def PlotIncrementSubnetHTML(self):
+        """
+            NOTE: Informations about the subnet are taken from Subnet Files
+            Description:
+                Plots the subnetwork. Considers the case of intersections
+        """
+        self.CountFunctionsCalled += 1
+        Message = PlotIncrementSubnetHTML(self.GeoJson,
+                                self.IntClass2StrClass,
+                                self.centroid,
+                                self.PlotDir,
+                                self.StrDate,
+                                self.ReadFluxesSubIncreasinglyIncludedIntersectionBool,
+                                self.ReadGeojsonBool,
+                                self.Class2Color,
+                                "SubnetsIncrementalInclusion",
+                                self.verbose)
+        Message = "{} ".format(self.CountFunctionsCalled) + Message
+        AddMessageToLog(Message,self.LogFile)
+
+    def PlotSubnetHTML(self):
+        """
+            Description:
+                Plots in HTML the road network with its subnets.
+                NOTE: 
+                    Does not consider the intersection
+        """
+        self.CountFunctionsCalled += 1
+        Message = PlotSubnetHTML(self.GeoJson,
+                                 self.IntClass2StrClass,
+                                 self.centroid,
+                                 self.PlotDir,
+                                 self.StrDate,
+                                 self.ReadFluxesSubBool,
+                                 self.ReadGeojsonBool,
+                                 self.BoolStrClass2IntClass,
+                                 self.Class2Color,
+                                 self.verbose)
+        Message = "{} ".format(self.CountFunctionsCalled) + Message
+        AddMessageToLog(Message,self.LogFile)
+        
+    def PlotFluxesHTML(self):
+        '''
+            Description:
+                Plots in .html the map of the bounding box considered.
+                For each road color with the fluxes.
+                    1) FT
+                    2) TF
+                    3) TF + FT
+        '''
+        self.CountFunctionsCalled += 1
+        Message = PlotFluxesHTML(self.GeoJson,
+                       self.TimedFluxes,
+                       self.centroid,
+                       self.StrDate,
+                       self.PlotDir,
+                       self.ReadTime2FluxesBool,
+                       "Fluxes",
+                       "TailFrontFluxes",
+                       "FrontTailFluxes")
+        Message = "{} ".format(self.CountFunctionsCalled) + Message
+        AddMessageToLog(Message,self.LogFile)
+    
+    def PlotTimePercorrenceHTML(self):
+        """
+            Description:
+                Plots in .html the map of the bounding box considered.
+                For each class color the road subnetwork according to time of percorrence.
+        """
+        self.CountFunctionsCalled += 1
+        Message = PlotTimePercorrenceHTML(self.GeoJson,
+                                self.Class2DfSpeedAndTimePercorrenceRoads,
+                                self.IntClass2BestFit,
+                                self.ReadGeojsonBool,
+                                self.ReadVelocitySubnetBool,
+                                self.centroid,
+                                self.PlotDir,
+                                self.StrDate,
+                                self.Class2Color,
+                                "AvSpeed","TimePercorrence",
+                                self.verbose)
+        Message = "{} ".format(self.CountFunctionsCalled) + Message
+        AddMessageToLog(Message,self.LogFile)
+
+
+
     def PlotSpaceConditionalTime(self):
         fix,ax = plt.subplots(2,2,figsize = (10,10))
         ax = ax.flatten()
@@ -1486,13 +1121,14 @@ class DailyNetworkStats:
             TimeFeat = "time_hours"
             LengthFeat = "lenght_km"
             FilteredDf = self.Fcm.filter(pl.col("class") == IntClass)
-            PlotConditionaltimeSpace(ax[i],FilteredDf,"time_hours","lenght_km",self.IntClass2StrClass[IntClass])
+            ax[i] = PlotConditionaltimeSpace(ax[i],FilteredDf,"time_hours","lenght_km",self.IntClass2StrClass[IntClass])
         plt.tight_layout()
         plt.savefig(os.path.join(self.PlotDir,"TimeSpaceConditional.png"),dpi = 200)
         plt.close()
 
 
     def PlotDistrFeature(self):
+        PlotComparisonDistributionSpeedNewOld(self.Fcm,self.PlotDir)
         for Feature in self.Feature2AllFitTry.keys():
             if "speed" in Feature:
                 pass
@@ -1506,7 +1142,7 @@ class DailyNetworkStats:
                             xmax = max(np.array(self.Fcm[Feature]))
                             )
                 ax.plot(x[:-1],y)
-                ax.plot(x[:-1],x[:-1]**[fit.alpha])
+                ax.plot(x[:-1],x[:-1]**[-fit.alpha])
                 ax.vlines(x_mean,0,1,linestyles = "dashed")
                 ax.set_yscale("log")
                 ax.set_xlabel(self.Feature2Label[Feature])
@@ -1524,10 +1160,6 @@ class DailyNetworkStats:
                 InfoDayFit: dict -> {IntClass: {Feature: {Function: [A,b]}}}
 
         """
-        self.CreateDictClass2FitInit()
-        self.ComputeFitAggregated()
-        self.ComputeFitPerClass()
-        self.ComputeFitDataFrame()
         if self.verbose:
             print("++++++ Aggregated Fit ++++++")
             
@@ -1570,6 +1202,15 @@ class DailyNetworkStats:
                     fig.savefig(os.path.join(self.PlotDir,"Fit",'{0}_Class_{1}_{2}_{3}.png'.format(self.Feature2Class2AllFitTry[Feature][IntClass]["best_fit"],IntClass,self.Feature2SaveName[Feature],self.StrDate)),dpi = 200)
                 plt.close()
 
+    def PlotSpeedEvolutionTransitionClasses(self):
+        PlotSpeedEvolutionTransitionClasses(self.ClassOld2ClassNewTimeInterval2Road2SpeedNew,self.Class2TimeInterval2Road2SpeedNew,self.PlotDir)
+        
+
+    def PlotTransitionMatrix(self):
+        PlotTransitionClass2ClassNew(self.DfComparison,self.PlotDir)
+
+    def PlotTransitionClassesInTime(self):
+        PlotTransitionClassesInTime(self.ClassOld2ClassNewTimeInterval2Road2Transition,self.PlotDir)
 ## ------------------- PRINT UTILITIES ---------------- #
     def PrintTimeInfo(self):
         print("StrDate: ", self.StrDate, "Type: ", type(self.StrDate))

@@ -1,0 +1,116 @@
+{
+    "StrDates": ["2022-12-30","2022-12-31","2023-01-01","2022-11-11","2022-07-01","2022-08-05","2022-01-31","2023-03-18"],
+    "holidays": ["2022-12-30","2022-12-31","2023-01-01","2023-03-18"],
+    "not_holidays": ["2022-11-11","2022-07-01","2022-08-05","2022-01-31"],
+    "base_name": "bologna_mdt",
+    "InputBaseDir":"/home/aamad/codice/city-pro/output/bologna_mdt",
+    "bounding_box":{
+        "lat_min":"44.426389",
+        "lat_max":"44.586666",
+        "lon_min":"11.156944",
+        "lon_max":"11.490277"
+        },
+    "geojson": "/home/aamad/codice/city-pro/bologna-provincia.geojson",
+    "verbose": true,
+    "shift_bin":{
+        "av_speed": 3,
+        "speed_kmh": 0.5,
+        "lenght": 40,
+        "lenght_km": 0.5,
+        "time": 30,
+        "time_hours": 0.5,
+        "av_accel": 0.1},
+    "shift_count":{
+        "av_speed": 50,
+        "speed_kmh": 50,
+        "lenght": 50,
+        "lenght_km": 50,
+        "time": 50,
+        "time_hours": 50,
+        "av_accel": 50
+    },
+    "interval_bin":{
+        "av_speed": 10,
+        "speed_kmh": 10,
+        "lenght": 10,
+        "lenght_km": 10,
+        "time": 10,
+        "time_hours": 10,
+        "av_accel": 0.2
+    },
+    "interval_count":{
+        "av_speed": 300,
+        "speed_kmh": 300,
+        "lenght": 300,
+        "lenght_km": 300,
+        "time": 300,
+        "time_hours": 300,
+        "av_accel": 500
+    },
+    "scale_count":{
+        "av_speed": "linear",
+        "speed_kmh": "linear",
+        "lenght": "log",
+        "lenght_km": "log",
+        "time": "log",
+        "time_hours": "log",
+        "av_accel": "linear"
+    },
+    "scale_bins":{
+        "av_speed": "linear",
+        "speed_kmh": "linear",
+        "lenght": "log",
+        "lenght_km": "log",
+        "time": "log",
+        "time_hours": "log",
+        "av_accel": "linear"
+    },
+    "info_fit":{
+        "time":{
+            "1 slowest":{"MaxCount":3003,"Avg":2180,"StartWindowS":500,"EndWindowS":20000},
+            "2 slowest":{"MaxCount":6836,"Avg":1110,"StartWindowS":500,"EndWindowS":20000},
+            "middle velocity class":{"MaxCount":7700,"Avg":1500,"StartWindowS":500,"EndWindowS":20000},
+            "2 quickest":{"MaxCount":7700,"Avg":1500,"StartWindowS":500,"EndWindowS":20000},
+            "1 quickest":{"MaxCount":2300,"Avg":1600,"StartWindowS":6000,"EndWindowS":20000},
+            "aggregated": {"MaxCount":8000,"Avg":1400,"StartWindowS":500,"EndWindowS":20000}
+            },
+        "time_hours":{
+            "1 slowest":{"MaxCount":3003,"Avg":2180,"StartWindowS":500,"EndWindowS":20000},
+            "2 slowest":{"MaxCount":6836,"Avg":1110,"StartWindowS":500,"EndWindowS":20000},
+            "middle velocity class":{"MaxCount":7700,"Avg":1500,"StartWindowS":500,"EndWindowS":20000},
+            "2 quickest":{"MaxCount":7700,"Avg":1500,"StartWindowS":500,"EndWindowS":20000},
+            "1 quickest":{"MaxCount":2300,"Avg":1600,"StartWindowS":6000,"EndWindowS":20000},
+            "aggregated": {"MaxCount":8000,"Avg":1400,"StartWindowS":500,"EndWindowS":20000}
+            },
+        "lenght":{
+            "1 slowest":{"MaxCount":7384,"Avg":1100,"StartWindowS":500,"EndWindowS":20000},
+            "2 slowest":{"MaxCount":2200,"Avg":3900,"StartWindowS":500,"EndWindowS":20000},
+            "middle velocity class":{"MaxCount":5500,"Avg":11000,"StartWindowS":500,"EndWindowS":20000},
+            "2 quickest":{"MaxCount":1000,"Avg":11900,"StartWindowS":500,"EndWindowS":20000},
+            "1 quickest":{"MaxCount":150,"Avg":14000,"StartWindowS":2000,"EndWindowS":20000},
+            "aggregated": {"MaxCount":6000,"Avg":4000,"StartWindowS":500,"EndWindowS":20000}
+            },
+        "lenght_km":{
+            "1 slowest":{"MaxCount":7384,"Avg":1100,"StartWindowS":500,"EndWindowS":20000},
+            "2 slowest":{"MaxCount":2200,"Avg":3900,"StartWindowS":500,"EndWindowS":20000},
+            "middle velocity class":{"MaxCount":5500,"Avg":11000,"StartWindowS":500,"EndWindowS":20000},
+            "2 quickest":{"MaxCount":1000,"Avg":11900,"StartWindowS":500,"EndWindowS":20000},
+            "1 quickest":{"MaxCount":150,"Avg":14000,"StartWindowS":2000,"EndWindowS":23000},
+            "aggregated": {"MaxCount":6000,"Avg":4000,"StartWindowS":500,"EndWindowS":23000}
+            },
+        "av_speed":{"1 slowest":{"mu": 0.5, "sigma": 0.5},
+                    "2 slowest":{"mu": 0.5, "sigma": 0.5},
+                    "middle velocity class":{"mu": 0.5, "sigma": 0.5},
+                    "2 quickest":{"mu": 0.5, "sigma": 0.5},
+                    "1 quickest":{"mu": 0.5, "sigma": 0.5},
+                    "aggregated": {"mu": 0.5, "sigma": 0.5}
+                    },
+        "speed_kmh":{"1 slowest":{"mu": 0.5, "sigma": 0.5},
+                    "2 slowest":{"mu": 0.5, "sigma": 0.5},
+                    "middle velocity class":{"mu": 0.5, "sigma": 0.5},
+                    "2 quickest":{"mu": 0.5, "sigma": 0.5},
+                    "1 quickest":{"mu": 0.5, "sigma": 0.5},
+                    "aggregated": {"mu": 0.5, "sigma": 0.5}
+                    }
+        }
+}

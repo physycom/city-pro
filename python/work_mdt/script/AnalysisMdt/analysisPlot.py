@@ -9,6 +9,10 @@ import seaborn as sns
 from matplotlib.lines import Line2D
 from MFDAnalysis import *
 from CastVariables import *
+import logging
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 VERBOSE = True      
 ##----------------------------------- PLOT VELOCITIES -----------------------------------##
 
@@ -145,45 +149,7 @@ def PlotConditionaltimeSpace(ax,Fcm,Time,Length,StrClass):
     ax.set_xlabel('time (h)')
     ax.set_ylabel('length (km)')
     ax.set_title('Conditional Distribution trajectories class {}'.format(StrClass))
-
-def GetPartitionClass2Time2Npeople(Class2RoadsTimeVel):
-    """
-        Input:
-            RoadsTimeVel: pl.DataFrame -> DataFrame with the Roads Time Velocities 
-        Description:
-            Class2Time2Npeople: dict -> {Class: {Time: Npeople}}
-    """
-    Class2Time2Npeople = {IntClass: {time: 0 for time,RTV in Class2RoadsTimeVel[IntClass].groupby("start_bin")} for IntClass in Class2RoadsTimeVel.keys()}
-
-    for IntClass in Class2RoadsTimeVel.keys():
-        # Select the DataFrame for the Class
-        for time,RTV in Class2RoadsTimeVel[IntClass].groupby("start_bin"):
-            # Select Rows that have speed > 0
-            ValidTime = RTV.filter(pl.col("time_percorrence")>0)
-            # Sum over the number of people for each road
-            NumberPeople = np.sum(ValidTime["number_people_poly"].to_list())
-            Class2Time2Npeople[IntClass][time] = NumberPeople
-    return Class2Time2Npeople
-
-def PlotTime2NumberPeopleClasses(Class2Time2Npeople,IntClass2StrClass,PlotDir):
-    """
-        Input:
-            Class2Time2Npeople: dict -> {Class: {Time: Npeople}}
-    """
-    fig,ax = plt.subplots(1,1,figsize = (10,10))
-    legend = []
-    for IntClass in Class2Time2Npeople.keys():
-        Time = list(Class2Time2Npeople[IntClass].keys())
-        Npeople = list(Class2Time2Npeople[IntClass].values())
-        ax.scatter(Time,Npeople,label = IntClass2StrClass[IntClass])
-    ax.set_xlabel('Time')
-    ax.set_ylabel('Number of People')
-    ax.set_yscale('log')
-    ax.set_title('Number of People per Class')
-    ax.legend()
-    plt.savefig(os.path.join(PlotDir,'NumberPeoplePerClass.png'),dpi = 200)
-    plt.close()
-    
+    return ax    
 ##----------------------------------- PLOT DISTRIBUTIONS -----------------------------------##
 
 def ComputeMinMaxPlotGivenFeature(Class2FcmDistr,InfoPlotDistrFeat):
@@ -221,6 +187,58 @@ def ScatterAndPlotSingleClass(ax,Class2FcmDistr,Feature,DictFittedData,IntClass)
     if len(Class2FcmDistr[IntClass]["x"][1:]) == len(DictFittedData[Feature]["fitted_data"]):
         ax.plot(Class2FcmDistr[IntClass]["x"][1:],np.array(DictFittedData[Feature]["fitted_data"]),label = DictFittedData[Feature]["best_fit"])
     return ax
+
+def PlotTransitionClass2ClassNew(DfComparison,PlotDir):
+    """
+        @brief:
+            Plot the Transition Class to Class New
+            x-axis: Class
+            y-axis: Number of People
+
+    """
+    ListColors = ["green", "yellow", "black", "orange", "purple", "pink", "brown", "grey"]
+    fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+    # Get unique classes
+    Classes = np.sort(DfComparison["ClassBefore"].unique().to_list())
+    TotalPeopleHierarchicalNet = []
+    Tij = []
+    Nij = []
+    for OldClass in Classes:
+        OutGoingOld = DfComparison.filter(pl.col("ClassBefore") == OldClass).sort("ClassAfter")
+        # Fraction People Transit From i -> j
+        Ni = np.array(OutGoingOld["NumberBefore"])[0]
+        Tij.append(OutGoingOld["Tij"])
+        Nij.append(Ni*np.array(OutGoingOld["Tij"]))
+        if len(TotalPeopleHierarchicalNet) == 0:
+            TotalPeopleHierarchicalNet = DfComparison.filter(pl.col("ClassBefore") == OldClass).sort("ClassAfter")["NumberAfter"]
+            TotalPeopleNet = DfComparison.filter(pl.col("ClassAfter") == OldClass).sort("ClassBefore")["NumberBefore"]
+    width = 0.45
+    for i, Class in enumerate(Classes):
+        ax.bar(np.array(Classes), Ni*np.array(Tij[i]), width = width,color=ListColors[i % len(ListColors)], label= Class)
+    ax.scatter(np.array(Classes),TotalPeopleHierarchicalNet,label = "N Traj Hierarchical Net")
+    ax.scatter(np.array(Classes),TotalPeopleNet,label = "N Traj Net")
+    ax.set_xticks(Classes)
+    # Set labels and title
+    ax.set_xlabel('Class')
+    ax.set_ylabel('Composition Trajectories after hierarchical re-organization')
+    ax.legend()
+    ax.set_title('Redistribution of Trajectories to Hierarchical Classes')
+    # Save the plot
+    plt.savefig(os.path.join(PlotDir, 'TransitionClass2ClassNew.png'), dpi=200)
+    plt.close()
+    fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+    cax = ax.matshow(Tij, cmap='viridis')
+    cbar = fig.colorbar(cax)
+    # Annotate each cell with the numeric value
+    for (i, j), val in np.ndenumerate(Tij):
+        ax.text(j, i, f'{val:.2f}', ha='center', va='center', color='white')
+    ax.set_xticks(Classes)
+    ax.set_yticks(Classes)
+    ax.set_xlabel('Class Hierarchical')
+    ax.set_ylabel('Class')
+    ax.set_title('Transition Matrix i -> j')
+    plt.savefig(os.path.join(PlotDir, 'TransitionMatrix.png'), dpi=200)
+    plt.close()
 # Plot Fit Single Day
 def PlotFeatureDistrSeparatedByClass(Feature2IntClass2FcmDistr,
                                     Feature2InfoPlotDistrFeat,
@@ -318,15 +336,15 @@ def PlotFeatureDistrSeparatedByClass(Feature2IntClass2FcmDistr,
         Date = os.path.basename(PlotDir)
         plt.savefig(os.path.join(PlotDir,'{0}_{1}_{2}.png'.format("Aggregated",Feature2SaveName[Feature],Date)),dpi = 200)
         plt.close()
-        if VERBOSE:
-            print("Plot Distributions With All Classes")
-            print("Feature: ",Feature)
-            print("min x: ",minx," max x: ",maxx," min y: ",miny," max y: ",maxy)
-            print("Plotted x:\n",x)
-            print("Plotted y:\n",y)
-            print("Plotted x_windowed:\n",x_windowed)
-            print("Plotted fitted_data_windowed:\n",fitted_data_windowed)
-            print("min x windowed",min(x_windowed),"max x windowed: ",max(x_windowed),"min y windowed", min(fitted_data_windowed)," max y windowed: ",max(fitted_data_windowed))
+#        if VERBOSE:
+#            print("Plot Distributions With All Classes")
+#            print("Feature: ",Feature)
+#            print("min x: ",minx," max x: ",maxx," min y: ",miny," max y: ",maxy)
+#            print("Plotted x:\n",x)
+#            print("Plotted y:\n",y)
+#            print("Plotted x_windowed:\n",x_windowed)
+#            print("Plotted fitted_data_windowed:\n",fitted_data_windowed)
+#            print("min x windowed",min(x_windowed),"max x windowed: ",max(x_windowed),"min y windowed", min(fitted_data_windowed)," max y windowed: ",max(fitted_data_windowed))
     return fig,ax
 def ComputeCommonBins(IntClass2FcmDistr):
     minx = 10000000
@@ -569,9 +587,129 @@ def PlotAggregatedAllDaysPerClass(Aggregation2Feature2StrClass2FcmDistr,
         return fig,ax
 """
 
-##----------------------------------- PLOT FLUXES -----------------------------------##
+##----------------------------------- PLOT SPEED TIME -----------------------------------##
 
+def PlotSpeedEvolutionFromGeoJson(Class2TimeInterval2Speed,Class2TimeInterval2Road2Speed,BinStringHour,PlotDir):
+    Class2Speed = defaultdict()
+    NewClass2Speed = defaultdict()
+    BinHour = [datetime.datetime.strptime(StrTime,"%H:%M:%S") for StrTime in BinStringHour]
+    for Class in Class2TimeInterval2Speed.keys():
+        fig,ax = plt.subplots(1,1,figsize = (12,10))
+        Class2Speed[Class] = []
+        NewClass2Speed[Class] = []
+        for TimeInterval in Class2TimeInterval2Speed[Class].keys():
+            if len(Class2TimeInterval2Speed[Class][TimeInterval])!=0:
+                FirstRoad = list(Class2TimeInterval2Speed[Class][TimeInterval].keys())[0]
+                Class2Speed[Class].append(Class2TimeInterval2Speed[Class][TimeInterval][FirstRoad])
+            else:
+                Class2Speed[Class].append(0)
+            if len(Class2TimeInterval2Road2Speed[Class][TimeInterval])!=0:                
+                FirstRoad = list(Class2TimeInterval2Road2Speed[Class][TimeInterval].keys())[0]
+                NewClass2Speed[Class].append(Class2TimeInterval2Road2Speed[Class][TimeInterval][FirstRoad])
+            else:
+                NewClass2Speed[Class].append(0)
+        if len(BinHour) == len(Class2Speed[Class]):
+            ax.plot(BinHour,list(Class2Speed[Class]),label = r"$<v>_{traj in subnet}$")
+            ax.plot(BinHour,list(NewClass2Speed[Class]),label = r"$<v>_{traj in hierarchical subnet}$ ")
+        else:
+            bh = BinHour[1:]
+            ax.plot(bh,list(Class2Speed[Class]),label = r"$<v>_{traj in subnet}$")
+            ax.plot(bh,list(NewClass2Speed[Class]),label = r"$<v>_{traj in hierarchical subnet}$ ")
+        ax.set_xlabel("Time")
+        ax.set_ylabel("Speed")
+        ax.set_title("Speed Evolution Sub-Net Class {}".format(Class))
+        ax.legend()
+        plt.savefig(os.path.join(PlotDir,"SpeedEvolutionClass{}.png".format(Class)),dpi = 200)
+        plt.close()
+    
+def PlotSpeedEvolutionTransitionClasses(ClassOld2ClassNewTimeInterval2Road2SpeedNew,Class2TimeInterval2Road2Speed,PlotDir):
+    """
+        
+    """
+    ClassOld2New2Speed = defaultdict()
+    # Take The Old Partition
+    for ClassOld in ClassOld2ClassNewTimeInterval2Road2SpeedNew.keys():
+        if not ClassOld in ClassOld2New2Speed.keys():
+            ClassOld2New2Speed[ClassOld] = defaultdict()
+        ClassNew2AvSpeed = defaultdict()
+        # Take The New Partition
+        for ClassNew in ClassOld2ClassNewTimeInterval2Road2SpeedNew[ClassOld].keys():
+            ClassOld2New2Speed[ClassOld][ClassNew] = []
+            ClassNew2AvSpeed[ClassNew] = []
+            TimeIntervals = []
+            # Take The Time Interval
+            for TimeInterval in ClassOld2ClassNewTimeInterval2Road2SpeedNew[ClassOld][ClassNew].keys():
+                TimeIntervals.append(TimeInterval)
+                # Consider The Average Speed On the New Sub Network (Considering Just the speed of Trajectories Newly Classified)
+                TypeClassNew = type(ClassNew)
+                TypeKey0 = type(list(Class2TimeInterval2Road2Speed.keys())[0])
+                if TypeKey0 != TypeClassNew:
+                    if isinstance(ClassNew,int):
+                        Key0 = str(ClassNew)
+                    elif isinstance(ClassNew,str):
+                        Key0 = int(ClassNew)
+                    TypeTimeInterval = type(TimeInterval)
+                    TypeKey1 = type(list(Class2TimeInterval2Road2Speed[Key0].keys())[0])
+                    if TypeTimeInterval != TypeKey1:
+                        if isinstance(TimeInterval,int):
+                            Key1 = str(TimeInterval)
+                        elif isinstance(TimeInterval,str):
+                            Key1 = int(TimeInterval)
+                if len(list(Class2TimeInterval2Road2Speed[Key0][Key1].keys())):
+                    FirstRoad = list(Class2TimeInterval2Road2Speed[Key0][Key1].keys())[0]
+                    ClassNew2AvSpeed[ClassNew].append(Class2TimeInterval2Road2Speed[Key0][Key1][FirstRoad])
+                else:
+                    ClassNew2AvSpeed[ClassNew].append(0)
+                    
+                if len(ClassOld2ClassNewTimeInterval2Road2SpeedNew[ClassOld][ClassNew][TimeInterval])!=0:
+                    FirstRoad = list(ClassOld2ClassNewTimeInterval2Road2SpeedNew[ClassOld][ClassNew][TimeInterval].keys())[0]
+                    ClassOld2New2Speed[ClassOld][ClassNew].append(ClassOld2ClassNewTimeInterval2Road2SpeedNew[ClassOld][ClassNew][TimeInterval][FirstRoad])
+                else:
+                    ClassOld2New2Speed[ClassOld][ClassNew].append(0)
+        # NOTE: If ClassNew and ClassOld where not the same set, this would not be good
+        for ClassNew in ClassOld2New2Speed.keys():
+            fig,ax = plt.subplots(1,1,figsize = (12,10))
+            ax.plot(TimeIntervals,ClassNew2AvSpeed[ClassNew],label = f"Aggregated New Classification {ClassNew}")
+            for ClassOld in ClassOld2New2Speed[ClassNew].keys():
+                ax.scatter(TimeIntervals,ClassOld2New2Speed[ClassNew][ClassOld],label = f"{ClassOld} -> {ClassNew}")
+            ax.set_xlabel("Time")
+            ax.set_ylabel("Speed")
+            ax.set_title(f"Speed Evolution Old Classification {ClassOld} in Hierarchical Sub-Net {ClassNew}")
+            ax.legend()
+            plt.savefig(os.path.join(PlotDir,f"SpeedEvolution_Class_{ClassOld}_{ClassNew}.png"),dpi = 200)
+            plt.close()
 
+def PlotTransitionClassesInTime(ClassOld2ClassNewTimeInterval2Road2Transition,PlotDir):
+    for ClassOld in ClassOld2ClassNewTimeInterval2Road2Transition.keys():
+        for ClassNew in ClassOld2ClassNewTimeInterval2Road2Transition[ClassOld].keys():
+            fig,ax = plt.subplots(1,1,figsize = (12,10))
+            TimeInvervals = []
+            NumberInIntervals = []
+            for TimeInterval in ClassOld2ClassNewTimeInterval2Road2Transition[ClassOld][ClassNew].keys():
+                TimeInvervals.append(TimeInterval)
+                NumberInIntervals.append(ClassOld2ClassNewTimeInterval2Road2Transition[ClassOld][ClassNew][TimeInterval])
+            ax.plot(TimeInterval,NumberInIntervals,label = f"{TimeInterval}")
+            ax.set_xlabel("Time")
+            ax.set_ylabel("Transition")
+            ax.set_title(f"Transition {ClassOld} -> {ClassNew}")
+            ax.legend()
+            plt.savefig(os.path.join(PlotDir,f"Transition_{ClassOld}_{ClassNew}.png"),dpi = 200)
+            plt.close()
+
+def PlotComparisonDistributionSpeedNewOld(Fcm,PlotDir):
+    for Class,ClassFcm in Fcm.groupby("class"):
+        fig,ax = plt.subplots(1,1,figsize = (12,10))
+        n,bins = np.histogram(ClassFcm["speed_kmh"],bins = 100)
+        ax.scatter(bins[1:],n,label = "Class {}".format(Class))
+        ClassNewFcm = Fcm.filter(pl.col("class_new") == Class)["speed_kmh"]
+        n,bins = np.histogram(ClassNewFcm,bins = 100)
+        ax.scatter(bins[1:],n,label = "Class Hierarchical {}".format(Class))
+        ax.set_xlabel("Speed (km/h)")
+        ax.set_ylabel("Count")
+        ax.set_title("Speed Distribution Class {}".format(Class))
+        ax.legend()
+        plt.savefig(os.path.join(PlotDir,"SpeedDistributionClass{}.png".format(Class)),dpi = 200)
+        plt.close()
 
 ## --------------------------------- PLOT NETWORKS ---------------------------------- ##
 def PlotIncrementSubnetHTML(GeoJson,IntClass2StrClass,centroid,PlotDir,StrDate,ReadFluxesSubIncreasinglyIncludedIntersectionBool,ReadGeojsonBool,Class2Color,BaseNameFile = "SubnetsIncrementalInclusion",verbose = False):
@@ -584,22 +722,11 @@ def PlotIncrementSubnetHTML(GeoJson,IntClass2StrClass,centroid,PlotDir,StrDate,R
             # Iterate through the Dictionary of list of poly_lid
             for IntClass in np.unique(GeoJson["IntClassOrdered_{}".format(StrDate)]):
                 mclass = folium.Map(location=[centroid.x, centroid.y], zoom_start=12)
-#                    for index_list in self.IntClass2RoadsIncreasinglyIncludedIntersection[IntClass]:
-                # Filter GeoDataFrame for roads with indices in the current list
-                print("IntClass: ",IntClass)
-                print("Available IntClassOrdered_{}".format(StrDate))
-                print(np.unique(GeoJson["IntClassOrdered_{}".format(StrDate)]))
                 filtered_gdf = GeoJson.groupby("IntClassOrdered_{}".format(StrDate)).get_group(IntClass)
-#                    index_list = self.IntClass2RoadsIncreasinglyIncludedIntersection[IntClass]
-#                    filtered_gdf = self.GeoJson[self.GeoJson['poly_lid'].isin(index_list)]
                 # Create a feature group for the current layer
                 layer_group = folium.FeatureGroup(name="Layer {}".format(IntClass)).add_to(m)
                 layer_group_class = folium.FeatureGroup(name="Layer {}".format(IntClass)).add_to(mclass)
-                # Add roads to the feature group with a unique color
-                if verbose:
-                    print("Class: ",IntClass," Number of Roads: ",len(filtered_gdf),"Color: ",Class2Color[IntClass2StrClass[IntClass]])
-                    print("filtered_gdf:",filtered_gdf.head())
-                
+                # Add roads to the feature group with a unique color                
                 for _, road in filtered_gdf.iterrows():
                     if road.geometry is not None:
                         folium.GeoJson(road.geometry, style_function=lambda x: {'color': Class2Color[IntClass2StrClass[IntClass]]}).add_to(layer_group)
@@ -611,6 +738,8 @@ def PlotIncrementSubnetHTML(GeoJson,IntClass2StrClass,centroid,PlotDir,StrDate,R
                 # Add layer control to the map
                 folium.LayerControl().add_to(m)
                 folium.LayerControl().add_to(mclass)
+                folium.TileLayer("CartoDB positron", show=False).add_to(m)
+
                 # Save or display the map
                 mclass.save(os.path.join(PlotDir,BaseNameFile + "_{0}_{1}.html".format(StrDate,IntClass)))
             m.save(os.path.join(PlotDir,BaseNameFile + "_{}.html".format(StrDate)))
@@ -633,8 +762,8 @@ def PlotSubnetHTML(GeoJson,IntClass2StrClass,centroid,PlotDir,StrDate,ReadFluxes
             for IntClass in np.unique(GeoJson["IntClassOrdered_{}".format(StrDate)]):
                 mclass = folium.Map(location=[centroid.x, centroid.y], zoom_start=12)
 #                    for index_list in self.IntClass2Roads[IntClass]:
-                if isinstance(index_list,int):
-                    index_list = [index_list]
+#                if isinstance(index_list,int):
+#                    index_list = [index_list]
                 # Filter GeoDataFrame for roads with indices in the current list
                 filtered_gdf = GeoJson.groupby("IntClass_{}".format(StrDate)).get_group(IntClass)
 #                    index_list = self.IntClass2Roads[IntClass]
@@ -791,60 +920,8 @@ def PlotTimePercorrenceHTML(GeoJson,VelTimePercorrenceClass,IntClass2BestFit,Rea
 
 
 # -------------------------- SPECIFIC ALL DAYS ----------------------------#
-def ComputeAggregatedMFDVariables(ListDailyNetwork,MFDAggregated):
-    """
-        Description:
-            Every Day I count for each hour, how many people and the speed of the 
-            1. Network -> MFDAggregated = {"population":[],"time":[],"speed_kmh":[]}
-            2. SubNetwork -> Class2MFDAggregated = {StrClass: {"population":[sum_i pop_{t0,dayi},...,sum_i pop_{iteration,dayi}],"time":[t0,...,iteration],"speed_kmh":[sum_i speed_{t0,dayi},...,sum_i speed_{iteration,dayi}]}}
-            NOTE: time is pl.DateTime
-        NOTE: Each Time interval has its own average speed and population. For 15 minutes,
-            since iteration in 1 Day Analysis is set in that way. 
-        NOTE: If at time t there is no population, the speed is set to 0.
 
-        NOTE:
-            Speed(Road,Time)
-            NumberCars(Road,Time)
-            Speed(NumberCars) <=> if NumberCars(Road,Time) = NumberCars(Road',Time') => Speed(Road,Time) = Speed(Road',Time') 
-            Compute:
-                sum_{Day} P(Speed|NumberCars,Day)P(NumberCars|Day)P(Day)
-    """
-    LocalDayCount = 0
-    # AGGREGATE MFD FOR ALL DAYS
-    for MobDate in ListDailyNetwork:
-        if LocalDayCount == 0:
-            MFDAggregated = MobDate.MFD
-            if isinstance(MFDAggregated,pl.DataFrame):
-                MFDAggregated = MFDAggregated.to_pandas()
-            else:
-                pass
-            MFDAggregated["count_days"] = list(np.zeros(len(MFDAggregated["time"])))
-            MFDAggregated["total_number_people"] = list(np.zeros(len(MFDAggregated["time"])))
-            LocalDayCount += 1
-        else:            
-            for t in range(len(MobDate.MFD["time"])):
-                WeightedSpeedAtTime = MobDate.MFD["speed_kmh"][t]*MobDate.MFD["population"][t]
-                PopulationAtTime = MobDate.MFD["population"][t]
-                WeightedSpeedAtTimeS = MobDate.MFD["av_speed"][t]*MobDate.MFD["population"][t]
-                if PopulationAtTime != 0 and WeightedSpeedAtTime !=0:
-                    MFDAggregated["speed_kmh"][t] += WeightedSpeedAtTime
-                    MFDAggregated["population"][t] += PopulationAtTime
-                    MFDAggregated["count_days"][t] += 1
-                    MFDAggregated["av_speed"][t] += WeightedSpeedAtTimeS
-                    MFDAggregated["total_number_people"][t] += PopulationAtTime
-                else:
-                    pass
-    for t in range(len(MFDAggregated["time"])):
-        if MFDAggregated["count_days"][t] != 0:
-            MFDAggregated["speed_kmh"][t] = MFDAggregated["speed_kmh"][t]/(MFDAggregated["count_days"][t]*MFDAggregated["total_number_people"][t])
-            MFDAggregated["population"][t] = MFDAggregated["population"][t]/(MFDAggregated["count_days"][t]*MFDAggregated["total_number_people"][t])
-            MFDAggregated["av_speed"][t] = MFDAggregated["av_speed"][t]/(MFDAggregated["count_days"][t]*MFDAggregated["total_number_people"][t])
-        else:
-            pass
-    MFDAggregated = Dict2PolarsDF(MFDAggregated,schema = {"time":pl.datatypes.Utf8,"population":pl.Int64,"speed_kmh":pl.Float64,"av_speed":pl.Float64,"count_days":pl.Int64,"total_number_people":pl.Int64})
-    return MFDAggregated
-
-def ComputeDay2PopulationTime(ListDailyNetwork):
+def ComputeDay2PopulationTime(ListDailyNetwork,Classes):
     """
         Description:
             Compute for each day the vector of 96 elements of population over time.
@@ -862,7 +939,8 @@ def ComputeDay2PopulationTime(ListDailyNetwork):
         Day2PopulationTime[StrDate]["population"] = list(np.zeros(len(MobDate.MFD["time"])))
         for t in range(len(MobDate.MFD["time"])-1):
             Day2PopulationTime[StrDate]["time"][t] = MobDate.MFD["time"][t]
-            Day2PopulationTime[StrDate]["population"][t] = MobDate.MFD["population"][t]
+            for Class in Classes:
+                Day2PopulationTime[StrDate]["population"][t] += MobDate.MFD[f"population_{Class}"][t]
     return Day2PopulationTime
 
 def PlotDay2PopulationTime(Day2PopulationTime,PlotDir):
@@ -995,16 +1073,27 @@ def PlotIntersection(GpdClasses,UniqueClasses,StrClasses2Color,StrIntersection =
 
         
 def PlotUnion(GpdClasses,UniqueClasses,StrClasses2Color,StrUnion = "Union_"):
+    """
+        @param GpdClasses: GeoDataFrame with the classes column informat OrderedUnion_{Class}
+        @param UniqueClasses: List of Unique Classes
+        @param StrClasses2Color: Dictionary with the classes and the colors
+        @param StrUnion: String to identify the Union Column
+        @return m: folium map with the roads colored by class
+    """
     First = True
+    # For each Class
     for Class in UniqueClasses:
         print(StrUnion + Class)
+        # Select Roads That Belong to the Class
         filtered_gdf = GpdClasses.loc[GpdClasses[StrUnion + Class] == True].dropna(subset=['geometry'])
+        # If There are no Roads in the Class
         if len(filtered_gdf) == 0:
             continue
         else:
             if not First:
                 print("class: ",Class," Color: ",StrClasses2Color[Class])
                 print("Number of roads to Color: ",len([True for i in GpdClasses[StrUnion + Class] if i if i == True]))
+                # Plot Roads
                 filtered_gdf.explore(column = StrUnion + Class,
                                     color = StrClasses2Color[Class],
                                     categories = [True,False],
@@ -1033,3 +1122,38 @@ def PlotUnion(GpdClasses,UniqueClasses,StrClasses2Color,StrUnion = "Union_"):
     folium.LayerControl().add_to(m)        
     return m
 
+def PlotUnionPlotply(GpdClasses,UniqueClasses,StrUnion = "OrderedUnion_"):
+    """
+        @param GpdClasses: GeoDataFrame with the classes column informat OrderedUnion_{Class}
+        @param UniqueClasses: List of Unique Classes
+    """
+    from plotly import express as px
+    import shapely.geometry as sg
+    for Class in UniqueClasses:
+        # Select Roads That Belong to the Class
+        filtered_gdf = GpdClasses.loc[GpdClasses[StrUnion + Class] == True].dropna(subset=['geometry'])
+        # If There are no Roads in the Class
+        if len(filtered_gdf) == 0:
+            continue
+        else:
+            lats = []
+            lons = []
+            names = []    
+            for feature, name in zip(filtered_gdf.geometry, filtered_gdf.poly_lid):
+                if isinstance(feature, sg.linestring.LineString):
+                    linestrings = [feature]
+                elif isinstance(feature, sg.multilinestring.MultiLineString):
+                    linestrings = feature.geoms
+                else:
+                    continue
+                for linestring in linestrings:
+                    x, y = linestring.xy
+                    lats = np.append(lats, y)
+                    lons = np.append(lons, x)
+                    names = np.append(names, [name]*len(y))
+                    lats = np.append(lats, None)
+                    lons = np.append(lons, None)
+                    names = np.append(names, None)
+
+            fig = px.line_geo(lat=lats, lon=lons, hover_name=names)
+            fig.show()    

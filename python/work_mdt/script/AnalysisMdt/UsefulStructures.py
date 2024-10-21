@@ -4,8 +4,33 @@ import os
 from collections import defaultdict
 import polars as pl
 import json
-
+import logging
+logger = logging.getLogger(__name__)
 VERBOSE = False
+def CreateIntClass2StrClass(FcmCenters,IntClass2StrClass,StrClass2IntClass):
+    """
+        @brief: Create the Dictionary that maps the Integer Class to the String Class
+        @param FcmCenters: DataFrame [class,av_speed,v_min,v_max,sinuosity]
+        @param IntClass2StrClass: {IntClass: StrClass}
+    """
+    logger.info("Create IntClass2StrClass")
+    number_classes = len(FcmCenters["class"]) 
+    for i in range(number_classes):
+        if FcmCenters.filter(pl.col("class") == i)["av_speed"].to_list()[0] > 130:
+            pass
+        else:
+            if i<number_classes/2:
+                IntClass2StrClass[list(FcmCenters["class"])[i]] = '{} slowest'.format(i+1)
+                StrClass2IntClass['{} slowest'.format(i+1)] = list(FcmCenters["class"])[i]
+            elif i == number_classes/2:
+                IntClass2StrClass[list(FcmCenters["class"])[i]] = 'middle velocity class'
+                StrClass2IntClass['middle velocity class'] = list(FcmCenters["class"])[i]
+            else:
+                IntClass2StrClass[list(FcmCenters["class"])[i]] = '{} quickest'.format(number_classes - i)             
+                StrClass2IntClass['{} quickest'.format(number_classes - i)] = list(FcmCenters["class"])[i]
+    BoolStrClass2IntClass = True
+    return IntClass2StrClass,StrClass2IntClass,BoolStrClass2IntClass
+
 # FIT INITIAL GUESS (No Class/ Class)
 def InitFeature2Function2Fit2InitialGuess(Features2Fit):
     Feature2Function2Fit2InitialGuess = {Feature:None for Feature in Features2Fit}

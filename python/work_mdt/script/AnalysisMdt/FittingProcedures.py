@@ -12,6 +12,9 @@ from scipy.stats import entropy as kl_div
 from scipy.stats import kstest
 from tqdm import tqdm
 import powerlaw as pwl
+import logging
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 VERBOSE = False
 # FUCNTIONS FOR FITTING

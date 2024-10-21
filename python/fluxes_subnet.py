@@ -176,7 +176,7 @@ def initialize_from_config_file(config_):
     geoj = gpd.read_file(file_geojson,driver = 'GeoJSON')
     day_in_sec = config_['day_in_sec']
     dt = config_['dt']
-    iterations = day_in_sec/dt
+    iterations = int(day_in_sec/dt)
     time_format = "%Y-%m-%d %H:%M:%S"
     start_date = datetime.datetime.strptime(config_['start_date'],time_format)
     end_date = datetime.datetime.strptime(config_['end_date'],time_format)

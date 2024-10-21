@@ -61,3 +61,18 @@ def InInterval(start_time,end_time,TimeStampDate,t,dt):
         return True
     else:
         return False
+    
+
+## USEFUL FUNCTIONS FOR TIME
+def BinTimeTimestampGivenDay(TimeStampDate,dt,iterations):
+    """
+        @brief: Bin the TimeStampDate in iterations
+        @param TimeStampDate: Timestamp
+        @param dt: int
+        @param iterations: int
+        @return: List with the bins [Timestamp, Timestamp +dt, ..., Timestamp + iterations*dt]
+    """
+    BinTimestamp = [int(TimeStampDate) + t*dt for t in range(iterations)]
+    BinStringDayHour = [Timestamp2Datetime(BinTimestamp[t]).strftime('%Y-%m-%d %H:%M:%S') for t in range(iterations)]
+    BinStringHour = [Timestamp2Datetime(BinTimestamp[t]).strftime('%Y-%m-%d %H:%M:%S').split(" ")[1] for t in range(iterations)]
+    return BinTimestamp,BinStringDayHour,BinStringHour

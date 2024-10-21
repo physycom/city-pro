@@ -82,6 +82,8 @@ from FittingProcedures import *
 import json
 from multiprocessing import Pool
 import warnings
+import logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Ignore all warnings
 warnings.filterwarnings("ignore")
@@ -125,40 +127,62 @@ def Main(config,StrDate):
     # Initialize Network
     Network = DailyNetworkStats(config,StrDate)
 ## +++++++++++++++++ INITIALIZE CLASSES +++++++++++++++++++++++++++
-    # Create Classes
+    # Read
+    # People
     Network.ReadFcmCenters()
-    # Create Dictionaries
-    Network.CreateDictionaryIntClass2StrClass()
     Network.ReadFcm()
-    ## Classes associated to inclusion principle
     Network.ReadFcmNew()
+    Network.GetPathFile()
+    Network.GetTrajDataFrame()
+    Network.ReadStats()
+    Network.ReadTimedFluxes()
+
+    # GeoJson
+    Network.ReadGeoJson()
+    Network.BoundGeoJsonWithBbox()
+    # Network
+    Network.ReadFluxesSub()
+    Network.CreateDictionaryIntClass2StrClass()
+    Network.GetIncreasinglyIncludedSubnets()
+    Network.ReadVelocitySubnet()
+    # TIME OBJECTS
+    Network.BinTime()
+    # Create Useful Variables for Partition by Class
     Network.AddFcmNew2Fcm()
-    # Plot Fit
+
+    # MFD
+    Network.ComputeMFDVariablesClass()
+    Network.ComputeVariablesForMFDPlot()
+    # GEOJSON 
+    Network.CompleteGeoJsonWithClassInfo()
+    # COMPARE OLD TO NEW CLASS
+    Network.CompareOld2NewClass()
+    Network.SplitPeopleInClasses()
+    Network.GetAverageSpeedGeoJson()
+    # FIT
+    Network.CreateDictClass2FitInit()
+    Network.ComputeFitAggregated()
+    Network.ComputeFitPerClass()
+    Network.ComputeFitDataFrame()
+
+    # Plot 
+    Network.PlotTransitionMatrix()
     Network.PlotSpaceConditionalTime()
     Network.PlotDistrPerClass()
+    # Plot Speed Subnets
+    Network.PlotSpeedEvolutionTransitionClasses()
+    Network.PlotTransitionClassesInTime()
     # NOTE: Network.FcmCenters -> DataFrame ["class","av_speed","vmin","vmax","sinuosity","count"]
-    Network.ReadStats()
-    Network.GetIncreasinglyIncludedSubnets()
-    Network.ReadGeoJson()
-    Network.ReadFluxesSub()
-    Network.ComputeMFDVariablesClass()
-    # SAVE SUBNETS IN GEOJSON
-    Network.CompleteGeoJsonWithClassInfo()
-    Network.CompareOld2NewClass()
-    # TIMED FLUXES
-    Network.ReadTimedFluxes()
     # PLOT SUBNETS
-#    Network.PlotSubnetHTML()
 #    Network.PlotIncrementSubnetHTML()   
 #        Network.PlotFluxesHTML()
 #    Network.PlotTimePercorrenceHTML()     
     # FUNDAMENTAL DIAGRAM
-    Network.ReadVelocitySubnet()
-    Network.PlotTimePercorrenceDistributionAllClasses()
-    Network.GetTime2ClassPeople()
+#    Network.PlotTimePercorrenceDistributionAllClasses()
 #    Network.PlotDistributionLengthRoadPerClass()    # PROBLEMS WITH keys in self.IntClass2StrCLass
     # FIT ALL CLASSES
     Network.PlotDistrFeature()
+    Network.PlotSpeedEvolutionAllSubnets()
     Network.PlotMFD()
     # VIDEO TIME PERCORRENCE (Problems) ValueError: The data range provided to the 'scale' variable is too small for the default scaling function. Normalize your data or provide a custom 'scale_func'.
 #    Network.GenerateVideoEvolutionTimePercorrence()
@@ -171,12 +195,23 @@ def Main(config,StrDate):
 def MainComparison(ListNetworkDays,PlotDirAggregated,config,verbose):
     NetAllDays = NetworkAllDays(ListNetworkDays,PlotDirAggregated,config,verbose)
     # Save the Fits of All Days in a unique file
-#    NetAllDays.ComparedDaysFit()
+    NetAllDays.ComputeDay2PopulationTime()
     # Create Fcm for All -> Distribution lenght and time (Power law )
     NetAllDays.ConcatenateFcm()
-    # Compute MFD
-    NetAllDays.ComputeMFDAllDays()
+    # Prepare Fit
+    NetAllDays.ComputeAggregatedFit()
+    NetAllDays.ComputeAggregatedFit()
+    NetAllDays.ComputeAggregatedFitPerClass()
+    # GeoJson
+#    NetAllDays.UnifyGeoJsonAllDays()
+    NetAllDays.CreateClass2SubNetAllDays()
+    # Latex Functions
+    NetAllDays.GenerateAndSaveTabAvSpeed()
     # All Days Plot Distribution Velocity Aggregated
+    # MFD Computations
+#    NetAllDays.ComputeAggregatedMFDVariablesObj()
+#    NetAllDays.ComputeMFD2PlotAggregation()
+
     NetAllDays.PlotGridDistrFeat()
     NetAllDays.PlotDistrAggregatedAllDays()
     # Plot Comparison among distributions of different days: Will be in the common folder
@@ -185,27 +220,27 @@ def MainComparison(ListNetworkDays,PlotDirAggregated,config,verbose):
     # Comparison Distribution Features not By class
     NetAllDays.PlotComparisonDistributionInDays()
     NetAllDays.PlotDistrFeaturepowerLawComparisonAllDays()
-    # All Days Plot Distribution Velocity Comparison
-    NetAllDays.CreateClass2SubNetAllDays()
 #    NetAllDays.PlotClass2SubNetAllDays()
 #    NetAllDays.PlotClass2SubnetsComparisonAllDays()
     # MFD All Days
-    NetAllDays.GenerateAndSaveTabAvSpeed()
+    NetAllDays.PlotMFDPerClassCompared()
+    NetAllDays.PlotComparisonPopulationTime()
 
-    NetAllDays.ComputeAggregatedMFDVariablesObj()
-    NetAllDays.PlotMFDAggreagated()
     # Number Of People Per Day
     NetAllDays.PlotDistributionTotalNumberPeople()
     # Test Heteorgeneity Hp
     NetAllDays.PlotNumberTrajectoriesGivenClass()
     # Compare The Time Percorrence
-    NetAllDays.CompareTimePercorrenceAllDays()
+#    NetAllDays.CompareTimePercorrenceAllDays()
     # Compare sub-nets
     NetAllDays.PlotComparisonSubnets()
     # Compare sub-nets
     NetAllDays.PlotIntersectionSubnets()
     NetAllDays.PlotIntersectionSubnets()
-
+    NetAllDays.PlotAveragesFeaturesDiscriminatingHolidays()
+    # Aggregated Sub-Networks
+    NetAllDays.ComputeOrderedIntersectionsAllDays()
+    NetAllDays.PlotAggregatedSubNetworks()
 
 if __name__ == "__main__":
     setup_mpl()
@@ -219,10 +254,12 @@ if __name__ == "__main__":
     except Exception as e:
         print("No Configuration file provided")
         base_dir = os.path.join(WORKSPACE,"city-pro","config")
-        print("Second Directory: ",base_dir)
     try:
-        print("Config File:\n",os.path.join(base_dir,"ConfigPythonAnalysis.json"))
-        with open(os.path.join(base_dir,"ConfigPythonAnalysis.json")) as f:
+        # Bologna
+        ConfigFile = "AnalysisPython.json"
+        # Bologna Detailed
+#        ConfigFile = "ConfigPythonAnalysis.json"
+        with open(os.path.join(base_dir,ConfigFile)) as f:
             config = json.load(f)
     except Exception as e:
         print(e)

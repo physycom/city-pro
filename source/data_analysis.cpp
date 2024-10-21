@@ -136,10 +136,6 @@ data_notcarto:filled
 presence: filled*/
     vector<traj_base> traj_temp;
     traj_base tw;
-    std::cout << "position tw: " << &tw << std::endl;   
-    std::cout << "position traj_temp: " << &traj_temp << std::endl;
-    std::cout << "position activity: " << &activity << std::endl;
-    std::cout << "position config_: " << &config_ << std::endl;
     for (auto &a : activity)
     {
         if(a.record.size()<MAX_RECORD)
@@ -381,6 +377,23 @@ void seed_pro_base::set(int id_node, int node_bv, int link_bv, double distance)
     this->node_bv = node_bv;
     this->link_bv = link_bv;
 }
+
+/*
+*   @param: d1: stop point in a trajectory
+*   @param: d2: succesive stop point to d1
+*   @param: poly: vector of polylines
+*   @param: node: vector of nodes
+*   
+*   @brief: For each stop point I have:
+*       - the id of the polyline that is affine -> ipoly1, ipoly2
+*       - the distance along the polyline between the stop point and the front of the polyline -> s1, s2
+*       - length of the polyline -> p1l, p2l
+*   The goal is to fill the gap between the two points d1 and d2 by looking for the shortest path.
+*   The algorithm is based on the Dijkstra algorithm.
+*   CASE: ipoly1 == ipoly2 -> I'm moving on the same polyline
+*
+*
+*/
 //-------------------------------------------------------------------------------------------------
 bool best_poly(cluster_base &d1, cluster_base &d2,std::vector<poly_base> &poly,std::vector<node_base> &node)
 {
@@ -630,7 +643,279 @@ bool best_poly(cluster_base &d1, cluster_base &d2,std::vector<poly_base> &poly,s
 
     return true;
 }
+/*
+bool best_poly(cluster_base &d1, cluster_base &d2,std::vector<poly_base> &poly,std::vector<node_base> &node)
+{
+    // NOTE: You understand in the end that to save memory, Iteratively Save the pap.path in the d2.pap.path
+    // So in the end I have that path is saved just in the last stop_point
 
+    polyaffpro_base t1 = d1.pap; //  int id_poly;double a, d, s;list <pair<int, double>> path; // pair< id_poly, time_in >
+                                 //  double path_weight;  void clear(); are the attributes and functions of this type.
+    polyaffpro_base t2 = d2.pap;
+    // ipoly1, ipoly2 := id of the poly of the affine to stop point of cluster 1 and cluster 2
+    int ipoly1, ipoly2;
+    //s1, s2 := distance along poly between stop point 1 and front ipoly1 (and 2)
+    // p1l, p2l := length of poly 1 and poly 2 affine to the stop point
+    double s1, s2, p1l, p2l;    
+    ipoly2 = t2.id_poly;
+    // length of ipoly1
+    p1l = poly[ipoly1].weightTF;
+    // length of ipoly2  
+    p2l = poly[ipoly2].weightTF;
+    // distance between start of the poly1 and stop point.
+    s1 = t1.s; 
+    // distance between start of the poly2 and stop point.
+    s2 = t2.s;
+
+    list<pair<int, double>> poly_crossed;
+    // NO IDEA WHY ALL THIS STUFF: if I have same poly then I would expect that the shortest path is being still there.
+    if (ipoly1 == ipoly2)
+    {
+        if (d1.pap.path.size() > 0)
+        {
+            if (poly_crossed.size() > 0)
+            {
+                if (poly_crossed.front() == d1.pap.path.back())
+                    poly_crossed.pop_front();
+            }
+            // else {
+            //   bool oneway;
+            //   if (s2 >= s1)
+            //     oneway = true;
+            //   else
+            //     oneway = false;
+            //   if ((d1.pap.path.back().first > 0 && !oneway) | (d1.pap.path.back().first < 0 && oneway)) {
+            //     int poly_sign = -d1.pap.path.back().first;
+            //     double time_val = d1.pap.path.back().second + d2.points.front().t;
+            //     d1.pap.path.push_back(make_pair(poly_sign, time_val));
+            //   }
+            // }
+        }
+        else if (d1.pap.path.size() == 0)
+        {
+            int poly_way;
+            double time = d1.points.front().t;
+            if (s2 >= s1)
+                poly_way = ipoly1;
+            else
+                poly_way = -ipoly1;
+            d1.pap.path.push_back(std::make_pair(poly_way, time));
+        }
+
+        d2.pap.path = d1.pap.path;
+        d2.pap.path.splice(d2.pap.path.end(), poly_crossed);
+        d2.pap.path_weight = d1.pap.path_weight + abs(s2 - s1);
+        d1.pap.clear();
+        return true; // i'm moving on the same poly. I must not return it.
+    }
+    // Contains the index of ALL nodes 
+    static int *index;
+    // node_v: visited node
+    seed_base node_v;         
+    // nodo_v_pro: properties of visited node
+    seed_pro_base node_v_pro; 
+    vector<seed_pro_base> list_node_pro;
+    vector<int> visited;
+    int nw, inw, nw_near, i_poly, iv, iter = 0;
+    double x1, y1, x2, y2, dx, dy, dist, d_eu, a_eu = 0.0;
+    double distance;
+    static bool first_time = true;
+    // index 0 initialization
+    if (first_time)
+    {
+        first_time = false;
+        index = new int[int(node.size())]();
+    }
+
+    bool goal_F = false;
+    bool goal_T = false;
+    // Description:
+    // Goal: Find the succession of nodes in the cartography that define path between d1 and d2. 
+    // 1) Compute distance (d_eu) Node 1 (Front of affine ipoly1) and d2 (stop point 2) IDEA: Check how far we are, is a measure of how many crossing one has to do.
+    // 2) Add Node 1 list_node_pro
+    // 3) 
+    priority_queue<seed_base> heap; // tree like structure
+    int n1F = poly[ipoly1].node_F; // Store nodes polies affine to stop points
+    int n1T = poly[ipoly1].node_T;
+    int n2F = poly[ipoly2].node_F;
+    int n2T = poly[ipoly2].node_T;
+    
+    x2 = d2.centroid.lon;
+    y2 = d2.centroid.lat;
+
+    // push fake node start
+    iv = 0;
+    node_v_pro.set(0, 0, 0, 0.0);
+    list_node_pro.push_back(node_v_pro);
+
+    // push node n1 front
+    x1 = node[n1F].lon;
+    y1 = node[n1F].lat;
+    dx = config_.dslon * (x1 - x2);
+    dy = config_.dslat * (y1 - y2);
+    // How far from the second stop point the node is
+    d_eu = a_eu * sqrt(dx * dx + dy * dy);
+    iv++;
+    // node_id, node_bv, link_bv, distance from the stop point 1
+    node_v_pro.set(n1F, 0, -ipoly1, s1);
+    list_node_pro.push_back(node_v_pro);  // list_node_pro = <0,N1F>
+    node_v.cnt = iv;        // node_v.iv = 1
+    node_v.dd = s1 + d_eu;  // node_v.dd = s1 + d_eu (real distance, the one that consider the roads)
+    visited.push_back(n1F); // visited = <N1F>
+    index[n1F] = node_v.cnt;
+    heap.push(node_v);
+
+    // push node n1 tail
+    x1 = node[n1T].lon;
+    y1 = node[n1T].lat;
+    dx = config_.dslon * (x1 - x2);
+    dy = config_.dslat * (y1 - y2);
+    d_eu = a_eu * sqrt(dx * dx + dy * dy);
+    iv++;
+    node_v_pro.set(n1T, 0, ipoly1, p1l - s1);
+    list_node_pro.push_back(node_v_pro); // list_node_pro = <0,N1F,N1T>
+    node_v.cnt = iv; // node_v.iv = 2
+    node_v.dd = p1l - s1 + d_eu; // node_v.dd = p1l - s1 + d_eu
+    visited.push_back(n1T); // visited = <N1F,N1T>
+    index[n1T] = node_v.cnt; // index = <0,1,2>
+    heap.push(node_v);
+    // NOTE: index contains informations of all nodes, the order that is so far based on the first in principle
+    // list_node_pro contains the corresponding nodes (seed_base)
+    // heap is a priority queue that contains the nodes of the road network that sandwich the first point in the cluster. Is in general a set of nodes in the road network that are measured by how close to the second stop point
+
+    // NOW IS TIME TO LOOK FOR THE SHORTEST PATH
+    while (!heap.empty())
+    {
+        // Consider the node on top of the heap (do not know if it is the closest one to)
+        node_v = heap.top();
+        heap.pop();
+        iter++;
+        nw = list_node_pro[node_v.cnt].id_node;
+        distance = list_node_pro[node_v.cnt].distance; // distance from n1 along the path
+
+        inw = index[nw];
+        if (inw > 0 && list_node_pro[inw].distance < distance)
+            continue;
+
+        index[nw] = node_v.cnt;
+        // IMPORTANT: Stop when the front and tail of the second stop point are reached
+        if (nw == n2F)
+            goal_F = true;
+        if (nw == n2T)
+            goal_T = true;
+        if (goal_F && goal_T)
+            break; // goal reached
+        // Look for nodes that are connected to the node nw
+        for (int n = 0; n < node[nw].id_nnode.size(); n++)
+        {
+            // Look at the node that is linked to the the nw node
+            nw_near = node[nw].id_nnode[n];
+            // Take mention of the link that connects the two nodes
+            i_poly = node[nw].id_nlink[n];
+            if (i_poly > 0)
+                dist = distance + poly[abs(i_poly)].weightFT;
+            else
+                dist = distance + poly[abs(i_poly)].weightTF;
+            // Take index node 
+            inw = index[nw_near];
+            if (inw > 0 && (list_node_pro[inw].distance < dist))
+                continue;
+
+            // Compute the distance of the node to the second stop point and add it to the heap.
+            x1 = node[nw_near].lon;
+            y1 = node[nw_near].lat;
+            dx = config_.dslon * (x1 - x2);
+            dy = config_.dslat * (y1 - y2);
+            d_eu = a_eu * sqrt(dx * dx + dy * dy);
+            iv++;
+            node_v_pro.set(nw_near, nw, i_poly, dist);
+            list_node_pro.push_back(node_v_pro);
+            node_v.cnt = iv;
+            node_v.dd = dist + d_eu;
+            visited.push_back(nw_near);
+            index[nw_near] = node_v.cnt;
+            heap.push(node_v);
+        }
+    }
+    // NOTE: This cycle gives back:
+    // 1) heap: ordered set of nodes that are increasingly closer to the second stop point
+    // 2) list_node_pro: contains the nodes that are in the road network and are closer to the second stop point
+    // PATH RECONSTRUCTION (in terms of speed in the road according to the speed measured)
+    int n;
+    double delta_t = d2.points.front().t - d1.points.front().t; // tempo che ci vuole ad andare dal punto di inizio al punto di fine
+    double dist_2F = list_node_pro[index[n2F]].distance;
+    double dist_2T = list_node_pro[index[n2T]].distance;
+    int i_poly_2F = list_node_pro[index[n2F]].link_bv;
+    int i_poly_2T = list_node_pro[index[n2T]].link_bv;
+
+    if (i_poly_2F == ipoly2)
+        std::cout << " error:  i_poly_2F ==  ipoly2 " << endl;
+    if (i_poly_2T == -ipoly2)
+        std::cout << " error:  i_poly_2T == -ipoly2 " << endl;
+
+    dist_2F += s2;
+    dist_2T += p2l - s2;
+    // Initialize <poly,time> pair by dividing evenly the distance of different segments
+    pair<int, double> pw;
+    if (dist_2F < dist_2T)
+    {
+        n = n2F;
+        distance = dist_2F;
+        pw.first = ipoly2;
+        pw.second = d1.points.front().t + delta_t * (list_node_pro[index[n2F]].distance) / distance;
+    }
+    else
+    {
+        n = n2T;
+        distance = dist_2T;
+        pw.first = -ipoly2;
+        pw.second = d1.points.front().t + delta_t * (list_node_pro[index[n2T]].distance) / distance;
+    }
+    poly_crossed.push_front(pw);
+    int i_poly_first = list_node_pro[index[n]].link_bv;
+    n = list_node_pro[index[n]].node_bv;
+    i_poly = list_node_pro[index[n]].link_bv;
+    double ss0 = 0;
+    if (i_poly == 0 && i_poly_first != 0)
+    {
+        pw.first = i_poly_first;
+        if (i_poly_first > 0)
+            pw.second = d1.points.front().t; // manca quel piccolo passo sulla poly nel t
+        else
+            pw.second = d1.points.front().t; // manca quel piccolo passo sulla poly nel t
+        poly_crossed.push_front(pw);
+    }
+    while (i_poly != 0)
+    {
+        pw.first = i_poly;
+        if (distance >= 1.e-4)
+            pw.second = d1.points.front().t + delta_t * (list_node_pro[index[n]].distance / distance); // il senso di questo distance? dovrebbe essere la delta L
+        else
+            pw.second = d1.points.front().t;
+        poly_crossed.push_front(pw);
+        ss0 = list_node_pro[index[n]].distance;
+        n = list_node_pro[index[n]].node_bv;
+        i_poly = list_node_pro[index[n]].link_bv;
+    }
+
+    poly_crossed.front().second = d1.points.front().t;
+
+    double ss1 = 0;
+
+    for (int i = 0; i < visited.size(); i++)
+        index[visited[i]] = 0;
+    visited.clear();
+    list_node_pro.clear();
+
+    if (poly_crossed.front().first == d1.pap.path.back().first)
+        poly_crossed.pop_front();
+    d2.pap.path = d1.pap.path;
+    d2.pap.path.splice(d2.pap.path.end(), poly_crossed);
+    d2.pap.path_weight = d1.pap.path_weight + distance;
+    d1.pap.clear();
+    return true;
+}
+*/
 void sleep()
 {
     std::cout << "sleep" << std::endl;
@@ -664,12 +949,9 @@ void write_mil_file_poly2class(std::vector<poly_base> &poly,std::vector<traj_bas
 //   Note: the file is used to make the .FLUXES file
 
     ofstream out_poly2fcm(config_.cartout_basename+config_.name_pro + "_poly_with_fcm.csv");
-
-    std::cout << "Debug" << std::endl;
-    std::cout << config_.cartout_basename+config_.name_pro + "_poly_with_fcm.csv" << std::endl;
+    std::cout << "writing... "<< config_.cartout_basename+config_.name_pro + "_poly_with_fcm.csv" << std::endl;
 
     out_poly2fcm << "av_speed;class;poly_id;nodeF;nodeT" << std::endl;
-    std::cout <<"writing POLY_WITH_FCM.csv"<<std::endl;
     if(out_poly2fcm.is_open()){ 
         for (auto &t : traj){   
             int stop_point_it = 0;
@@ -1012,9 +1294,7 @@ void make_bp_traj(std::vector<traj_base> &traj,config &config_,double &sigma,dat
         //   std::cin.get();
         // }
     }
-    std::cout << "end traj" << std::endl;
     // count number of poly crossed and delete activity on the same polys
-    std::cout << "enable threshold" << std::endl;
     if (config_.enable_threshold)
     {
         for (auto &t : traj)
@@ -1037,7 +1317,6 @@ void make_bp_traj(std::vector<traj_base> &traj,config &config_,double &sigma,dat
         dataloss.n_traj_poly_thresh = int(traj.size());
         std::cout << "Num Traj after poly unique: " << traj.size() << std::endl;
     }
-    std::cout << "start make_fluxes" << std::endl;
 //    dump_longest_traj(traj);
 //    make_fluxes(traj,sigma,poly,centers_fcm,classes_flux);
     // make_FD();
@@ -1587,6 +1866,7 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
 
     if (config_.enable_slow_classification)
     {
+        std::cout << "Slow Classification..." << std::endl;
         // Get Velocity Slowest Class
         int slow_id, medium_id;
         double min_v = 10000.0;
@@ -1599,7 +1879,7 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
         for (auto &c : centers_fcm)
             if (c.feat_vector[0] > min_v && c.feat_vector[0] < 20.0){
                 medium_id = c.idx;
-                std::cout << "medium_id: " << medium_id << " min_v: " << min_v << " velocity: " << centers_fcm[c.idx].feat_vector[0] << std::endl;
+//                std::cout << "medium_id: " << medium_id << " min_v: " << min_v << " velocity: " << centers_fcm[c.idx].feat_vector[0] << std::endl;
                 }
         
         // Prepare features for Transport Means Recognition for slower classification (different days of data may need different treatments)
@@ -1668,10 +1948,10 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
         int slow_id2 = 0; int medium_id2 = 1;
         // CENTER FCM [1] <- CENTER FCM (Slow Classification)
         centers_fcm[slow_id].feat_vector = centers_fcm_slow[slow_id2].feat_vector;
-        std::cout << "Index and Velocity for Classes in Centers Fcm Slow: " << std::endl;
-        for (auto &c: centers_fcm_slow){
-            std::cout << "index " << c.idx << "velocity " << c.feat_vector[0] << std::endl;
-        }
+//        std::cout << "Index and Velocity for Classes in Centers Fcm Slow: " << std::endl;
+//        for (auto &c: centers_fcm_slow){
+//           std::cout << "index " << c.idx << "velocity " << c.feat_vector[0] << std::endl;
+//        }
 
         for (auto &c : centers_fcm){
             if (c.idx >= 1 && c.idx != 10){
@@ -1710,7 +1990,7 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
 
         }
 
-        ofstream out_fcm2(config_.cartout_basename + config_.name_pro + "_fcm2.txt");
+//        ofstream out_fcm2(config_.cartout_basename + config_.name_pro + "_fcm2.txt");
         idx_2fcm = 0;         
         for (int n = 0; n < traj.size(); ++n)
         {
@@ -1730,14 +2010,14 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
                 traj[n].means_class = index_chosen;
                 traj[n].means_p = max_probability;
             }
-            out_fcm2<< " trajectory number: "<< n <<std::endl;
-            for(auto &p:traj[n].p_cluster){
-                out_fcm2 << p << ";";
-            }
-            if(traj[n].means_class!=10 && traj[n].means_class!=11)
-            out_fcm2 << " velocity: " << centers_fcm[traj[n].means_class].feat_vector[0] << " class: "<< traj[n].means_class << " average speed: " << traj[n].average_inst_speed<<std::endl;        
+//            out_fcm2<< " trajectory number: "<< n <<std::endl;
+//            for(auto &p:traj[n].p_cluster){
+//                out_fcm2 << p << ";";
+//            }
+//            if(traj[n].means_class!=10 && traj[n].means_class!=11)
+//            out_fcm2 << " velocity: " << centers_fcm[traj[n].means_class].feat_vector[0] << " class: "<< traj[n].means_class << " average speed: " << traj[n].average_inst_speed<<std::endl;        
         }
-        out_fcm2.close();
+//        out_fcm2.close();
         for (auto &c : centers_fcm)
         c.cnt = 0;
             // update centers_fcm: feat vector
@@ -1800,6 +2080,8 @@ void make_multimodality(std::vector<traj_base> &traj,config &config_,std::vector
         }
         out_activity.close();
     }
+    std:cout << "Multimodality done!" << std::endl;
+    std::cout << "**********************************" << std::endl;
 }
 
 
@@ -1878,6 +2160,7 @@ void subnet_complementary(std::vector<int> v1, std::vector<int> intersection, st
 
 std::vector<traj_base> compute_velocity_and_time_percorrence(std::vector<int> poly_subnet, std::vector<traj_base> &traj, std::vector<poly_base> &poly, std::string label_save)
 {
+    std::cout << "Computing Velocity and Time Percorrence" << std::endl;
     std::cout << "case: " << label_save << " initial number of trajectories analyzed: " << traj.size() << " number of polies subnet: " << poly_subnet.size() << " total number polies: " << poly.size() << std::endl;
     // bin time 
     int time_step = config_.bin_time * 60; // bin_time
@@ -2088,6 +2371,7 @@ Description hierarchical_deletion_of_intersection: builds and save file.txt cont
 
 
 std::map<std::string,std::vector<int>> hierarchical_deletion_of_intersection(std::map<std::string, std::vector<int>> subnets80){
+    std::cout << "Hierarchical Deletion of Intersection" << std::endl;
     int idx_subnet2cut = 0;
     std::map<std::string,std::vector<int>> hierarchically_selected_subnets;
     // Iterate over the lower velocity class
@@ -2163,9 +2447,9 @@ void assign_new_class(std::vector<traj_base> &traj,std::map<std::string, std::ve
     }
     newclassification<<std::endl;
 
-            for (std::map<std::string, std::vector<int>>::iterator i = subnets80.begin(); i != subnets80.end(); ++i){
-                    std::cout << "Sono in funzione e controllo ordine subnets " << std::stoi(i->first) << "\n Mi spetto siano in ordine" << std::endl;
-            }
+//            for (std::map<std::string, std::vector<int>>::iterator i = subnets80.begin(); i != subnets80.end(); ++i){
+//                    std::cout << "Sono in funzione e controllo ordine subnets " << std::stoi(i->first) << "\n Mi spetto siano in ordine" << std::endl;
+//            }
     
 
     for (auto &t : traj)
@@ -2698,41 +2982,42 @@ double measure_representativity(const string &label,std::vector<poly_base> &poly
 *           - Write the 'longitude' of the stop_point
 *           - Write the 'itime' of the stop_point
 *           - Write the 'inst_speed' of the stop_point
-*           - Write the 'first' element of the 'path' of the stop_point
+*   - Close the file
+*   - Open the file 'config_.cartout_basename + "/" + config_.name_pro + "_paths_on_road.csv"'
+*   - Write the header "user_id;poly_id;timestamp"
+*   - For each trajectory in 'traj'
+*       - For each path in the trajectory
+*           - Write the 'id_act' of the trajectory
+*           - Write poly_id of path
+*           - Write time of path
 *   - Close the file
 
 */
 void make_traj_dataframe(std::vector<traj_base> &traj,std::vector<poly_base> &poly){
-    ofstream out_traj(config_.cartout_basename + "/" + config_.name_pro + "_traj_dataframe.csv");
-    ofstream size_path(config_.cartout_basename + "/" + config_.name_pro + "_size_path.csv");
-    out_traj << "user_id;latitude;longitude;timestamp;speed;node_front;node_tail;road_id" << std::endl;
+    // Trajectories DataFrame
+    ofstream OutTraj(config_.cartout_basename + "/" + config_.name_pro + "_traj_dataframe.csv");
+    OutTraj << "user_id;latitude;longitude;timestamp;speed" << std::endl;
+    // Trajectories At Road Level
+    ofstream PathOnRoad(config_.cartout_basename + "/" + config_.name_pro + "_paths_on_road.csv");
+    PathOnRoad << "user_id;poly_id;timestamp" << std::endl;
     for (auto &t : traj)
     {
-        auto it = t.path.begin();
-        size_path << t.id_act << ";" << t.path.size() << std::endl;
-        size_path.close();
-        for (int sp = 0; sp < t.stop_point.size(); ++sp)
-        {
-//            if (it == t.path.end()) {
-//                break;  // Ensure we don't go past the end of the list
-//            }    
+        if (t.stop_point.size() != 0)
+            {
+            for (int sp = 1; sp < t.stop_point.size(); ++sp)
+                {
+                    OutTraj << t.id_act << ";" << t.stop_point[sp].centroid.lat << ";" << t.stop_point[sp].centroid.lon << ";" << t.stop_point[sp].points.front().itime << ";" << t.stop_point[sp].inst_speed << std::endl;
+                }
+            }
+        if (t.path.size() != 0)
+            {
+            for(auto it = t.path.begin(); it != t.path.end(); ++it)
+                {
+                PathOnRoad << t.id_act << ";" << it->first << ";" << it->second << std::endl;
+                }
 
-            if (it->first<0){
-                    int index_ = -it->first;
-                    int PolyFront = poly[index_].cid_Fjnct; 
-                    int PolyTail = poly[index_].cid_Tjnct;
-                    int LidPoly = poly[index_].id_local;
-                    out_traj << t.id_act << ";" << t.stop_point[sp].centroid.lat << ";" << t.stop_point[sp].centroid.lon << ";" << t.stop_point[sp].points.front().itime << ";" << t.stop_point[sp].inst_speed << ";" << it->first << ";"<< PolyFront << ";"<< PolyTail << ";"<< LidPoly << std::endl;
-                }
-            else{
-                    int index_ = it->first;
-                    int PolyFront = poly[index_].cid_Fjnct; 
-                    int PolyTail = poly[index_].cid_Tjnct;
-                    int LidPoly = poly[index_].id_local;
-                    out_traj << t.id_act << ";" << t.stop_point[sp].centroid.lat << ";" << t.stop_point[sp].centroid.lon << ";" << t.stop_point[sp].points.front().itime << ";" << t.stop_point[sp].inst_speed << ";" << it->first << ";"<< PolyFront << ";"<< PolyTail << ";"<< LidPoly << std::endl;
-                }
-            ++it;
-        }
+            }
     }
-    out_traj.close();
+    PathOnRoad.close();
+    OutTraj.close();
 }

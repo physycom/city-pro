@@ -253,3 +253,18 @@ To be specified ...
 #### Python
 ```python3 ./python/work_mdt/script/AnalysisMdt/AnalysisPaper.py```
 
+#### Description Variables Analysis single day
+`MFD`: pl.DataFrame: Columns -> [time:datetime,population_{Class}:int,speed_kmh_{Class}:float,new_population_{Class}:float,new_speed_kmh_{Class}:float]
+`MFD2Plot`: pl.DataFame: Columns ->
+# NOTES
+In the case you cannot build with fltk beacouse:
+```-- Running vcpkg install - failed CMake Error at vcpkg/scripts/buildsystems/vcpkg.cmake:904 (message): vcpkg install failed. See logs for more information: /home/aamad/codice/city-pro/build_release/vcpkg-manifest-install.log Call Stack (most recent call first): /usr/share/cmake-3.21/Modules/CMakeDetermineSystem.cmake:124 (include) CMakeLists.txt:36 (project)
+
+CMake Error: CMake was unable to find a build program corresponding to "Ninja". CMAKE_MAKE_PROGRAM is not set. You probably need to select a different build tool. CMake Error: CMAKE_C_COMPILER not set, after EnableLanguage CMake Error: CMAKE_CXX_COMPILER not set, after EnableLanguage -- Configuring incomplete, errors occurred! Config failed! Exited with error code 1. Exception: ScriptHalted```
+On shell
+```
+export CC=/usr/bin/gcc
+export CXX=/usr/bin/g++
+cd ${WORKSPACE}/city-pro/vcpkg
+./bootstrap-vcpkg.sh
+```

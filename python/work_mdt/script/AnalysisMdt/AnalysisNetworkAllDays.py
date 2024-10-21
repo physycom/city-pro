@@ -5,6 +5,8 @@ import numpy as np
 from LatexFunctions import *
 from UsefulStructures import *
 import contextily as ctx
+import logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 class NetworkAllDays:
@@ -33,7 +35,7 @@ class NetworkAllDays:
         self.Day2StrClass2IntClass = {MobDate.StrDate:defaultdict(dict) for MobDate in self.ListDailyNetwork}
         self.DictClass2AvSpeed = {MobDate.StrDate:defaultdict(dict) for MobDate in self.ListDailyNetwork}
         #
-        self.AggregationLevel = ["holidays","not_holidays","aggregated"]
+        self.AggregationLevel = ["aggregated"]#["holidays","not_holidays","aggregated"]
         self.AggregationLevel2ListDays = {"holidays": config["holidays"],
                                           "not_holidays": config["not_holidays"],
                                           "aggregated": config["StrDates"]}
@@ -43,6 +45,7 @@ class NetworkAllDays:
             self.Day2Feature2MaxBins[MobDate.StrDate] = MobDate.Feature2MaxBins
             # CONSTANT PARAMETERS
             if LocalCount == 0:
+                self.IntClasses = list(MobDate.IntClass2StrClass.keys())
                 self.Feature2ScaleCount = MobDate.Feature2ScaleCount
                 self.Feature2ScaleBins = MobDate.Feature2ScaleBins
                 self.centroid = MobDate.centroid
@@ -68,14 +71,11 @@ class NetworkAllDays:
                 for StrClass in self.ListStrClassReference:
                     self.StrClass2MFDAggregated[StrClass] = {Key: [] for Key in MobDate.MFD.columns}
                     self.StrClass2MFDNewAggregated[StrClass] = {Key: [] for Key in MobDate.MFD.columns}
-                    self.StrClass2MFDAggregated2Plot[StrClass] = {Key: [] for Key in MobDate.MFD2Plot.keys()}
-                    self.StrClass2MFDNewAggregated2Plot[StrClass] = {Key: [] for Key in MobDate.MFD2Plot.keys()}
+                    self.StrClass2MFDAggregated2Plot[StrClass] = {Key: [] for Key in MobDate.MFD2Plot.columns}
+                    self.StrClass2MFDNewAggregated2Plot[StrClass] = {Key: [] for Key in MobDate.MFD2Plot.columns}
                 self.config = MobDate.config
         # MFD
         self.Aggregation2MFD = {Aggregation:{MobDate.StrDate:MobDate.MFD for MobDate in self.ListDailyNetwork if MobDate.StrDate in self.AggregationLevel2ListDays[Aggregation]} for Aggregation in self.AggregationLevel}
-        self.Aggregation2MFDNew = {Aggregation:{MobDate.StrDate:MobDate.MFDNew for MobDate in self.ListDailyNetwork if MobDate.StrDate in self.AggregationLevel2ListDays[Aggregation]} for Aggregation in self.AggregationLevel}
-        self.Aggregation2Class2MFD = {Aggregation:{StrClass:{MobDate.StrDate:MobDate.MFD for MobDate in self.ListDailyNetwork if MobDate.StrDate in self.AggregationLevel2ListDays[Aggregation]} for StrClass in self.ListStrClassReference} for Aggregation in self.AggregationLevel}
-        self.Aggregation2Class2MFDNew = {Aggregation:{StrClass:{MobDate.StrDate:MobDate.MFDNew for MobDate in self.ListDailyNetwork if MobDate.StrDate in self.AggregationLevel2ListDays[Aggregation]} for StrClass in self.ListStrClassReference} for Aggregation in self.AggregationLevel}
         # FIT
         self.StrDay2Color = {StrDay: self.ListColors[i] for i,StrDay in enumerate(self.StrDates)}
         self.MinMaxPlotPerClass = {StrClass: defaultdict() for StrClass in self.ListStrClassReference}
@@ -167,52 +167,12 @@ class NetworkAllDays:
             NOTE: To use for comparative analysis among days.
 
         """
-        if self.verbose:
-            print("Associate AvSpeed to StrClass")
-            print("Reference Int -> Str Class:\n",self.RefIntClass2StrClass)
-            print("Day to StrClass to intClass:\n",self.Day2StrClass2IntClass)
-            print("Day to IntClass to StrClass:\n",self.Day2IntClass2StrClass)
         # Each day.GenerateDay2DictClass2AvSpeed
         self.AssociateAvSpeed2StrClassBool = True
         self.CountFunctions += 1
         MessageAveSpeedStrClass(self.Day2IntClass2StrClass,self.Day2StrClass2IntClass,self.DictClass2AvSpeed,self.LogFile)
 
     
-    def ComparedDaysFit(self):
-        """
-            Create the Dataframe that contains information about:
-                1. Parameters
-                2. Best Fit Function
-        """
-        if self.AssociateAvSpeed2StrClassBool:
-            DictFitKeys = ["parameters","best_fit"]
-            Columns = ["time","lenght","av_speed","speed_kmh","lenght_km","time_hours"]
-            ColumnsDictFittedData = [Feature + "_{}".format(FI) for FI in DictFitKeys for Feature in Columns]
-            Index = self.StrDates
-            self.DF_FitAggregated = pl.DataFrame(ColumnsDictFittedData,Index)
-            self.StrClass2DF_Fit = {StrClass:self.DF_FitAggregated for StrClass in self.ListStrClassReference}
-            for MobDate in self.ListDailyNetwork:
-                for Feature in Columns:
-                    for FitKey in DictFitKeys:
-                        self.DF_FitAggregated[Feature+"_{}".format(FitKey)].loc[MobDate.StrDate] = MobDate.Aggregation2DictFittedData[MobDate.StrDate][Feature][FitKey]
-            self.CountFunctions += 1
-            Message = "ComparedDaysFit\n"
-            Message += "\tself.DF_FitAggregated"
-            AddMessageToLog(Message,self.LogFile)
-            self.DF_FitAggregated.write_csv(os.path.join(self.PlotDir,"FitAllDays.csv"))
-            # Per Class
-            for StrClass in self.ListStrClassReference:
-                for MobDate in self.ListDailyNetwork:
-                    DayIntClass = self.Day2StrClass2IntClass[MobDate.StrDate][StrClass]  
-                    for Feature in Columns:
-                        for FitKey in DictFitKeys:
-                            self.StrClass2DF_Fit[StrClass][Feature+"_{}".format(FitKey)].loc[MobDate.StrDate] = MobDate.Aggregation2Class2DictFittedData[MobDate.StrDate][DayIntClass][Feature][FitKey]
-                self.StrClass2DF_Fit[StrClass].write_csv(os.path.join(self.PlotDir,"FitAllDays_{}.csv".format(StrClass)))
-            self.CountFunctions += 1
-            Message += "\tself.StrClass2DF_Fit"
-            AddMessageToLog(Message,self.LogFile)
-
-
     def ConcatenateFcm(self):
         """
             Description:
@@ -245,19 +205,6 @@ class NetworkAllDays:
 ## Put together space and time for all days for each class.
     
 
-    def ComputeMFDAllDays(self):
-        """
-            Description:
-                Compute the MFD averaged with all days data.
-        """
-        self.Aggregation2MFD2Plot = {Aggregation:{"binned_av_speed":[],"binned_sqrt_err_speed":[],"bins_population":[]} for Aggregation in self.AggregationLevel}
-        for Aggregation in self.AggregationLevel:
-            self.Aggregation2MFD[Aggregation] = ComputeAggregatedMFDVariables(self.ListDailyNetwork,self.Aggregation2MFD[Aggregation])
-        for Aggregation in self.AggregationLevel:
-            for StrClass in self.ListStrClassReference:
-                self.Aggregation2Class2MFD[Aggregation][StrClass] = ComputeAggregatedMFDVariables(self.ListDailyNetwork,self.Aggregation2Class2MFD[Aggregation][StrClass])
-        self.CountFunctions += 1
-        MessageComputeMFDAllDays(self.Aggregation2MFD,self.Aggregation2Class2MFD,self.LogFile)
 
     def GetAggregatedFeature2Function2Fit2InitialGuess(self):
         """
@@ -342,9 +289,6 @@ class NetworkAllDays:
                 n, bins of velocity distribution
         """
         if self.ConcatenatePerClassBool:
-            # Prepare the InitialGuess, FitAllTry (Contains info for each function to try), BestFit (Dictionary that Contains info about each fit)
-            self.ComputeAggregatedFit()
-            self.ComputeAggregatedFitPerClass()
             # Initialize the Dict of DataFrames Containing the Distribution for each Class to Plot
             self.Aggregation2Feature2StrClass2FcmDistr = {Aggregation: 
                                                             {Feature: defaultdict()
@@ -416,6 +360,13 @@ class NetworkAllDays:
                 plt.close()
     # MFD Aggregated All Days
 
+    def ComputeDay2PopulationTime(self):
+        """
+            Description:
+                Compute the population and time for each day.
+        """
+        self.Day2PopTime = ComputeDay2PopulationTime(self.ListDailyNetwork,self.IntClasses)
+
     def ComputeAggregatedMFDVariablesObj(self):
         """
             Description:
@@ -426,203 +377,48 @@ class NetworkAllDays:
             NOTE: Each Time interval has its own average speed and population. For 15 minutes,
                 since iteration in 1 Day Analysis is set in that way. 
         """
-        self.MFDAggregated = ComputeAggregatedMFDVariables(self.ListDailyNetwork,self.MFDAggregated)
-        # AGGREGATE MFD FOR ALL DAYS PER CLASS
-        print("Fill the StrClass 2 MFDAggregated")
-        for StrClass in self.StrClass2MFDAggregated.keys():
-            LocalDayCount = 0                
-            for MobDate in self.ListDailyNetwork:
-                # NOTE: This Line Is Essential Not To Confuse The Reference Day Index Map With The Single Day Analysis
-                LocalIntClass = self.Day2StrClass2IntClass[MobDate.StrDate][StrClass]
-                if LocalDayCount == 0:
-                    self.StrClass2MFDAggregated[StrClass] = MobDate.Class2MFD[LocalIntClass] # NOTE: The Way I fill this dictionary is not intuitive since I use a map StrClass (For All days) -> IntClass (For the Reference Day)
-                    self.StrClass2MFDNewAggregated[StrClass] = MobDate.Class2MFD[LocalIntClass]
-                    count_days_series = pl.Series("count_days", np.zeros(len(self.StrClass2MFDAggregated[StrClass]["time"])))
-                    count_days_series_new = pl.Series("count_days", np.zeros(len(self.StrClass2MFDNewAggregated[StrClass]["time"])))
-                    # Update the DataFrame with the new column
-                    self.StrClass2MFDAggregated[StrClass] = self.StrClass2MFDAggregated[StrClass].with_columns(count_days_series)
-                    self.StrClass2MFDNewAggregated[StrClass] = self.StrClass2MFDNewAggregated[StrClass].with_columns(count_days_series_new)
-                    LocalDayCount += 1
-                    print("********************")
-                    print("StrClass: ",StrClass)
-                    print("Day: ",MobDate.StrDate)
-                    print(self.StrClass2MFDAggregated[StrClass])
-                else:
-                    for t in range(len(self.StrClass2MFDAggregated[StrClass]["time"])-1):
-                        SpeedAtTime = MobDate.Class2MFD[LocalIntClass]["speed_kmh"][t]
-                        PopulationAtTime = MobDate.Class2MFD[LocalIntClass]["population"][t]
-                        if PopulationAtTime != 0 and SpeedAtTime !=0:
-                            self.StrClass2MFDAggregated[StrClass]["speed_kmh"][t] += MobDate.Class2MFD[LocalIntClass]["speed_kmh"][t]
-                            self.StrClass2MFDAggregated[StrClass]["population"][t] += MobDate.Class2MFD[LocalIntClass]["population"][t]
-                            self.StrClass2MFDAggregated[StrClass]["count_days"][t] += 1
-                        else:
-                            pass
-                        SpeedAtTimeNew = MobDate.Class2MFDNew[LocalIntClass]["speed_kmh"][t]
-                        PopulationAtTimeNew = MobDate.Class2MFDNew[LocalIntClass]["population"][t]
-                        if PopulationAtTimeNew != 0 and SpeedAtTimeNew !=0:
-                            self.StrClass2MFDNewAggregated[StrClass]["speed_kmh"][t] += MobDate.Class2MFDNew[LocalIntClass]["speed_kmh"][t]
-                            self.StrClass2MFDNewAggregated[StrClass]["population"][t] += MobDate.Class2MFDNew[LocalIntClass]["population"][t]
-                            self.StrClass2MFDNewAggregated[StrClass]["count_days"][t] += 1
-                        else:
-                            pass
-                    print("xxxxxxxxxxxxxxxxxx")
-                    print("StrClass: ",StrClass)
-                    print("Day: ",MobDate.StrDate)
-                    print(self.StrClass2MFDAggregated[StrClass])
-                    
-                
+        MobDate = self.ListDailyNetwork[0]
+        for Class,_ in MobDate.Fcm.groupby("class"):
+            # Compute Average MFD per Class
+            self.MFDAggregated = ComputeAggregatedMFDVariables(self.ListDailyNetwork,self.MFDAggregated,Class,False)
+#            self.Aggregation2MFD = AggregateMFDByHolidays(self.ListDailyNetwork,self.AggregationLevel2ListDays)
+# NOTE: The line above in case you want to show the difference between holidays and not holidays.
         self.ComputedMFDAggregatedVariablesBool = True
-        self.Day2PopTime = ComputeDay2PopulationTime(self.ListDailyNetwork)
+
+    def PlotComparisonPopulationTime(self):
+        """
+            Description:
+                Plot the population and time for each day.
+        """
         PlotDay2PopulationTime(self.Day2PopTime,self.PlotDir)
 
-    def PlotMFDAggreagated(self):
-        if self.ComputedMFDAggregatedVariablesBool: 
-            self.MFDAggregated2Plot = {"binned_av_speed": [], "binned_sqrt_err_speed": [], "bins_population": []}
-            self.MinMaxPlot = defaultdict()
-            # AGGREGATED 
-            self.MFDAggregated2Plot, self.MinMaxPlot,RelativeChange = GetMFDForPlot(MFD = self.MFDAggregated,
-                                                                        MFD2Plot = self.MFDAggregated2Plot,
-                                                                        MinMaxPlot = self.MinMaxPlot,
-                                                                        Class = None,
-                                                                        case = "no-classes",
-                                                                        verbose = self.verbose,
-                                                                        bins_ = 20)
-            
-            PlotHysteresis(MFD = self.MFDAggregated,
-                           Title = "Hysteresis Cycle Aggregated All Days",
-                           SaveDir = self.PlotDir,
-                           NameFile = "HysteresysAllDaysAllClasses.png")
-#                print("\nMFD2Plot:\n",self.MFD2Plot)
-#                print("\nMinMaxPlot:\n",self.MinMaxPlot)
-            # Plotting and Save Aggregated
-            SaveMFDPlot(self.MFDAggregated2Plot["bins_population"],
-                        self.MFDAggregated2Plot["binned_av_speed"],
-                        self.MFDAggregated2Plot["binned_sqrt_err_speed"],
-                        RelativeChange,
-                        self.PlotDir,
-                        NameFile = "MFD.png")            
-            # PER CLASS 
-            self.MinMaxPlotPerClass = {StrClass: defaultdict() for StrClass in self.StrClass2MFDAggregated.keys()}
-            self.MinMaxPlotPerClassNew = {StrClass: defaultdict() for StrClass in self.StrClass2MFDAggregated.keys()}
-            for StrClass in self.StrClass2MFDAggregated.keys():
-                self.StrClass2MFDAggregated2Plot[StrClass] = {"binned_av_speed": [], "binned_sqrt_err_speed": [], "bins_population": []}
-                self.StrClass2MFDNewAggregated2Plot[StrClass] = {"binned_av_speed": [], "binned_sqrt_err_speed": [], "bins_population": []}
-            for StrClass in self.StrClass2MFDAggregated.keys():
-                # Fill Average/Std Speed (to plot)
-                # OLD CLASSIFICATION
-                self.StrClass2MFDAggregated2Plot[StrClass], self.MinMaxPlotPerClass,RelativeChange = GetMFDForPlot(MFD = self.StrClass2MFDAggregated[StrClass],
-                                                                                                     MFD2Plot = self.StrClass2MFDAggregated2Plot[StrClass],
-                                                                                                    MinMaxPlot = self.MinMaxPlotPerClass,
-                                                                                                    Class = StrClass,
-                                                                                                    case = None,
-                                                                                                    verbose = self.verbose,
-                                                                                                    bins_ = 20)
-                print("++++++++++")
-                print("Class: ",StrClass)
-                print("MFD Aggregated:\n",self.StrClass2MFDAggregated[StrClass])
-                print("MFD Aggregated Plot Dictionary:\n",self.StrClass2MFDAggregated2Plot[StrClass])
-                
-                # NEW CLASSIFICATION
-                self.StrClass2MFDNewAggregated2Plot[StrClass], self.MinMaxPlotPerClassNew,RelativeChangeNew = GetMFDForPlot(MFD = self.StrClass2MFDNewAggregated[StrClass],
-                                                                                                     MFD2Plot = self.StrClass2MFDNewAggregated2Plot[StrClass],
-                                                                                                    MinMaxPlot = self.MinMaxPlotPerClassNew,
-                                                                                                    Class = StrClass,
-                                                                                                    case = None,
-                                                                                                    verbose = self.verbose,
-                                                                                                    bins_ = 20)
-                
-                print("---------")
-                print("Class: ",StrClass)
-                print("Computing Hysteresis")
-                PlotHysteresis(MFD = self.StrClass2MFDAggregated[StrClass],
-                            Title = "Hysteresis Cycle Class {}".format(StrClass),
-                            SaveDir = self.PlotDir,
-                            NameFile = "HysteresysClass_{}.png".format(StrClass))
-                
-                PlotHysteresis(MFD = self.StrClass2MFDNewAggregated[StrClass],
-                            Title = "Hysteresis Cycle Class New {}".format(StrClass),
-                            SaveDir = self.PlotDir,
-                            NameFile = "HysteresysClassNew_{}.png".format(StrClass))
-                
-                print(".........")
-                print("Class: ",StrClass)
-                print("Plotting MFD")
-                print("Population:\n",self.StrClass2MFDAggregated2Plot[StrClass]["bins_population"])
-                print("Speed:\n",self.StrClass2MFDAggregated2Plot[StrClass]["binned_av_speed"])
-                print("Error:\n",self.StrClass2MFDAggregated2Plot[StrClass]["binned_sqrt_err_speed"])
-                # Plotting and Save Per Class
-                # OLD CLASSIFICATION
-                SaveMFDPlot(self.StrClass2MFDAggregated2Plot[StrClass]["bins_population"],
-                            self.StrClass2MFDAggregated2Plot[StrClass]["binned_av_speed"],
-                            self.StrClass2MFDAggregated2Plot[StrClass]["binned_sqrt_err_speed"],
-                            RelativeChange = RelativeChange,
-                            SaveDir = self.PlotDir,
-                            Title = "Fondamental Diagram {}".format(StrClass),
-                            NameFile = "MFD_{}_AllDays.png".format(StrClass))
-                # NEW CLASSIFICATION
-                SaveMFDPlot(self.StrClass2MFDNewAggregated2Plot[StrClass]["bins_population"],
-                            self.StrClass2MFDNewAggregated2Plot[StrClass]["binned_av_speed"],
-                            self.StrClass2MFDNewAggregated2Plot[StrClass]["binned_sqrt_err_speed"],
-                            RelativeChange = RelativeChangeNew,
-                            SaveDir = self.PlotDir,
-                            Title = "Fondamental Diagram New {}".format(StrClass),
-                            NameFile = "MFDNew_{}_AllDays.png".format(StrClass))
-                self.PlotMFDPerClassCompared()           
+    def ComputeMFD2PlotAggregation(self):
+        """
+            Compute the average MFD for all days.
+        """
+        self.MFDAggregated2Plot, self.MinMaxPlot,RelativeChange = GetMFDForPlot(MFD = self.MFDAggregated,
+                                                                    MFD2Plot = self.MFDAggregated2Plot,
+                                                                    MinMaxPlot = self.MinMaxPlot,
+                                                                    Class = None,
+                                                                    case = "no-classes",
+                                                                    NewClass = False,
+                                                                    bins_ = 20)
+        self.MFDAggregated2Plot, self.MinMaxPlot,RelativeChange = GetMFDForPlot(MFD = self.MFDAggregated,
+                                                                    MFD2Plot = self.MFDAggregated2Plot,
+                                                                    MinMaxPlot = self.MinMaxPlot,
+                                                                    Class = None,
+                                                                    case = "no-classes",
+                                                                    NewClass = False,
+                                                                    bins_ = 20)
+
 
     def PlotMFDPerClassCompared(self):
         """
             Plots the MFD for all the different days together in the same plot for each class .
         """
-        StrClasses = list(self.ListDailyNetwork[0].Class2MFD.keys())
-        # AGGREGATE MFD FOR ALL DAYS
-        for StrClass in StrClasses:
-            fig, ax = plt.subplots(1,1,figsize = (10,8))
-            for MobDate in self.ListDailyNetwork:
-                MFD = MobDate.Class2MFDNew
-                MFD2Plot = {"binned_av_speed": [], "binned_sqrt_err_speed": [], "bins_population": []}
-                n, bins = np.histogram(MFD[StrClass]["population"],bins = 12)
-                labels = range(len(bins) - 1)
-                for i in range(len(labels)):
-                    # Fill Average/Std Speed (to plot)
-                    MFD2Plot['binned_av_speed'].append(GetAverageConditional(MFD[StrClass],"population","speed_kmh",bins[i],bins[i+1]))
-                    MFD2Plot['binned_sqrt_err_speed'].append(GetStdErrorConditional(MFD[StrClass],"population","speed_kmh",bins[i],bins[i+1]))
-                MFD2Plot["bins_population"] = bins
-                MFD2Plot['binned_av_speed'] = fill_zeros_with_average(np.array(MFD2Plot['binned_av_speed']))
-                MFD2Plot['binned_sqrt_err_speed'] = fill_zeros_with_average(np.array(MFD2Plot['binned_sqrt_err_speed']))
-                print("Plotting MFD:\n")
-                ax.plot(MFD2Plot['bins_population'][1:],MFD2Plot['binned_av_speed'],label=MobDate.StrDate)
-                ax.fill_between(MFD2Plot['bins_population'][1:],
-                                np.array(MFD2Plot['binned_av_speed']) - np.array(MFD2Plot['binned_sqrt_err_speed']), 
-                                np.array(MFD2Plot['binned_av_speed']) + np.array(MFD2Plot['binned_sqrt_err_speed']), color='gray', alpha=0.2, label=None)
-                ax.set_title("Fondamental Diagram All Days {}".format(StrClass))
-            ax.set_xlabel("number people")
-            ax.set_ylabel("speed (km/h)")
-            ax.legend()
-            plt.savefig(os.path.join(self.PlotDir,f"ComparisonMFD_{StrClass}"),dpi = 200)
-            plt.close()
-        fig, ax = plt.subplots(1,1,figsize = (10,8))
-        for MobDate in self.ListDailyNetwork:
-            MFD = MobDate.MFD
-            MFD2Plot = {"binned_av_speed": [], "binned_sqrt_err_speed": [], "bins_population": []}
-            n, bins = np.histogram(MFD["population"],bins = 12)
-            labels = range(len(bins) - 1)
-            for i in range(len(labels)):
-                # Fill Average/Std Speed (to plot)
-                MFD2Plot['binned_av_speed'].append(GetAverageConditional(MFD,"population","speed_kmh",bins[i],bins[i+1]))
-                MFD2Plot['binned_sqrt_err_speed'].append(GetStdErrorConditional(MFD,"population","speed_kmh",bins[i],bins[i+1]))
-            MFD2Plot["bins_population"] = bins
-            MFD2Plot['binned_av_speed'] = fill_zeros_with_average(np.array(MFD2Plot['binned_av_speed']))
-            MFD2Plot['binned_sqrt_err_speed'] = fill_zeros_with_average(np.array(MFD2Plot['binned_sqrt_err_speed']))
-            ax.plot(MFD2Plot['bins_population'][1:],MFD2Plot['binned_av_speed'])
-            ax.fill_between(MFD2Plot['bins_population'][1:],
-                            np.array(MFD2Plot['binned_av_speed']) - np.array(MFD2Plot['binned_sqrt_err_speed']), 
-                            np.array(MFD2Plot['binned_av_speed']) + np.array(MFD2Plot['binned_sqrt_err_speed']), color='gray', alpha=0.2, label=MobDate.StrDate)
-        ax.set_title("Fondamental Diagram All Days")
-        ax.set_xlabel("number people")
-        ax.set_ylabel("speed (km/h)")
-        ax.legend()
-        plt.savefig(os.path.join(self.PlotDir,f"ComparisonMFD"),dpi = 200)
-        plt.close()
+        for Class in self.IntClasses:
+            PlotMFDComparison(self.ListDailyNetwork,Class,self.ListColors,True,self.PlotDir)
+            PlotMFDComparison(self.ListDailyNetwork,Class,self.ListColors,False,self.PlotDir)
             
                     
 # HTML SESSION FOR SUBNETS AGGREGATED
@@ -798,7 +594,7 @@ class NetworkAllDays:
                 LatexTableAvParameters = TableFromDict(self.Feature2Parameters2Class2Day[Aggregation][Feature])
                 with open(os.path.join(self.PlotDir,f"LatexTableParameters_{Feature}_{Aggregation}.txt"), "w") as file:
                     file.write(LatexTableAvParameters)
-        self.PlotAveragesFeaturesDiscriminatingHolidays()
+        
 
                 
     def PlotAveragesFeaturesDiscriminatingHolidays(self):
@@ -1294,3 +1090,36 @@ class NetworkAllDays:
             ax[i][j].set_axis_off()
         plt.savefig(os.path.join(self.PlotDir,"UnionSubNetworks.png"),dpi = 200) 
         plt.close()
+
+    def UnifyGeoJsonAllDays(self):
+        """
+            Description:
+                Unify the GeoJson for all days.
+                In particular, obtain from single GeoJson of each day the union and intersection of the subnetworks.
+            @brief:
+                Obtain the union and intersection of the subnetworks for all days.
+        """
+        logger.info("Unify GeoJson for all days...")
+        FirstDay = True
+        for MobDate in self.ListDailyNetwork:
+            if FirstDay:
+                GeoJson = MobDate.GeoJson
+                FirstDay = False
+            else:
+                invariant_columns = ["poly_lid", "poly_cid", "poly_length", "poly_nF", "poly_nT", "geometry"]
+                GeoJson = GeoJson.merge(MobDate.GeoJson, on=invariant_columns, how='outer',suffixes=('', ''))
+        GeoJson.to_file(os.path.join(MobDate.InputBaseDir,"BolognaMDTClassInfo.geojson"))
+
+    def ComputeOrderedIntersectionsAllDays(self):
+        MobDate = self.ListDailyNetwork[0]
+        GpdClasses =  gpd.read_file(os.path.join(MobDate.InputBaseDir,"BolognaMDTClassInfo.geojson"))
+        self.OrderedClass2Road2Intersection,self.OrderedClass2Road2Union = GetIncrementalIntersectionAllDaysClasses(GpdClasses,StrClassesOrderedColsDate,UniqueClassesOrdered)
+        #Class2Road2Intersection,Class2Road2Union = GetIncrementalIntersectionAllDaysClasses(GpdClasses,StrClassesOrderedColsDate,UniqueClasses)
+        self.GpdClasses = UpdateGeoJsonWithUnionAndIntersectionColumns(GpdClasses,self.OrderedClass2Road2Intersection,self.OrderedClass2Road2Union,StrUnion = "OrderedUnion_",StrIntersection = "OrderedIntersection_")
+
+    def PlotAggregatedSubNetworks(self):
+        """
+            Plot Union Sub-Networks all days.
+        """
+        m1 = PlotUnion(self.GpdClasses,self.UniqueClassesOrdered,self.StrClassesOrdered2Color,"OrderedUnion_")
+        m1.save("/home/aamad/codice/city-pro/output/bologna_mdt/plots/OrderedUnionAllDays.html")
