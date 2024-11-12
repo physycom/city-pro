@@ -58,4 +58,6 @@ html/
 latex/
 screen_logs/
 vcpkg/
+CMakeCache.txt
+CMakeFiles/
 *Class2
