@@ -59,3 +59,7 @@ latex/
 screen_logs/
 vcpkg/
 *Class2
+sysconfig/
+vars/data/
+vars/carto/bologna_mdt.pnt
+vars/carto/bologna_mdt.pro

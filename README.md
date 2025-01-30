@@ -1,7 +1,7 @@
 # city-pro
-    This project is a C++,python project whose goal is to analyze mobile phone data in a format that is compatible with Telecom format.
+    This project is a C++ (`processing`), python (`postprocessing`) project whose goal is to analyze mobile phone data in a format that is compatible with Telecom format.
     It is split in a first Cpp part responsible of the computation of the quantities of interest about trajectories and road network and a second part in python responsible for the plotting and analysis of the computed quantities. 
-    
+    Notes to set up the project correctly, look at the required input and make sure to have the right directory structure. Use SetRightDirectoriesConfiguration.py to understand how.
 # Build & Launch
 The project works basing itself on powershell for mantainance and portability pourposes. If you use Linux or Mac make sure to install the powershell.
 
@@ -20,31 +20,94 @@ git clone https://github.com/microsoft/vcpkg
 ```
 
 #### Build
-```cd WORKSPACE/city-pro```  
-```git submodule update```  
-```./ccm/build.ps1 -UseVCPKG -DisableInteractive -DoNotUpdateTOOL -DoNotDeleteBuildFolder```
-#### Launch
-```/city-pro/bin/city-pro /path/to/configfile/configfile.json```
+```
+cd WORKSPACE/city-pro  
+git submodule update  
+./ccm/build.ps1 -UseVCPKG -DisableInteractive -DoNotUpdateTOOL -DoNotDeleteBuildFolder
+```
 
 ## MacOs
-```brew install powershell/tap/powershell```  
-```git submodule update```
-#### Build
+```
+brew install powershell/tap/powershell  
+git submodule update   
+./ccm/build.ps1 -UseVCPKG -DisableInteractive -DoNotUpdateTOOL -DoNotDeleteBuildFolder
+```
 
-```./ccm/build.ps1 -UseVCPKG -DisableInteractive -DoNotUpdateTOOL -DoNotDeleteBuildFolder```
-#### Launch
-```/city-pro/bin/city-pro /path/to/configfile/configfile.json```
+#### Setting Python Environment
+```
+./conda env create -f geostuff.yml
+```    
+
+
+# Launch
+As explained in section `city-pro`, there are two stages (`processing`,`postprocessing`) to the project, the Cpp and the python. They can be `launched separately` (WORSE in author's opinion), but also there is a way to launch `Complete analysis`.   
+The difference is that the second allows you to launch the cpp in parallel for all the days and the python after that without needing to care aout intermediate steps. 
+
+
+NOTE: Have a look at the `input` section since there are described the configuration files and input that are needed for each step of the analysis.    
+NOTE:  
+## Launch Separately 
+1a) The Cpp analysis can be launched one day at a time. The command to launch `processing` it is:  
+
+```
+./ccm/build.ps1 -UseVCPKG -DisableInteractive -DoNotUpdateTOOL -DoNotDeleteBuildFolder
+
+/city-pro/bin/city-pro /path/to/configfile/configfile.json
+```     
+1b) Alternatively it is available a bash script to run all the days according to the days at hand:    
+
+```
+python3 ./python/work_mdt/SetRightDirectoriesConfiguration.py   
+
+./vars/config/RunRimini.sh
+```
+
+2) The python analysis, `postprocessing` the :   
+
+```
+python3 ./python/work_mdt/AnalysisPaper.py -c ./vars/config
+```    
+NOTE: `/path/to/configfilePython` = `/WORKSPACE/city-pro/vars/config`     
+NOTE: `/path/to/configfile/` is usually in a different folder.       
+NOTE: The logic for storing and initialize configuration files is not homogeneous 
+## Complete Analysis
+```
+python3 ./python/LaunchParallelCpp.py
+```   
+The script automatically will set the configuration files for each day by calling:    
+1) `SetRightDirectoriesConfiguration.py`: This script has hardcoded data that define where the input is and where the output of both the cpp and python will be:     
+        1a) Example ../output/bologna_mdt_center -> is the **{basename}** for Cpp    
+        1b) Example ../output/bologna_mdt_center/Day -> is the **{basename}** the python     
+
+2) `/city-pro/bin/city-pro /path/to/configfile/configfile.json` for each of the configuration files generated previously, they are run all in parallel exploiting multiprocessing (since datasets outputs are indipendent and no risk of race condition is raised)
+
+3) `python3 ./python/work_mdt/AnalysisPaper.py -c ./vars/config`: Launches the python analysis for traffic patterns, and behavioral patterns.
+
 # Input:     
 REQUIRED:  
-    
-    1C config.json  
-    1I cartography.pnt, cartography.pro
-    1D DatiTelecomPreProcessed.csv or DatiTelecomToPreprocess.gzip 
+    1Ca `/path/to/configfileCpp/config.json`    
+    1Cb `/path/to/configfilePython/AnalysisPython.json`  
+    1Ia `/path/to/carto/cartography.pnt`    
+    1Ib `/path/to/carto/cartography.pro`    
+    1Da `/path/to/data/DatiTelecomPreProcessed.csv`    
+    1Db`/path/to/data/DatiTelecomToPreprocess.gzip`
+
+## Cpp
+`processing` needs in input:  
+    1) `/path/to/carto/cartography.pnt`    
+    2) `/path/to/carto/cartography.pro`    
+    3) `/path/to/data/DatiTelecomPreProcessed.csv`    
+    4) `/path/to/configfileCpp/config.json`     
+
+## Python
+`postprocessing` needs in input:  
+    1) `/path/to/configfilePython/AnalysisPython.json`    
+NOTE: `AnalysisPython.json` is required to be it as it is hardcoded in the complete analysis.
 
 
 ## Description Input:
-####    1C 
-##### Configuration file   
+##    1C 
+### Configuration file  Cpp 
 
 -   `file_pro`: `/path/to/cartography.pro`
 -   `file_pnt`:  `/path/to/cartography.pnt`
@@ -79,10 +142,28 @@ REQUIRED:
 -    `enable_print`: `true` For `_stats.csv` Deprecated
 -    `enable_geojson`: `false`  Uses geojson
 -    `enable_gui`: `true`   Activate gui
--    `jump2subnet_analysis`:`false` Does not recalculate the subclass but read them for the construction of the subnetworks 
+-    `jump2subnet_analysis`:`false` Does not recalculate the subclass but read them for the construction of the subnetworks    
 
-#### 1I 
-##### Cartography in physycom format.  
+
+### Configuration file Python     
+  - `StrDates`: List Dates dataset. Example ["2022-12-30","2022-12-31",...], format %Y-%m-%d
+  - `holidays`: List Dates format %Y-%m-%d
+  - `not_holidays`: List Dates format %Y-%m-%d
+  - `base_name`: **{basename}**
+  - `InputBaseDir`: `cartout_basename` 
+  - `bounding_box`: Coordinates to cut the cartography and have analysis consistent with Cpp {`lat_min`: 44.487106,`lat_max`: 44.528131,`lon_min`: 11.293156,`lon_max`: 11.378143},
+  - `geojson`: Complete name (with directory) in which geojson produced from Cpp of the road network is. Example `../bologna-provincia.geojson`
+  - `verbose`: Variable for verbosity (DEPRECATED), keep true
+  - `shift_bin`: Ad Hoc for Plots Fit: {"av_speed": 3,"speed_kmh": 0.5,"lenght": 40,"lenght_km": 0.5,"time": 30,"time_hours": 0.5,"av_accel": 0.1}
+  - `shift_count`: Ad Hoc for Plots Fit: {"av_speed": 50,"speed_kmh": 50,"lenght": 50,"lenght_km": 50,"time": 50,"time_hours": 50,"av_accel": 50},
+  - `interval_bin`: Ad Hoc for Plots Fit: {"av_speed": 10,"speed_kmh": 10,"lenght": 10,"lenght_km": 10,"time": 10,"time_hours": 10,"av_accel": 0.2},
+  - `interval_count`: Ad Hoc for Plots Fit: {"av_speed": 300,"speed_kmh": 300,"lenght": 300,"lenght_km": 300,"time": 300,"time_hours": 300,"av_accel": 500},
+  - `scale_count`: Ad Hoc for Plots Fit: {"av_speed": "linear","speed_kmh": "linear","lenght": "log","lenght_km": "log","time": "log","time_hours": "log","av_accel": "linear"},
+  - `scale_bins`: Ad Hoc for Plots Fit: {"av_speed": "linear","speed_kmh": "linear","lenght": "log","lenght_km": "log","time": "log","time_hours": "log","av_accel": "linear"},
+  - `info_fit`: Ad Hoc for Plots Fit: {Computed Automatically}
+
+## 1I 
+### Cartography in physycom format.  
 - (`cartography.pnt`,`cartography.pro`):  
             Contain all informations needed to build the road network in such a way that the program is able
             to read these informations from them.
@@ -91,20 +172,19 @@ REQUIRED:
 - `cartography.pro`:  
             Contains informations about links.
 
-#### 1D
-##### Data
-`DatiTelecomToPreprocess.gzip` contains `[iD,lat,lon,time]`, the `DatiTelecomAlreadyPreprocessed.csv` too.
+To produce them: follow instructions in `$WORKSPACE/cartography-data`
 
+## 1D
+### Data
+`DatiTelecomToPreprocess.gzip` contains `[iD,lat,lon,time]`, the `DatiTelecomAlreadyPreprocessed.csv` too.    
+The first has been preprocessed into the second. `DatiTelecomAlreadyPreprocessed.csv` is the one used.
+NOTE:  Use: `python3 ./python/mdt_converter.py` (and change parameters there), to transform the first into the second.
+If you have already the Preprocessed.csv, better for you.
+NOTE:   insert manuallly the dates in LIST_START, LIST_END depending on the dates you have and ensure that the file directories match the structure in your machine.
+NOTE: Since this script was don at the beginning, it should work, but was not thought to be fitting in the pipeline automatically.
 
+###### SUMMARY:    
 
-
-# USAGE: 
-    I1: 
-    Run the preliminary preprocessing of data to construct the format required for city-pro analysis.
-
-# REQUIRED INPUT
-
-1. Produce .pnt .pro (follow instructions in `$WORKSPACE/cartography-data`)
 2.  `cd $WORKSPACE/city-pro`
 3. If `DatiTelecomPreProcessed.csv` exists:  
 `Do nothing`  
@@ -120,32 +200,18 @@ Output:
     Columns:   
     [`id_user,timestamp,lat,lon`]
 
+
+
+
+
+
+
+# OUTPUT:
+The output of the program is presented here below and briefly explained separately for Cpp and Python.
+In both cases we have outputs related to trajectories and network.   
+In the case of .cpp the output is relative to 1 day, while in the case of python the output is available either for day and aggregated over many days.
 ## CPP
-Launch all together:
-```
-cd WORKSPACE/city-pro
-python3 ./python/SetRightDirectoriesConfiguration.py
-./config/RunRimini.sh
-```
-Or 
-Input:  
-```  
-./ccm/build.ps1 -UseVCPKG -DisableInteractive -DoNotUpdateTOOL -DoNotDeleteBuildFolder
-
-./bin/city-pro ./work_geo/bologna_mdt_detailed/date/config_bologna.json
-```
-
-## Complete Analysis
-```
-python3 ./python/LaunchParallelCpp.py
-```   
-The script automatically will set the configuration files for each day by calling `SetRightDirectoriesConfiguration.py` and 
-then will launch in parallel `main_city-pro.cpp` for each day.
-Once the cpp analysis finishes, will run also python analysis on the data so obtained.
-# Output:
-
-
-## Network
+### Network
 
 1. **{basename}**_class_`i`_velocity_subnet.csv:   
 Description:  
@@ -164,7 +230,7 @@ Description:
     In this way we have a "hierarchy" of subnetwork, that is, if I consider a poly that is contained in multiple subnetwork
     it will be assigned to the quickest subnet. -> This hopefully will help us find traffic via fondamental diagram.
 
-## Trajectories
+### Trajectories
 1. **{basename}**_presence.csv  
     Description:  
     Contains information about all trajectories `id_act` that have just one `stop_point` for the time window  `[timestart,timeend]` at `(lat,lon)`.   
@@ -197,15 +263,15 @@ Description:
     For each trajectory have the informations about the features of the classes
 Columns:  
     `id_act;average_speed;v_max;v_min;sinuosity`
-# PostProcessing
-```cd $WORKSPACE/city-pro```  
 
-```python3 ./python/work_mdt/script/AnalysisMdt/AnalysisPaper.py -c ./config```  
 
-Required the configuration file in `./config`: `ConfigPythonAnalysis.json`:
-Description at the top of AnalysisPaper.py
 
-# Structure Program:
+## PYTHON (To be done)
+For each day we measure
+Class2TimeDeparture2UserId.json
+
+# Structure Program (To be done)
+## Cpp
     1. READING:  
         1a.   
             Trajectory information:
@@ -219,51 +285,36 @@ Description at the top of AnalysisPaper.py
             in carto.h. Whose attributes and functions are initialized in carto.cpp
     2. EXTRACT TRAJECTORIES:
 
-### SUMMARY 
-    This script in particular is able to:
-    1. generate trajectories from single records, discarding GPS errors by thresholding on the maximum velocity.
-    2. Associate the roads they pass by
-    3. Cluster them according to a FuzzyKMean
-    4. 
+## Python   
 
 
-NOTA:
-Gli script sono fatti per analizzare un giorno alla volta. La struttura delle cartelle rispecchia questo. Per ogni giorno analizzato ho una cartella in work_geo/bologna_mdt_detailed e output/bologna_mdt_detailed
 
-Description:
-Telecom gives initial dataset day by day with a lot of fields and zipped. I have created mdt_converter.py that essentially takes the dataset, and extract [iD,lat,lon,time] and saves it in a csv that will be given to analysis.cpp
 
 ##### COMMENT ON FUZZY ALGORITHM:
-Needs to be tuned, try different `num_tm` (3 or 4 for Bologna depending on the day). Increasing the number does not uncover the slow mobility (walkers,bikers), but it finds subgroups on higher velocity group.
+Needs to be tuned, try different `num_tm` (3 for Bologna + slow re-classification). Increasing the number does not uncover the slow mobility (walkers,bikers), but it finds subgroups on higher velocity group.
 This bias is probably due to the sensitivity of the algorithm to the speed, giving more weight in for the separation for classes that have higher velocity.  
+##### COMMENT ON CPU USAGE
+`city-pro` utilizes for input file of around 1 GB around 20 GB of RAM.
+`Analysis_Paper.py` utilizes for the analysis in parallel of 6 days around 16 GB of RAM.
+
+
 # FOR DEVELOPERS
 ```std::vector<poly_base> poly``` is initialized with a null element in the position 0. Pay attention to that.
 Or modify.
 
 In ```make_subnet``` is put by hand the maximum length for a poly extracted from the geojson via geopandas (5762 m).
 For own cartography the parameter needs to be changed. 
-##### COMMENT ON CPU USAGE
-`city-pro` utilizes for input file of around 1 GB around 20 GB of RAM.
-`Analysis_Paper.py` utilizes for the analysis in parallel of 6 days around 16 GB of RAM.
 
-# GUIDLINES CONTRIBUTORS
-#### Cpp
-To be specified ...
-
-#### Python
-```python3 ./python/work_mdt/script/AnalysisMdt/AnalysisPaper.py```
-
-#### Description Variables Analysis single day
-`MFD`: pl.DataFrame: Columns -> [time:datetime,population_{Class}:int,speed_kmh_{Class}:float,new_population_{Class}:float,new_speed_kmh_{Class}:float]
-`MFD2Plot`: pl.DataFame: Columns ->
 # NOTES
 In the case you cannot build with fltk beacouse:
-```-- Running vcpkg install - failed CMake Error at vcpkg/scripts/buildsystems/vcpkg.cmake:904 (message): vcpkg install failed. See logs for more information: /home/aamad/codice/city-pro/build_release/vcpkg-manifest-install.log Call Stack (most recent call first): /usr/share/cmake-3.21/Modules/CMakeDetermineSystem.cmake:124 (include) CMakeLists.txt:36 (project)
-
-CMake Error: CMake was unable to find a build program corresponding to "Ninja". CMAKE_MAKE_PROGRAM is not set. You probably need to select a different build tool. CMake Error: CMAKE_C_COMPILER not set, after EnableLanguage CMake Error: CMAKE_CXX_COMPILER not set, after EnableLanguage -- Configuring incomplete, errors occurred! Config failed! Exited with error code 1. Exception: ScriptHalted```
-On shell
 ```
-export CC=/usr/bin/gcc
+-- Running vcpkg install - failed CMake Error at vcpkg/scripts/buildsystems/vcpkg.cmake:904 (message): vcpkg install failed. See logs for more information: /home/aamad/codice/city-pro/build_release/vcpkg-manifest-install.log Call Stack (most recent call first): /usr/share/cmake-3.21/Modules/CMakeDetermineSystem.cmake:124 (include) CMakeLists.txt:36 (project)
+
+CMake Error: CMake was unable to find a build program corresponding to "Ninja". CMAKE_MAKE_PROGRAM is not set. You probably need to select a different build tool. CMake Error: CMAKE_C_COMPILER not set, after EnableLanguage CMake Error: CMAKE_CXX_COMPILER not set, after EnableLanguage -- Configuring incomplete, errors occurred! Config failed! Exited with error code 1. Exception: ScriptHalted
+```
+On shell
+
+```export CC=/usr/bin/gcc
 export CXX=/usr/bin/g++
 cd ${WORKSPACE}/city-pro/vcpkg
 ./bootstrap-vcpkg.sh
