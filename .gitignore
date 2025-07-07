@@ -59,7 +59,7 @@ latex/
 screen_logs/
 vcpkg/
 *Class2
-sysconfig/
+#sysconfig/
 vars/data/
 vars/carto/bologna_mdt.pnt
 vars/carto/bologna_mdt.pro
@@ -69,3 +69,6 @@ python/work_mdt/cache/*
 bologna_mdt/*
 *bologna_mdt_detailed
 *bologna_mdt_detailed_old_config
+CMakeCache.txt
+CMakeFiles/
+*Class2

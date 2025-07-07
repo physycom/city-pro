@@ -5,3 +5,6 @@
 [submodule "work_mdt"]
 	path = python/work_mdt
 	url = https://github.com/albertoamaduzzi/congestion_from_trajectories.git
+[submodule "sysconfig"]
+	path = sysconfig
+	url = https://github.com/physycom/sysconfig.git
