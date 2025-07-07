@@ -193,7 +193,7 @@ def AggregatedFcmDistr(Aggregation2Class2Fcm,Aggregation,Feature,Aggregated2Clas
                 print("Aggregation: ",Aggregation," Class: ",StrClass," mean: ",Aggregated2Class2FcmDistr[Aggregation][StrClass]["mean"])
     return Aggregated2Class2FcmDistr
 
-def FitDataFrame(Feature2Class2AllTryFit,PlotDir):
+def FitDataFrame(Feature2Class2AllTryFit,PlotDir,Case=""):
     """
         Save Df With x,y,fitted_data, for each class
     """
@@ -217,7 +217,7 @@ def FitDataFrame(Feature2Class2AllTryFit,PlotDir):
                 Feature2FitDf[Feature] = Df
                 if not os.path.exists(os.path.join(PlotDir,"Fit")):
                     os.makedirs(os.path.join(PlotDir,"Fit"))
-                Df.to_csv(os.path.join(PlotDir,"Fit",f"Distribution_{IntClass}_{Feature}.csv"))
+                Df.to_csv(os.path.join(PlotDir,"Fit",f"Distribution_{IntClass}_{Feature}{Case}.csv"))
     return Feature2FitDf
 
 
@@ -259,5 +259,28 @@ def GetClass2Type2ShapesAndColors(Classes,Types):
     return Class2Type2Shapes,Class2Type2Colors
 
 
-
-
+def InitDataFittedSerieAllDays(ListDailyNetwork,Feature):
+    """
+        @brief: Initialize the dictionary that will contain the data and the fitted data for all days
+        @param ListDailyNetwork: [MobDate]
+        @return: {Day_y:[],
+                  Day_y_exp:[],
+                  Day_y_pl:[],
+                  Day_y_tpl:[],
+                  x:[]}
+        - Day_y: Observed histogram.
+        - Day_y_exp: Exponential fitted histogram.
+        - Day_y_pl: Powerlaw fitted histogram.
+        - Day_y_tpl: Truncated Powerlaw fitted histogram.
+        - x: x-axis of the histogram.
+        This Dictionary is used to store the data and the fitted data for all days.
+    """
+    Day2DataAndFitData = defaultdict(dict)
+    for MobDate in ListDailyNetwork:
+        Day2DataAndFitData[MobDate.StrDate + "_y"] = []
+        Day2DataAndFitData["x"] = []
+        Day2DataAndFitData[MobDate.StrDate + "_y_exp"] = []
+        Day2DataAndFitData[MobDate.StrDate + "_y_pl"] = []
+        if "length" in Feature:
+            Day2DataAndFitData[MobDate.StrDate + "_y_tpl"] = []
+    return Day2DataAndFitData

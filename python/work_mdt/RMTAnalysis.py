@@ -2,6 +2,9 @@ import numpy as np
 import numba
 from RandomMatrixMethods import *
 from PlotRandomMatrices import *
+import logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 #@numba.jit("[float64,float64]",parallel=True)
 def build_matrix_from_difference_vector(phi1, phi2):
     """
@@ -26,7 +29,7 @@ class AnalysisCorrelationRandomMatrix:
     """
     def __init__(self,Signals,PlotDir):
         # Matrix N x T
-        self.Signals = Signals
+        self.Signals = np.array(Signals)        
         # 
         if isinstance(Signals, np.ndarray):
             self.N = Signals.shape[0]
@@ -34,16 +37,18 @@ class AnalysisCorrelationRandomMatrix:
         else:
             self.N = len(Signals)
             self.T = len(Signals[0])
+        print(f"Signals: {self.N} x {self.T}")
+        self.Rank = min([self.N,self.T])
         # NOTE: The largest eigenvalue must be always be positive. (Tracy-Widom limit)
         if self.N > self.T:
-            self.LambdaMinus = np.sqrt(self.N) - np.sqrt(self.T)
-            self.LambdaPlus = np.sqrt(self.N) + np.sqrt(self.T)
-            self.Q = self.N/self.T
-
-        else:
-            self.LambdaMinus = np.sqrt(self.T) - np.sqrt(self.N)
-            self.LambdaPlus = np.sqrt(self.T) + np.sqrt(self.N)
+            # Transpose: Tracy Widom works in the limit of T >> N
             self.Q = self.T/self.N
+            self.Singnals = self.Signals.T
+            print(f"Transposing Signal: Axis 0: {self.T}, Axis 1: {self.N}, Rank: {self.Rank}")            
+        else:
+            self.Q = self.T/self.N
+            print(f"Axis 0: {self.N}, Axis 1: {self.T}, Rank: {self.Rank}")            
+        print(f"Q: {self.Q} --> 0")
 
         # Array len = T
         self.AvgCorr_t = None
@@ -75,6 +80,9 @@ class AnalysisCorrelationRandomMatrix:
         self.EigenvaluesShiftedScaled,self.EigenvectorsShiftedScaled = ComputeEigenvectors(self.CorrelationMatrixShiftScaled)
         self.EigenvaluesShifted,self.EigenvectorsShifted = ComputeEigenvectors(self.CorrelationShifted)
         self.NZeros = np.sum(self.EigenvaluesShiftedScaled == 0)
+
+
+
 
 
 ####------------------ Compute Correlations ----------------- ####    
@@ -177,26 +185,36 @@ class AnalysisCorrelationRandomMatrix:
             @describe: Compute the Marchenko-Pastur limits
             
         """
-        self.LambdaMinShiftedScaled, self.LambdaMaxShiftedScaled = MarchenkoPasturLimits(self.N,self.T,1)
-        self.LambdaMinShifted, self.LambdaMaxShifted = MarchenkoPasturLimits(self.N,self.T,1)
+        self.SigmaShiftedScaled = np.std(self.SortedEigenvaluseShiftedScaledReal)
+        self.SigmaShifted = np.std(self.SortedEigenvaluesShiftedReal)
+        self.LambdaMinShiftedScaled, self.LambdaMaxShiftedScaled = MarchenkoPasturLimits(self.N,self.T,self.SigmaShiftedScaled)
+        self.LambdaMinShifted, self.LambdaMaxShifted = MarchenkoPasturLimits(self.N,self.T,self.SigmaShifted)
 
-        return self.LambdaMinus,self.LambdaPlus
 
     def PlotAnalysis(self):
+        """
+            @description:
+                Plots the distributions:
+                    - Eigenvalues and eigenvectors, posing the limits of the Marchenko-Pastur distribution
+                    - Eigenvectors, showing the the entrances are not gaussian when there is signal.
+                    - Dyadic expansion of the correlation matrix                
+        """
+
         PlotDistributionEigenvalues(self.SortedEigenvaluseShiftedScaledReal,
                                     "Marchenko-Pastur",
                                     self.Q, 
                                     self.LambdaMinShiftedScaled,
                                     self.LambdaMaxShiftedScaled,
-                                    1,
-                                    200,
+                                    self.SigmaShiftedScaled,
+                                    100,
                                     self.PlotDir)
+                            
         PlotDyadicExpansion(self.DyadicExpansionShiftedScaled,8,self.PlotDir)
 
 if __name__=="__main__":
     # Example Usage
-    Sources = 200
-    TimeIntervals = 100
+    Sources = 500
+    TimeIntervals = 20
     Signal = np.random.rand(Sources,TimeIntervals)
     RMA = AnalysisCorrelationRandomMatrix(Signal)
     # NOTE: Returns Also The Correlation Matrix

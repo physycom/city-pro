@@ -1,16 +1,133 @@
-'''
-    NOTE: stats.csv Is Useless but I keep it for reference.
-    SUMMARY:
-        NOTE: The choice made to handle plot is to conceive one structure for the aggregated case and then create a mirror dictionary for each class computed with filtered input.
-        NOTE: For description look Aggregated case, for reference name at class case.
-            Aggregated Case:
-                1) MFD = pl.DataFrame({"population":[],"time":[],"speed_kmh":[],"av_speed": []}) Stored in: os.path.join(self.PlotDir,"MFD_{0}.csv".format(self.StrDate))
-                    Description: For each interval (self.iterations = 96) compute the average speed and the average speed for the population in the interval.
-            
-                2) MFD2Plot = {"bins_population":[p0,..,p19],"binned_av_speed":[v0,..,v19],"binned_sqrt_err_speed":[e0,..,e19]} Stored in: os.path.join(self.PlotDir,"MFD_{0}_2Plot.csv".format(self.StrDate))
-                    Description: For each bin (15 NOTE: set by hand in this script) (self.iterations = 96) compute the average speed and the average speed for the population in the interval.
-            Class Case:
-''' 
+"""
+Daily Network Analysis for Urban Mobility Data Processing
+========================================================
+
+This module provides comprehensive analysis capabilities for urban mobility networks
+using trajectory data from mobility datasets. It processes FCM (Fuzzy C-Means) 
+clustering results and performs multi-scale network analysis.
+
+MAIN CLASS: DailyNetworkStats
+============================
+
+PURPOSE:
+--------
+Analyzes daily urban mobility patterns by processing trajectory data, road networks,
+and computing various mobility indicators including:
+- Traffic flow analysis and congestion detection
+- Speed evolution patterns across different user classes
+- Fundamental diagram (MFD) computation
+- Statistical distribution fitting for mobility features
+- Network-level traffic indicators and anomaly detection
+
+INPUT DATA REQUIREMENTS:
+-----------------------
+- FCM clustering results: trajectory classifications and cluster centers
+- Road network data: GeoJSON format with road geometries and attributes
+- Trajectory data: individual trip records with timing and spatial information
+- Network flux data: traffic flow measurements on road segments
+- Configuration: analysis parameters and spatial/temporal filters
+
+KEY FEATURES:
+------------
+
+1. DATA LOADING & PREPROCESSING:
+   - Reads FCM clustering outputs (trajectories, centers, statistics)
+   - Loads road network geometries and applies spatial filtering
+   - Processes trajectory timing and binning for temporal analysis
+   - Handles multiple data formats (CSV, GeoJSON, binary flux files)
+
+2. NETWORK ANALYSIS:
+   - Computes road-level speed distributions per mobility class
+   - Analyzes subnet characteristics for different user groups
+   - Calculates time-dependent traffic indicators
+   - Performs hierarchical network classification
+
+3. STATISTICAL MODELING:
+   - Fits exponential/power-law distributions to trip characteristics
+   - Performs Gaussian/Maxwell-Boltzmann fitting for speed distributions
+   - Computes goodness-of-fit metrics and model selection
+   - Handles class-conditional and aggregated statistical analysis
+
+4. TRAFFIC ANALYSIS:
+   - Implements CFAR (Constant False Alarm Rate) detection for congestion
+   - Computes traffic intensity indicators across network subnets
+   - Performs statistical hypothesis testing for traffic anomalies
+   - Analyzes speed evolution patterns and variance indicators
+
+5. MOBILITY FUNDAMENTAL DIAGRAMS:
+   - Computes population-speed relationships (MFD)
+   - Analyzes hysteresis effects in traffic flow
+   - Performs class-specific fundamental diagram analysis
+   - Calculates relative traffic state changes
+
+6. VISUALIZATION & OUTPUT:
+   - Generates interactive HTML maps with network overlays
+   - Creates time-series plots of traffic indicators
+   - Produces statistical distribution plots with fitted models
+   - Exports analysis results in multiple formats (CSV, JSON, images)
+
+ANALYSIS WORKFLOW:
+-----------------
+1. Initialize with configuration and target date
+2. Load and filter input data (trajectories, network, fluxes)
+3. Perform temporal binning and class association
+4. Compute network-level speed and flow indicators
+5. Fit statistical models to mobility distributions
+6. Detect traffic anomalies and congestion patterns
+7. Generate comprehensive visualization outputs
+8. Export results for further analysis or reporting
+
+SCIENTIFIC APPLICATIONS:
+-----------------------
+- Urban traffic management and optimization
+- Mobility pattern analysis and prediction
+- Transportation network performance evaluation
+- Traffic congestion detection and mitigation
+- Urban planning and infrastructure assessment
+
+TECHNICAL DEPENDENCIES:
+----------------------
+- GeoPandas: Spatial data processing and analysis
+- Polars/Pandas: High-performance data manipulation
+- NumPy/SciPy: Numerical computing and statistical analysis
+- Matplotlib/Folium: Visualization and interactive mapping
+- Custom modules: Specialized mobility analysis functions
+
+CONFIGURATION:
+-------------
+Requires configuration dictionary with:
+- Input/output directory paths
+- Spatial bounding box coordinates
+- Temporal analysis parameters
+- Statistical fitting preferences
+- Visualization settings
+
+USAGE EXAMPLE:
+-------------
+config = {
+    'StrDates': ['2022-01-31', '2022-07-01'],
+    'InputBaseDir': '/path/to/data',
+    'bounding_box': {'lat_min': 44.46, 'lon_min': 11.28, ...},
+    'info_fit': {...},  # Statistical fitting parameters
+}
+
+daily_stats = DailyNetworkStats(config, '2022-01-31')
+daily_stats.ReadFcm()
+daily_stats.ReadGeoJson()
+daily_stats.ComputeFitPerClassLengthTime()
+daily_stats.PlotMFD()
+
+OUTPUT FILES:
+------------
+- Statistical fit parameters (CSV/JSON)
+- Interactive network maps (HTML)
+- Time-series analysis plots (PNG)
+- Traffic indicator datasets (CSV)
+- Comprehensive analysis logs
+
+AUTHORS: Alberto Amaduzzi
+LAST UPDATED: [12/06/2025]
+"""
 from collections import defaultdict
 import geopandas as gpd
 import numpy as np
@@ -37,6 +154,7 @@ from FunctionsOnTrajectories import *
 from ReadFiles import *
 from GeographyFunctions import *
 from NewAnalysis import *
+from Distributions import *
 import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -100,7 +218,9 @@ class DailyNetworkStats:
                         "timed_fluxes": os.path.join(self.InputBaseDir,self.BaseFileName+'_'+ self.StrDate+'_'+ self.StrDate + '_timed_fluxes.csv'),
                         "fluxes": os.path.join(self.InputBaseDir,"weights",self.BaseFileName+'_'+ self.StrDate+'_'+ self.StrDate + '.fluxes'),
                         "fluxes_sub": os.path.join(self.InputBaseDir,"weights",self.BaseFileName+'_'+ self.StrDate+'_'+ self.StrDate + '.fluxes.sub')}        
+        # Plot Dir For Single Day Analysis
         self.PlotDir = os.path.join(self.InputBaseDir,"plots",self.StrDate)
+        # PlotDir For Aggregated Analysis
         self.PlotDirAggregated = os.path.join(self.InputBaseDir,"plots")
         if not os.path.exists(self.PlotDir):
             os.makedirs(self.PlotDir)
@@ -155,6 +275,7 @@ class DailyNetworkStats:
         self.StrDate = StrDate
         # CLASSES INFO
         self.Class2Color = {"1 slowest": "blue","2 slowest":"green","middle velocity class": "yellow","2 quickest": "orange", "1 quickest":"red"}
+        self.IntClass2Color = {0: "blue",1:"green",2: "orange", 3:"red"}
         self.IntClass2StrClass = defaultdict() # {0,slowest,...}
         self.StrClass2IntClass = defaultdict() # {slowest: 0,...}
         self.RoadInClass2VelocityDir = defaultdict() # {0: ../.._0velocity_subnet.csv}
@@ -176,7 +297,7 @@ class DailyNetworkStats:
         self.InitialGuessPerClassAndLabel = defaultdict(dict) 
         # FEATURES
         self.Features = ["av_speed","lenght","time","av_accel"]
-        self.Features2Fit = ["av_speed","lenght","time","speed_kmh","lenght_km","time_hours"]
+        self.Features2Fit = ["speed_kmh","lenght_km","time_hours"]
         # OUTPUT DICTIONARIES FIT
         self.Feature2Label = {"av_speed":'average speed (m/s)',"speed_kmh":'average speed (km/h)',"av_accel":"average acceleration (m/s^2)","lenght":'lenght (m)',"lenght_km": 'lenght (km)',"time_hours":'time (h)',"time":'time (s)'}
         self.Feature2SaveName = {"av_speed":"average_speed","speed_kmh":'average_speed_kmh',"av_accel":"average_acceleration","lenght":"lenght","lenght_km": 'lenght_km',"time_hours":"time_hours","time":"time"}
@@ -252,6 +373,17 @@ class DailyNetworkStats:
         self.CountFunctionsCalled = 0
         with open(self.LogFile,'w') as f:
             f.write("Log File for {0}\n".format(self.StrDate))
+        #
+        self.CutIndexTime = 8
+        # columns fit
+        self.columns_expo_fit = ["Day","Class","error","<x>","beta","A","R2","n_people"]
+        self.columns_pl_fit = ["Day","Class","error","<x>","alpha","A","R2","n_people"]
+        self.columns_gaussian_fit = ["Day","Class","error","mu","sigma","A","n_people"]
+        self.columns_maxwellian_fit = ["Day","Class","error","mu","sigma","A","n_people"]
+        # 
+        self.columns_data_and_fit = ["Day","Class","x","y","y_fit"]
+        self.Features_length_km_time_hours = ["lenght_km","time_hours"]
+        self.Features_all = ["speed_kmh","lenght_km","time_hours"]
 # --------------- Read Files ---------------- #
     def ReadTimedFluxes(self):
         """
@@ -284,6 +416,7 @@ class DailyNetworkStats:
             print(self.DictDirInput["fcm"])
         if os.path.isfile(self.DictDirInput["fcm"]):
             self.Fcm, self.ReadFcmBool = ReadFcm(self.DictDirInput["fcm"])
+            self.Classes = self.Fcm["class"].unique().to_numpy()
         else:
             pass
     def ReadStats(self):
@@ -362,6 +495,7 @@ class DailyNetworkStats:
             self.ReadGeojsonClassInfoBool = False
             pass
         self.GeoJson = RestrictGeoJsonWithBbox(self.GeoJson,self.BoxNumeric)
+        self.GeoJson.to_file(self.GeoJsonFile, driver='GeoJSON')
     def GetPathFile(self):
         """
             Description:
@@ -384,6 +518,7 @@ class DailyNetworkStats:
         """
             Description:
                 Get the Increasingly Included Subnets
+            IntClass2RoadsIncreasinglyIncludedIntersection: (dict) -> IntClass2RoadsIncreasinglyIncludedIntersection = {IntClass:[Roads]}
         """
         self.CountFunctionsCalled += 1
         if self.BoolStrClass2IntClass:
@@ -448,8 +583,9 @@ class DailyNetworkStats:
             self.GeoJsonWithClassBool = False
     def AddFcmNew2Fcm(self):
         """
-            Description:
-                Convert the class column of the FcmNew to class_new and join it to the Fcm.
+            
+            @Description:
+                Adds the class column of the FcmNew to class_new and join it to the Fcm.
                 In this way we have in Fcm for each trajectory a new column with the class of the trajectory after having intersected the subnetworks..
         """
         self.CountFunctionsCalled += 1
@@ -460,6 +596,12 @@ class DailyNetworkStats:
             self.Stats = AssociateHierarchicalClass2Users(self.Stats,self.FcmNew)    
 
 
+    def FilterFcmByTimePerFit(self,MaxValue):
+        """
+            Description:
+                Filter the Fcm by Time
+        """
+        self.FcmFit = self.Fcm.filter(pl.col("time") < MaxValue)
     def CompareOld2NewClass(self):
         """
             Description:
@@ -499,11 +641,13 @@ class DailyNetworkStats:
 
     def GetAverageSpeedGeoJson(self):
         """
+            @Describe:
+                This snippet is useful to compute 
             self.Class2TimeInterval2Road2SpeedNew {Class:{TimeInterval:{Road:<speed>_{new class}}}}
             self.Class2TimeInterval2Road2Speed {Class:{TimeInterval:<speed>_{class}}}
             self.ColumnsPlotIntervalSpeedNew = ["{0}_Speed_{1}_{2}".format(Type,StrDate,TimeDeparture)]
         """
-        # New Classification
+        # 1a) New Classification
         if not os.path.exists(os.path.join(self.PlotDir,"Class2TimeInterval2Road2SpeedNew.json")):
             self.Class2TimeInterval2Road2SpeedNew = ComputeSpeedRoadsPerTimeInterval(self.Fcm,self.OrderedClass2TimeDeparture2UserId,self.IntClass2RoadsIncreasinglyIncludedIntersection)
             with open(os.path.join(self.PlotDir,"Class2TimeInterval2Road2SpeedNew.json"),'w') as f:
@@ -517,33 +661,119 @@ class DailyNetworkStats:
             with open(os.path.join(self.PlotDir,"Class2TimeInterval2Road2SpeedNew.json"),'r') as f:
                 self.Class2TimeInterval2Road2SpeedNew = json.load(f)
             self.ColumnsPlotIntervalSpeedNew = ReturnColumnPlot(self.Class2TimeInterval2Road2SpeedNew,"new_class",self.StrDate)
-            self.ClassNew2TimeInterval2Road2SpeedActualRoads = ComputeSpeedRoadsPerTimeIntervalByRoadsTravelledByAllUsers(self.Fcm,self.PathDf,self.OrderedClass2TimeDeparture2UserId,self.IntClass2RoadsIncreasinglyIncludedIntersection)
-            with open(os.path.join(self.PlotDir,"ClassNew2TimeInterval2Road2SpeedActualRoads.json"),'w') as f:
-                json.dump(self.Class2TimeInterval2Road2SpeedNew,f,indent=2)
 
-#            self.GeoJson,self.ColumnsPlotIntervalSpeedNew = AddColumnAverageSpeedGeoJson(self.GeoJson,self.Class2TimeInterval2Road2SpeedNew,self.StrDate,"new_class")
-        # Old Classification
+        # 1b) Old Classification
         if not os.path.exists(os.path.join(self.PlotDir,"Class2TimeInterval2Road2Speed.json")):
             self.Class2TimeInterval2Road2Speed = ComputeSpeedRoadsPerTimeInterval(self.Fcm,self.Class2TimeDeparture2UserId,self.IntClass2RoadsIncreasinglyIncludedIntersection)
-            # Compute {Class:{TimeInterval:<speed>_{class}}}
-#            self.Class2TimeInterval2Road2SpeedActualRoads = ComputeSpeedRoadsPerTimeIntervalByRoadsTravelledByAllUsers(self.Fcm,self.PathDf,self.Class2TimeDeparture2UserId)
             with open(os.path.join(self.PlotDir,"Class2TimeInterval2Road2Speed.json"),'w') as f:
                 json.dump(self.Class2TimeInterval2Road2Speed,f,indent=2)    
+            # Act on GeoJson
             self.GeoJson,self.ColumnsPlotIntervalSpeed = AddColumnAverageSpeedGeoJson(self.GeoJson,self.Class2TimeInterval2Road2Speed,self.StrDate,"class")
-            self.GeoJson.to_file(os.path.join(self.PlotDir,"GeoJson_{0}.geojson".format(self.StrDate)))
+            self.GeoJson.to_file(os.path.join(self.PlotDir,"GeoJson_{0}_speed_fuzzy.geojson".format(self.StrDate)))
         else:
             with open(os.path.join(self.PlotDir,"Class2TimeInterval2Road2Speed.json"),'r') as f:
                 self.Class2TimeInterval2Road2Speed = json.load(f)
             self.ColumnsPlotIntervalSpeed = ReturnColumnPlot(self.Class2TimeInterval2Road2Speed,"class",self.StrDate)
-#            self.GeoJson,self.ColumnsPlotIntervalSpeed = AddColumnAverageSpeedGeoJson(self.GeoJson,self.Class2TimeInterval2Road2Speed,self.StrDate,"class")
-#            self.GeoJson.to_file(os.path.join(self.PlotDir,"GeoJson_{0}.geojson".format(self.StrDate)))
-        # Get People that change class and their speed on the network
-        self.ClassOld2ClassNewTimeInterval2Road2SpeedNew, self.ClassOld2ClassNewTimeInterval2Transition = ComputeSpeedRoadPerTimePeopleChangedClass(self.Fcm,self.OrderedClass2TimeDeparture2UserId,self.Class2TimeDeparture2UserId,self.IntClass2RoadsIncreasinglyIncludedIntersection)
-        with open(os.path.join(self.PlotDir,"ClassOld2ClassNewTimeInterval2Road2SpeedNew.json"),'w') as f:
-            json.dump(self.ClassOld2ClassNewTimeInterval2Road2SpeedNew,f,indent=2)
-        with open(os.path.join(self.PlotDir,"ClassOld2ClassNewTimeInterval2Transition.json"),'w') as f:
-            json.dump(self.ClassOld2ClassNewTimeInterval2Transition,f,indent=2)
 
+        # 1c) Classification All (just if the path pass through the roads of the class is counted)
+        if not os.path.exists(os.path.join(self.PlotDir,"ClassNew2TimeInterval2Road2SpeedActualRoads.json")):
+            self.ClassNew2TimeInterval2Road2SpeedActualRoads = ComputeSpeedRoadsPerTimeIntervalByRoadsTravelledByAllUsers(self.Fcm,self.PathDf,self.OrderedClass2TimeDeparture2UserId,self.IntClass2RoadsIncreasinglyIncludedIntersection)
+            with open(os.path.join(self.PlotDir,"ClassNew2TimeInterval2Road2SpeedActualRoads.json"),'w') as f:
+                json.dump(self.Class2TimeInterval2Road2SpeedNew,f,indent=2)
+            self.GeoJson,self.ColumnsPlotIntervalSpeed = AddColumnAverageSpeedGeoJson(self.GeoJson,self.Class2TimeInterval2Road2Speed,self.StrDate,"all")
+            self.GeoJson.to_file(os.path.join(self.PlotDir,"GeoJson_{0}_speed_all.geojson".format(self.StrDate)))
+
+        else:
+            self.ClassNew2TimeInterval2Road2SpeedActualRoads = ComputeSpeedRoadsPerTimeIntervalByRoadsTravelledByAllUsers(self.Fcm,self.PathDf,self.OrderedClass2TimeDeparture2UserId,self.IntClass2RoadsIncreasinglyIncludedIntersection)
+            with open(os.path.join(self.PlotDir,"ClassNew2TimeInterval2Road2SpeedActualRoads.json"),'r') as f:
+                self.ClassNew2TimeInterval2Road2SpeedActualRoads = json.load(f)
+                
+        # 2) Get People that change class and their speed on the network
+        if not os.path.exists(os.path.join(self.PlotDir,"ClassOld2ClassNewTimeInterval2Road2SpeedNew.json")):
+            self.ClassOld2ClassNewTimeInterval2Road2SpeedNew, self.ClassOld2ClassNewTimeInterval2Transition = ComputeSpeedRoadPerTimePeopleChangedClass(self.Fcm,self.OrderedClass2TimeDeparture2UserId,self.Class2TimeDeparture2UserId,self.IntClass2RoadsIncreasinglyIncludedIntersection)
+            with open(os.path.join(self.PlotDir,"ClassOld2ClassNewTimeInterval2Road2SpeedNew.json"),'w') as f:
+                json.dump(self.ClassOld2ClassNewTimeInterval2Road2SpeedNew,f,indent=2)
+            with open(os.path.join(self.PlotDir,"ClassOld2ClassNewTimeInterval2Transition.json"),'w') as f:
+                json.dump(self.ClassOld2ClassNewTimeInterval2Transition,f,indent=2)
+        else:
+            with open(os.path.join(self.PlotDir,"ClassOld2ClassNewTimeInterval2Road2SpeedNew.json"),'r') as f:
+                self.ClassOld2ClassNewTimeInterval2Road2SpeedNew = json.load(f)
+            with open(os.path.join(self.PlotDir,"ClassOld2ClassNewTimeInterval2Transition.json"),'r') as f:
+                self.ClassOld2ClassNewTimeInterval2Transition = json.load(f)
+
+        # 3 Std Deviation (New Classification)
+        if not os.path.exists(os.path.join(self.PlotDir,"Class2TimeInterval2Road2SpeedStd.json")):
+            self.Class2TimeInterval2Road2StdSpeedNew = ComputeSpeedRoadsPerTimeInterval(self.Fcm,self.OrderedClass2TimeDeparture2UserId,self.IntClass2RoadsIncreasinglyIncludedIntersection,"std")
+            with open(os.path.join(self.PlotDir,"Class2TimeInterval2Road2SpeedStd.json"),'w') as f:
+                json.dump(self.Class2TimeInterval2Road2StdSpeedNew,f,indent=2)
+        else:
+            with open(os.path.join(self.PlotDir,"Class2TimeInterval2Road2SpeedStd.json"),'r') as f:
+                self.Class2TimeInterval2Road2StdSpeedNew = json.load(f)
+        # 3 Std Deviation (Old Classification)
+        if not os.path.exists(os.path.join(self.PlotDir,"Class2TimeInterval2Road2SpeedStdOld.json")):
+            self.Class2TimeInterval2Road2StdSpeed = ComputeSpeedRoadsPerTimeInterval(self.Fcm,self.Class2TimeDeparture2UserId,self.IntClass2RoadsIncreasinglyIncludedIntersection,"std")
+            with open(os.path.join(self.PlotDir,"Class2TimeInterval2Road2SpeedStdOld.json"),'w') as f:
+                json.dump(self.Class2TimeInterval2Road2StdSpeed,f,indent=2)
+        else:
+            with open(os.path.join(self.PlotDir,"Class2TimeInterval2Road2SpeedStdOld.json"),'r') as f:
+                self.Class2TimeInterval2Road2StdSpeed = json.load(f)
+#        if not os.path.exists(os.path.join(self.PlotDir,"ClassNew2TimeInterval2Road2StdSpeedActualRoads.json")):
+        self.ClassNew2TimeInterval2Road2StdSpeedActualRoads = ComputeSpeedRoadsPerTimeIntervalByRoadsTravelledByAllUsers(self.Fcm,self.PathDf,self.OrderedClass2TimeDeparture2UserId,self.IntClass2RoadsIncreasinglyIncludedIntersection,"std")
+        with open(os.path.join(self.PlotDir,"ClassNew2TimeInterval2Road2StdSpeedActualRoads.json"),'w') as f:
+            json.dump(self.ClassNew2TimeInterval2Road2StdSpeedActualRoads,f,indent=2)
+#        else:
+#            with open(os.path.join(self.PlotDir,"ClassNew2TimeInterval2Road2StdSpeedActualRoads.json"),'r') as f:
+#                self.ClassNew2TimeInterval2Road2StdSpeedActualRoads = json.load(f)
+
+
+    def PlotTrafficVideo(self):
+        """
+            Description:
+                Plot the traffic video
+        """
+        PlotVideoTrafficFromGeoJsonWithSpeedColumn(self.GeoJson,"New",self.PlotDir)
+    def ComputeDfSpeed(self):
+        """
+            @Describe:
+                Computes the Df with_columns Class,Day,av_speed_kmh_fuzzy,av_speed_kmh_hierarchical,av_speed_kmh_all
+            @Input:
+                - Class2TimeInterval2Road2Speed: info about av_speed_fuzzy
+                - Class2TimeInterval2Road2SpeedNew: info about av_speed_hierarchical
+                - Class2TimeInterval2Road2SpeedActualRoads: info about av_speed_all
+        """
+        logger.info(f"{self.StrDate}: Computing DfSpeed")
+        # Compute Df Speed
+#        if not os.path.exists(os.path.join(self.PlotDir,"DfSpeed.parquet")):
+        ListClasses = list(self.Class2TimeInterval2Road2Speed.keys())
+        TimeIntervals = list(self.Class2TimeInterval2Road2Speed[ListClasses[0]].keys())
+        DfClasses = np.zeros(len(self.GeoJson["poly_lid"].to_numpy())*len(TimeIntervals))
+        DfDays = np.full(len(self.GeoJson["poly_lid"].to_numpy())*len(TimeIntervals),self.StrDate)
+        DfSpeedsFuzzy = np.zeros(len(self.GeoJson["poly_lid"].to_numpy())*len(TimeIntervals))
+        DfSpeedsHierarchical = np.zeros(len(self.GeoJson["poly_lid"].to_numpy())*len(TimeIntervals))
+        DfSpeedsActual = np.zeros(len(self.GeoJson["poly_lid"].to_numpy())*len(TimeIntervals))
+        DfTime = np.zeros(len(self.GeoJson["poly_lid"].to_numpy())*len(TimeIntervals))
+        DfRoad = np.full(len(self.GeoJson["poly_lid"].to_numpy())*len(TimeIntervals),"")
+        CountRoads = 0 
+        for Road in self.GeoJson["poly_lid"].to_numpy():
+            CountTime = 0
+            for TimeInterval in TimeIntervals:
+                Index = CountRoads*len(TimeIntervals) + CountTime
+                for Class in ListClasses:
+                    if str(Road) in self.Class2TimeInterval2Road2Speed[Class][TimeInterval].keys():
+                        DfSpeedsFuzzy[Index] = self.Class2TimeInterval2Road2Speed[Class][TimeInterval][str(Road)]
+                    if str(Road) in self.Class2TimeInterval2Road2SpeedNew[Class][TimeInterval].keys():
+                        DfSpeedsHierarchical[Index] = self.Class2TimeInterval2Road2SpeedNew[Class][TimeInterval][str(Road)]
+                    if str(Road) in self.ClassNew2TimeInterval2Road2SpeedActualRoads[Class][TimeInterval].keys():
+                        DfSpeedsActual[Index] = self.ClassNew2TimeInterval2Road2SpeedActualRoads[Class][TimeInterval][str(Road)]
+                DfClasses[Index] = int(Class)
+                DfTime[Index] = int(TimeInterval)
+                DfRoad[Index] = Road
+                CountTime += 1
+            CountRoads += 1
+        self.DfSpeed = pl.DataFrame({"Class":np.array(DfClasses).astype(int),"Day":DfDays,"av_speed_kmh_fuzzy":DfSpeedsFuzzy,"av_speed_kmh_hierarchical":DfSpeedsHierarchical,"av_speed_kmh_all":DfSpeedsActual,"timestamp":DfTime,"poly_lid":DfRoad})
+        self.DfSpeed.write_parquet(os.path.join(self.PlotDir,"DfSpeed.parquet"))
+#        else:
+#            self.DfSpeed = pl.read_parquet(os.path.join(self.PlotDir,"DfSpeed.parquet"))
     def ComputeTotalLengthSubnet(self):
         """
             Description:
@@ -742,18 +972,165 @@ class DailyNetworkStats:
         with open(os.path.join(self.PlotDir,"Feature2AllFitTry_{0}.json".format(self.StrDate)),'w') as f:
             json.dump(self.Feature2AllFitTry,f,cls = NumpyArrayEncoder,indent=2)
             #print("Dictionary Fit All Features All Functions without aggregation:\n",self.Feature2AllFitTry)
-    def ComputeFitPerClass(self):
+
+
+    def CutFcmForFit(self):
+        """
+        @Describe:
+            It cuts the trajectories according to the time spent in the road network.
+            I need to not consider trajectories that are longer then 2.5 hours.        
+        """
+        self.FcmNormalUsers = self.Fcm.filter(pl.col("time_hours") < 2.5,
+                                              pl.col("time_hours") > 0.1)
+        self.FcmTaxis = self.Fcm.filter(pl.col("time_hours") > 2.5)
+        self.Classes = self.Fcm["class"].unique()        
+
+
+
+    def ComputeFitPerClassLengthTime(self):
+        """
+            In this snippet we:
+                1) Differentiate between 
+                    - normal users (travel time < 2.5 hours)
+                    - taxis (travel time > 2.5 hours)
+                 
+            Description:
+                Compare the exponential and power law fit for length and time
+        """
+        # Filter By Class
+        for Feature in ["time_hours","lenght_km"]:
+            # Init dictionaries, standardized for fit, (parameters and data)
+            dict_parameters_expo_fit = {key:[] for key in self.columns_expo_fit}
+            dict_expo_data_and_fit = {key:[] for key in self.columns_data_and_fit} 
+            dict_parameters_pl_fit = {key:[] for key in self.columns_pl_fit}
+            dict_pl_data_and_fit = {key:[] for key in self.columns_data_and_fit}
+            dict_parameters_expo_fit_new = {key:[] for key in self.columns_expo_fit}
+            dict_expo_data_and_fit_new = {key:[] for key in self.columns_data_and_fit} 
+            dict_parameters_pl_fit_new = {key:[] for key in self.columns_pl_fit}
+            dict_pl_data_and_fit_new = {key:[] for key in self.columns_data_and_fit}
+            for IntClass in self.Classes:
+#               # NOTE: The label chosen here differentiate between the old and the new class
+                FcmNormlaUsersFilteredByClass = self.FcmNormalUsers.filter(pl.col("class") == IntClass)
+#                FcmNormalUsersFilteredByClassNew = self.FcmNormalUsers.filter(pl.col("class_new") == IntClass)
+                ObservedData = FcmNormlaUsersFilteredByClass[Feature].to_list()
+#                ObservedDataNew = FcmNormalUsersFilteredByClassNew[Feature].to_list()
+                N_people_class = len(ObservedData)
+                # Compare Exponential Power Law Per 
+                dict_parameters_expo_fit,dict_parameters_pl_fit,dict_expo_data_and_fit,dict_pl_data_and_fit = comparison_pl_exp_single_class(ObservedData,
+                                                                                                                                            Feature,
+                                                                                                                                            dict_parameters_expo_fit,
+                                                                                                                                            dict_parameters_pl_fit,
+                                                                                                                                            dict_expo_data_and_fit,
+                                                                                                                                            dict_pl_data_and_fit,
+                                                                                                                                            self.StrDate,
+                                                                                                                                            IntClass,
+                                                                                                                                            N_people_class)
+                # Class New Classification
+#                dict_parameters_expo_fit_new,dict_parameters_pl_fit_new,dict_expo_data_and_fit_new,dict_pl_data_and_fit_new = comparison_pl_exp_single_class(ObservedDataNew,   
+#                                                                                                                                            Feature,
+#                                                                                                                                            dict_parameters_expo_fit_new,
+#                                                                                                                                            dict_parameters_pl_fit_new,
+#                                                                                                                                            dict_expo_data_and_fit_new,
+#                                                                                                                                            dict_pl_data_and_fit_new,
+#                                                                                                                                            self.StrDate,
+#                                                                                                                                            IntClass,
+#                                                                                                                                            N_people_class)
+#        
+            # Save New Format Fit
+            if len(dict_parameters_expo_fit["R2"]) > 0:
+                pl.DataFrame(dict_parameters_expo_fit).write_csv(os.path.join(self.PlotDir,f"df_parameters_expo_{Feature}_{self.StrDate}_conditional_class.csv"))
+                pl.DataFrame(dict_expo_data_and_fit).write_csv(os.path.join(self.PlotDir,f"df_fit_and_data_expo_{Feature}_{self.StrDate}_conditional_class.csv"))
+                
+            if len(dict_parameters_pl_fit["R2"]) > 0:
+                pl.DataFrame(dict_parameters_pl_fit).write_csv(os.path.join(self.PlotDir,f"df_parameters_pl_{Feature}_{self.StrDate}_conditional_class.csv"))
+                pl.DataFrame(dict_pl_data_and_fit).write_csv(os.path.join(self.PlotDir,f"df_fit_and_data_pl_{Feature}_{self.StrDate}_conditional_class.csv"))
+            # Save New Format Fit
+#            if len(dict_parameters_expo_fit_new["R2"]) > 0:
+#                pl.DataFrame(dict_parameters_expo_fit_new).write_csv(os.path.join(self.PlotDir,f"df_parameters_expo_{Feature}_{self.StrDate}_conditional_class_new.csv"))
+#                pl.DataFrame(dict_expo_data_and_fit_new).write_csv(os.path.join(self.PlotDir,f"df_fit_and_data_expo_{Feature}_{self.StrDate}_conditional_class_new.csv"))
+#            if len(dict_parameters_pl_fit_new["R2"]) > 0:
+#                pl.DataFrame(dict_parameters_pl_fit_new).write_csv(os.path.join(self.PlotDir,f"df_parameters_pl_{Feature}_{self.StrDate}_conditional_class_new.csv"))
+#                pl.DataFrame(dict_pl_data_and_fit_new).write_csv(os.path.join(self.PlotDir,f"df_fit_and_data_pl_{Feature}_{self.StrDate}_conditional_class_new.csv"))
+            
+            
+            
+    def ComputeFitLengthTime(self):
+        """
+            @describe:
+                Computes the fit for length and time distributions without conditioning.
+        """
+        N_people_class = len(self.FcmNormalUsers)
+        for Feature in ["time_hours","lenght_km"]:
+            ################## Aggregated ##########################  
+            dict_parameters_expo_fit = {key:[] for key in self.columns_expo_fit}
+            dict_expo_data_and_fit = {key:[] for key in self.columns_data_and_fit} 
+            dict_parameters_pl_fit = {key:[] for key in self.columns_pl_fit}
+            dict_pl_data_and_fit = {key:[] for key in self.columns_data_and_fit}
+            dict_parameters_expo_fit_new = {key:[] for key in self.columns_expo_fit}
+            dict_expo_data_and_fit_new = {key:[] for key in self.columns_data_and_fit} 
+            dict_parameters_pl_fit_new = {key:[] for key in self.columns_pl_fit}
+            dict_pl_data_and_fit_new = {key:[] for key in self.columns_data_and_fit}
+            dict_parameters_expo_fit,dict_parameters_pl_fit,dict_expo_data_and_fit,dict_pl_data_and_fit = comparison_pl_exp_single_class(self.FcmNormalUsers[Feature].to_list(),
+                                                                                                                                        Feature,
+                                                                                                                                        dict_parameters_expo_fit,
+                                                                                                                                        dict_parameters_pl_fit,
+                                                                                                                                        dict_expo_data_and_fit,
+                                                                                                                                        dict_pl_data_and_fit,
+                                                                                                                                        self.StrDate,
+                                                                                                                                        10,
+                                                                                                                                        N_people_class)
+            # Class New Classification
+            dict_parameters_expo_fit_new,dict_parameters_pl_fit_new,dict_expo_data_and_fit_new,dict_pl_data_and_fit_new = comparison_pl_exp_single_class(self.FcmNormalUsers[Feature].to_list(),   
+                                                                                                                                        Feature,
+                                                                                                                                        dict_parameters_expo_fit_new,
+                                                                                                                                        dict_parameters_pl_fit_new,
+                                                                                                                                        dict_expo_data_and_fit_new,
+                                                                                                                                        dict_pl_data_and_fit_new,
+                                                                                                                                        self.StrDate,
+                                                                                                                                        10,
+                                                                                                                                        N_people_class)
+    
+            # Save New Format Fit
+            if len(dict_parameters_expo_fit["R2"]) > 0:
+                pl.DataFrame(dict_parameters_expo_fit).write_csv(os.path.join(self.PlotDir,f"df_parameters_expo_{Feature}_{self.StrDate}.csv"))
+                pl.DataFrame(dict_expo_data_and_fit).write_csv(os.path.join(self.PlotDir,f"df_fit_and_data_expo_{Feature}_{self.StrDate}.csv"))
+            if len(dict_parameters_pl_fit["R2"]) > 0:
+                pl.DataFrame(dict_parameters_pl_fit).write_csv(os.path.join(self.PlotDir,f"df_parameters_pl_{Feature}_{self.StrDate}"))
+                pl.DataFrame(dict_pl_data_and_fit).write_csv(os.path.join(self.PlotDir,f"df_fit_and_data_pl_{Feature}_{self.StrDate}"))
+            # Save New Format Fit
+            if len(dict_parameters_expo_fit_new["R2"]) > 0:
+                pl.DataFrame(dict_parameters_expo_fit_new).write_csv(os.path.join(self.PlotDir,f"df_parameters_expo_{Feature}_{self.StrDate}_new.csv"))
+                pl.DataFrame(dict_expo_data_and_fit_new).write_csv(os.path.join(self.PlotDir,f"df_fit_and_data_expo_{Feature}_{self.StrDate}_new.csv"))
+                
+            if len(dict_parameters_pl_fit_new["R2"]) > 0:
+                pl.DataFrame(dict_parameters_pl_fit_new).write_csv(os.path.join(self.PlotDir,f"df_parameters_pl_{Feature}_{self.StrDate}_new.csv"))
+                pl.DataFrame(dict_pl_data_and_fit_new).write_csv(os.path.join(self.PlotDir,f"df_fit_and_data_pl_{Feature}_{self.StrDate}_new.csv"))
+
+        
+
+    def ComputeFitPerClassSpeed(self):
+        """
+            @describe:
+                Compute for each different class the best fit.
+                NOTE: class_new, instead of class is the division we apply to our trajectories.
+        """
         # Save All the Tried Fit
         self.Feature2Class2AllFitTry = InitFeature2Class2AllFitTry(self.Feature2Class2Function2Fit2InitialGuess)
+        self.Feature2Class2AllFitTryNew = InitFeature2Class2AllFitTry(self.Feature2Class2Function2Fit2InitialGuess)
         # Returns for each function to try the best fit.
         logger.info(f"{self.StrDate} Fit Data Separated by Class")
         for Feature in self.Feature2Class2AllFitTry.keys():
-#            print("Feature: ",Feature)
             for IntClass in self.Feature2Class2AllFitTry[Feature].keys():
-#                print("Class {} ".format(IntClass))
+#               # NOTE: The label chosen here differentiate between the old and the new class
                 FcmFilteredByClass = self.Fcm.filter(pl.col("class") == IntClass)
+                FcmFilteredByClassNew = self.Fcm.filter(pl.col("class_new") == IntClass)
                 ObservedData = FcmFilteredByClass[Feature].to_list()
-                if Feature == "av_speed" or Feature == "speed_kmh":
+                ObservedDataNew = FcmFilteredByClassNew[Feature].to_list()
+                N_people_class = len(ObservedData)
+                if Feature == "speed_kmh":
+#                    if IntClass == 2:
+#                        FcmFilteredByClass = FcmFilteredByClass.filter(pl.col("speed_kmh") <= 40)
+#                        ObservedData = FcmFilteredByClass[Feature].to_list()
                     # Compute the Fit for functions you are Undecided from
                     self.Feature2Class2AllFitTry[Feature][IntClass] = ReturnFitInfoFromDict(ObservedData,
                                                                                             self.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass],
@@ -761,13 +1138,17 @@ class DailyNetworkStats:
                                                                                             False)
                     # Choose the Best Fit among all the tried feature
                     self.Feature2Class2AllFitTry[Feature][IntClass] = ChooseBestFit(self.Feature2Class2AllFitTry[Feature][IntClass])
-                else:
-                    self.Feature2Class2AllFitTry[Feature][IntClass] = ComputeAndChooseBestFit(ObservedData,
+                    self.Feature2Class2AllFitTryNew[Feature][IntClass] = ReturnFitInfoFromDict(ObservedDataNew,
                                                                                             self.Feature2Class2Function2Fit2InitialGuess[Feature][IntClass],
-                                                                                            self.Feature2Class2AllFitTry[Feature][IntClass],
+                                                                                            self.Feature2Class2AllFitTryNew[Feature][IntClass],
                                                                                             False)
+                    # Choose the Best Fit among all the tried feature
+                    self.Feature2Class2AllFitTryNew[Feature][IntClass] = ChooseBestFit(self.Feature2Class2AllFitTryNew[Feature][IntClass])
+        # Old Format Fit
         with open(os.path.join(self.PlotDir,"Feature2Class2AllFitTry_{0}.json".format(self.StrDate)),'w') as f:
             json.dump(self.Feature2Class2AllFitTry,f,cls = NumpyArrayEncoder,indent=2)
+        with open(os.path.join(self.PlotDir,"Feature2Class2AllFitTryNew_{0}.json".format(self.StrDate)),'w') as f:
+            json.dump(self.Feature2Class2AllFitTryNew,f,cls = NumpyArrayEncoder,indent=2)
 
 #                if self.verbose:
 #                    print("Feature: ",Feature)
@@ -777,10 +1158,14 @@ class DailyNetworkStats:
 #            print("Dictionary Fit All Features All Functions per Class:\n",self.Feature2Class2AllFitTry)
 
     def ComputeFitDataFrame(self):
+        """
+            @describe:
+                Saves the DataFram of x, y x_fitted and y_fitted.
+        """
         self.Feature2IntClass2FcmDistr = defaultdict()
         self.Feature2IntClass2Feat2AvgVar = defaultdict()
         self.Freature2IntClass2FitInfo = defaultdict()
-        for Feature in self.Feature2AllFitTry.keys():
+        for Feature in ["speed_kmh"]:
             Class2FcmDistr,IntClass2Feat2AvgVar = SplitFcmByClass(self.Fcm,Feature,self.IntClass2StrClass) 
             self.Feature2IntClass2FcmDistr[Feature] = Class2FcmDistr
             self.Feature2IntClass2Feat2AvgVar[Feature] = IntClass2Feat2AvgVar
@@ -788,13 +1173,14 @@ class DailyNetworkStats:
 #            print("Feature2IntClass2Feat2AvgVar:\n",self.Feature2IntClass2Feat2AvgVar)
         InfoPlotDistrFeat = {"figsize":(10,10),"minx":0,"miny":0,"maxx":0,"maxy":0}
         # Compute the MinMax for the Plot
-        self.Feature2InfoPlotDistrFeat = {Feature: ComputeMinMaxPlotGivenFeature(self.Feature2IntClass2FcmDistr[Feature],InfoPlotDistrFeat) for Feature in self.Feature2AllFitTry.keys()}
-        self.Feature2DistributionPlot = {Feature: {"fig":None,"ax":None} for Feature in self.Feature2AllFitTry.keys()}
-        self.Feature2FitDf = FitDataFrame(self.Feature2Class2AllFitTry,self.PlotDir)        
+        self.Feature2InfoPlotDistrFeat = {Feature: ComputeMinMaxPlotGivenFeature(self.Feature2IntClass2FcmDistr[Feature],InfoPlotDistrFeat) for Feature in ["speed_kmh"]}
+        self.Feature2DistributionPlot = {Feature: {"fig":None,"ax":None} for Feature in ["speed_kmh"]}
+        self.Feature2FitDf = FitDataFrame(self.Feature2Class2AllFitTry,self.PlotDir)     
+        self.Feature2FitNewDf = FitDataFrame(self.Feature2Class2AllFitTryNew,self.PlotDir,"New")   
 
 
 ## ------- FUNDAMENTAL DIAGRAM ------ ##
-    def ComputeMFDVariablesClass(self):
+    def ComputeHisteresisClass(self):
         '''
             Description:
                 Computes the MFD variables (t,population,speed) -> and the hysteresis diagram:
@@ -805,8 +1191,8 @@ class DailyNetworkStats:
         '''
         if self.ReadFcmBool:
             if "start_time" in self.Fcm.columns:
-                if os.path.isfile(os.path.join(self.PlotDir,"MFD_{}.csv".format(self.StrDate))):
-                    self.MFD = pd.read_csv(os.path.join(self.PlotDir,"MFD_{}.csv".format(self.StrDate)))
+                if os.path.isfile(os.path.join(self.PlotDir,"HisteresisInfo_{}.csv".format(self.StrDate))):
+                    self.MFD = pd.read_csv(os.path.join(self.PlotDir,"HisteresisInfo_{}.csv".format(self.StrDate)))
                     self.MFD = pl.from_pandas(self.MFD)
                 else:
                     self.MFD = pl.DataFrame({"time":[]})
@@ -814,10 +1200,10 @@ class DailyNetworkStats:
                         self.MFD = AddColumns2MFD(self.MFD,FcmClass,Class,self.BinTimestamp,False)
                     for NewClass,FcmNewClass in self.Fcm.groupby("class_new"):
                         self.MFD = AddColumns2MFD(self.MFD,FcmNewClass,NewClass,self.BinTimestamp,True)
-                    self.MFD.write_csv(os.path.join(self.PlotDir,"MFD_{}.csv".format(self.StrDate)))    
+                    self.MFD.write_csv(os.path.join(self.PlotDir,"HisteresisInfo_{}.csv".format(self.StrDate)))    
             self.ComputedMFD = True
 
-    def ComputeVariablesForMFDPlot(self):
+    def ComputeMFD(self):
         """
         Description:
             Computes the variables for the MFD Plot.
@@ -864,7 +1250,7 @@ class DailyNetworkStats:
             TimeIntervalsDt: [datetime]
         """
         self.Class2Speed,self.Class2SpeedH,self.Class2SpeedO,self.TimeIntervalsDt = PrepareSpeedEvolutionNewClassConsideringRoadClassification(self.ClassNew2TimeInterval2Road2SpeedActualRoads,self.Class2TimeInterval2Road2SpeedNew,self.Class2TimeInterval2Road2Speed)        
-
+        self.Class2StdSpeed, self.Class2StdSpeedH, self.Class2StdSpeedO,self.TimeIntervalsDt = PrepareSpeedEvolutionNewClassConsideringRoadClassification(self.ClassNew2TimeInterval2Road2StdSpeedActualRoads,self.Class2TimeInterval2Road2StdSpeedNew,self.Class2TimeInterval2Road2StdSpeed)
     def PlotSpeedEvolutionAllSubnets(self):
         """
             @brief: Plot the Speed Evolution for all the subnets
@@ -888,6 +1274,8 @@ class DailyNetworkStats:
         half_guard = 5
         N = 2*(half_train)
         alpha = N*(Pfa**(-1/N) - 1)
+        fig,ax = plt.subplots(1,1,figsize = (10,10))
+        
         for Class in self.Class2SpeedO.keys():
             mu = np.nanmean(np.array(self.Class2SpeedO[Class]) - np.array(self.Class2SpeedH[Class]))
             sigma = np.nanstd(np.array(self.Class2SpeedO[Class]) - np.array(self.Class2SpeedH[Class]))
@@ -898,27 +1286,41 @@ class DailyNetworkStats:
             assert len(mask_is_signal_p_test) == len(self.Class2Signal[Class])
             self.Class2IsSignalPTest[Class] = [1 if mask_is_signal_p_test[i] else 0 for i in range(len(mask_is_signal_p_test))]
             # Now I have that I have Jam, just if the signal is outside the 95% Confidence Interval
-            fig,ax = plt.subplots()
-            ax.plot(self.TimeIntervalsDt,self.Class2Signal[Class],label = r"$\langle v_o - v_h \rangle$")
+#            ax.plot(self.TimeIntervalsDt,self.Class2Signal[Class],label = r"$\langle v_o - v_h \rangle$")
 
 #            ax.scatter(np.array(self.TimeIntervalsDt)[self.Class2IsSignalPTest[Class]],np.array(self.Class2Signal[Class])[self.Class2IsSignalPTest[Class]],label = "Jam")
-            ax.axhline(y = mu, label = r"$\langle v_o - v_h \rangle$",color = 'r', linestyle = '-')
+#            ax.axhline(y = mu, label = r"$\langle v_o - v_h \rangle$",color = 'r', linestyle = '-')
             try:
                 SpeedThreshold = np.array(self.Class2Signal[Class][mask_is_signal_p_test]).argmin()
-                ax.axhline(y = SpeedThreshold, label = r"$\langle v_o - v_h \rangle$ 95% Confidence Interval",color = 'g', linestyle = '--')
+#                ax.axhline(y = SpeedThreshold, label = r"$\langle v_o - v_h \rangle$ 95% Confidence Interval",color = 'g', linestyle = '--')
             except:
                 pass
-            ax.plot(self.TimeIntervalsDt,self.Class2SpeedO[Class],label = r"$\langle v_o \rangle$")
-            ax.plot(self.TimeIntervalsDt,self.Class2SpeedH[Class],label = r"$\langle v_h \rangle$")
-            ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0., fontsize='small')
-            tick_locations = np.arange(0, len(self.TimeIntervalsDt), 8)
-            tick_labels = self.BinStringHour[::8]
+#            if Class == 0:
+            if Class == 0:
+                ax.plot(self.TimeIntervalsDt[self.CutIndexTime:],self.Class2SpeedO[Class][self.CutIndexTime:],color = self.IntClass2Color[Class],label = r"$\langle v_f \rangle$")
+                ax.plot(self.TimeIntervalsDt[self.CutIndexTime:],self.Class2SpeedH[Class][self.CutIndexTime:],color = self.IntClass2Color[Class],label = r"$\langle v_h \rangle$",linestyle = '--')
+            else:
+                ax.plot(self.TimeIntervalsDt[self.CutIndexTime:],self.Class2SpeedO[Class][self.CutIndexTime:],color = self.IntClass2Color[Class],label = "")
+                ax.plot(self.TimeIntervalsDt[self.CutIndexTime:],self.Class2SpeedH[Class][self.CutIndexTime:],color = self.IntClass2Color[Class],label = "",linestyle = '--')
+#            else:
+#                ax.plot(self.TimeIntervalsDt[self.CutIndexTime:],self.Class2SpeedO[Class][self.CutIndexTime:],color = self.Class2Color[Class],label ="")
+#                ax.plot(self.TimeIntervalsDt[self.CutIndexTime:],self.Class2SpeedH[Class][self.CutIndexTime:],color = self.Class2Color[Class],label ="",linestyle = '--')
+            ax.legend(loc='upper left', borderaxespad=0., fontsize='small')
+            tick_locations = np.arange(0, len(self.TimeIntervalsDt[self.CutIndexTime:]), 8)
+            tick_labels = self.BinStringHour[self.CutIndexTime::8]
             ax.set_xticks(tick_locations)
             ax.set_xticklabels(tick_labels, rotation=90)
-            plt.savefig(os.path.join(self.PlotDir,"SignalClass_{}.png".format(Class)))
-            plt.close()
+            ax.set_xlabel("time")
+            ax.set_ylabel(r"$\langle v \rangle {km/h}$ ",fontsize = 18)
+            ax.set_ylim(0,110)
+            for Class in self.Class2Signal.keys():
+                self.Class2Signal[Class] = list(self.Class2Signal[Class])
+            with open(os.path.join(self.PlotDir,"Class2Signal.json"),'w') as f:
+                json.dump(self.Class2Signal,f,indent=2)
 #            self.Class2Signal[Class][np.where(self.Class2Signal[Class] < 0)] = 0
             self.Class2CFARClassification[Class], self.Class2Cut[Class] = soca_cfar(half_guard, half_train, alpha, self.Class2Signal[Class])
+        plt.savefig(os.path.join(self.PlotDir,"SignalClass.png"))
+        plt.close()
 
     def ComputeAndPlotDailyTrafficIndicator(self):
         """
@@ -934,10 +1336,12 @@ class DailyNetworkStats:
         """
         self.Class2traffickIndex = defaultdict()
         self.Class2CriticalTraffic = defaultdict()
+        self.df_traffic_index = {"Class":[],"Time":[],"TrafficIndex":[]}
         for Class in self.Class2SpeedO.keys():
             NaturalSpeedSubnet = np.nanmean(np.array(self.Class2SpeedO[Class]))
 #            SpeedNewSubnet = np.nanmean(np.array(self.Class2SpeedH[Class]))
             NaturalSpeedSubnetV = np.ones(len(self.Class2SpeedO[Class]))*NaturalSpeedSubnet
+            
             self.Class2traffickIndex[Class] = np.array(self.Class2SpeedO[Class] - np.array(self.Class2SpeedH[Class]))/NaturalSpeedSubnetV
             MaxPeopleClass = max([len(self.OrderedClass2TimeDeparture2UserId[Class][t]) for t in self.OrderedClass2TimeDeparture2UserId[Class].keys()])
             FractionPeoplePerClassInTime = np.array([len(self.OrderedClass2TimeDeparture2UserId[Class][t]) for t in self.OrderedClass2TimeDeparture2UserId[Class].keys()])/MaxPeopleClass
@@ -952,25 +1356,72 @@ class DailyNetworkStats:
                         MinimumError = self.Class2Signal[Class][i]
                         IndexMinimumError = i
             self.Class2CriticalTraffic[Class] = IndexMinimumError        
-        fig,ax = plt.subplots(2,2,figsize = (20,20))
+        fig,ax = plt.subplots(2,2,figsize = (20,20),sharey = True)
         Class2Idx = {0:(0,0),1:(0,1),2:(1,0),3:(1,1)}
         for Class in self.Class2traffickIndex.keys():
             ax0 = Class2Idx[Class][0]
             ax1 = Class2Idx[Class][1]
-            
-            ax[ax0,ax1].plot(self.TimeIntervalsDt,self.Class2traffickIndex[Class],label = "Class {}".format(Class))
-            ax[ax0,ax1].hlines(self.Class2traffickIndex[Class][IndexMinimumError],self.TimeIntervalsDt[0],self.TimeIntervalsDt[-1],label = "Critical Traffic")
-            ax[ax0,ax1].set_xlabel("Time")
-            ax[ax0,ax1].set_ylabel(r"$\frac{(v_o(t) - v_h(t))}{\langle v_n \rangle_t}\frac{N_{class}}{N_{max}}$")
-            tick_locations = np.arange(0, len(self.TimeIntervalsDt), 8)
-            tick_labels = self.BinStringHour[::8]
+            self.df_traffic_index["Class"].extend(np.full(len(self.Class2traffickIndex[Class][self.CutIndexTime:]),Class))
+            self.df_traffic_index["Time"].extend(self.TimeIntervalsDt[self.CutIndexTime:])
+            window = np.ones(3)/3
+            avg_traff_idx = np.convolve(self.Class2traffickIndex[Class][self.CutIndexTime:], window, mode='same')
+            self.df_traffic_index["TrafficIndex"].extend(avg_traff_idx)
+            ax[ax0,ax1].plot(self.TimeIntervalsDt[self.CutIndexTime:],self.Class2traffickIndex[Class][self.CutIndexTime:],label = "Class {}".format(Class))
+#            ax[ax0,ax1].hlines(self.Class2traffickIndex[Class][IndexMinimumError],self.TimeIntervalsDt[0],self.TimeIntervalsDt[-1],label = "Critical Traffic")
+            ax[ax0,ax1].set_xlabel("time")
+#            ax[ax0,ax1].set_ylabel(r"$\frac{(v_o(t) - v_h(t))}{\langle v_n \rangle_t}\frac{N_{class}}{N_{max}}$")
+            ax[ax0,ax1].set_ylabel(r"$\Gamma_k(t)$")
+            tick_locations = np.arange(0, len(self.TimeIntervalsDt[self.CutIndexTime:]), 8)
+            tick_labels = self.BinStringHour[self.CutIndexTime::8]
             ax[ax0,ax1].set_xticks(tick_locations)
             ax[ax0,ax1].set_xticklabels(tick_labels, rotation=90)
 
         plt.savefig(os.path.join(self.PlotDir,"DailyTrafficIndicator.png"))
+        pl.DataFrame(self.df_traffic_index,strict = False).write_csv(os.path.join(self.PlotDir,"DailyTrafficIndicator.csv"))
         with open(os.path.join(self.PlotDir,"Class2traffickIndex.json"),'w') as f:
             json.dump(self.Class2traffickIndex,f,indent=2)
         plt.close()
+
+    def ComputeAndPlotDailyVarianceTrafficIndicator(self):
+        self.Class2StdtraffickIndex = defaultdict()
+        self.Class2StdCriticalTraffic = defaultdict()
+        self.df_Stdtraffic_index = {"Class":[],"Time":[],"TrafficIndex":[]}
+        for Class in self.Class2SpeedO.keys():
+            NaturalSpeedSubnet = np.nanmean(np.array(self.Class2StdSpeedO[Class]))
+#            SpeedNewSubnet = np.nanmean(np.array(self.Class2SpeedH[Class]))
+            NaturalSpeedSubnetV = np.ones(len(self.Class2StdSpeedO[Class]))*NaturalSpeedSubnet
+            
+            self.Class2StdtraffickIndex[Class] = np.array(self.Class2StdSpeedO[Class] - np.array(self.Class2StdSpeedH[Class]))/NaturalSpeedSubnetV
+            MaxPeopleClass = max([len(self.OrderedClass2TimeDeparture2UserId[Class][t]) for t in self.OrderedClass2TimeDeparture2UserId[Class].keys()])
+            FractionPeoplePerClassInTime = np.array([len(self.OrderedClass2TimeDeparture2UserId[Class][t]) for t in self.OrderedClass2TimeDeparture2UserId[Class].keys()])/MaxPeopleClass
+            self.Class2StdtraffickIndex[Class] = self.Class2StdtraffickIndex[Class]*FractionPeoplePerClassInTime
+            self.Class2StdtraffickIndex[Class] = [self.Class2StdtraffickIndex[Class][i] if self.Class2StdtraffickIndex[Class][i] > 0 else 0 for i in range(len(self.Class2StdtraffickIndex[Class]))]
+        fig,ax = plt.subplots(2,2,figsize = (20,20),sharey = True)
+        Class2Idx = {0:(0,0),1:(0,1),2:(1,0),3:(1,1)}
+        for Class in self.Class2StdtraffickIndex.keys():
+            ax0 = Class2Idx[Class][0]
+            ax1 = Class2Idx[Class][1]
+            self.df_Stdtraffic_index["Class"].extend(np.full(len(self.Class2StdtraffickIndex[Class][self.CutIndexTime:]),Class))
+            self.df_Stdtraffic_index["Time"].extend(self.TimeIntervalsDt[self.CutIndexTime:])
+            window = np.ones(3)/3
+            avg_traff_idx = np.convolve(self.Class2StdtraffickIndex[Class][self.CutIndexTime:], window, mode='same')
+            self.df_Stdtraffic_index["TrafficIndex"].extend(avg_traff_idx)
+            ax[ax0,ax1].plot(self.TimeIntervalsDt[self.CutIndexTime:],self.Class2StdtraffickIndex[Class][self.CutIndexTime:],label = "Class {}".format(Class))
+#            ax[ax0,ax1].hlines(self.Class2traffickIndex[Class][IndexMinimumError],self.TimeIntervalsDt[0],self.TimeIntervalsDt[-1],label = "Critical Traffic")
+            ax[ax0,ax1].set_xlabel("time")
+#            ax[ax0,ax1].set_ylabel(r"$\frac{(v_o(t) - v_h(t))}{\langle v_n \rangle_t}\frac{N_{class}}{N_{max}}$")
+            ax[ax0,ax1].set_ylabel(r"$\Gamma_k(t)$")
+            tick_locations = np.arange(0, len(self.TimeIntervalsDt[self.CutIndexTime:]), 8)
+            tick_labels = self.BinStringHour[self.CutIndexTime::8]
+            ax[ax0,ax1].set_xticks(tick_locations)
+            ax[ax0,ax1].set_xticklabels(tick_labels, rotation=90)
+
+        plt.savefig(os.path.join(self.PlotDir,"DailyStdTrafficIndicator.png"))
+        pl.DataFrame(self.df_Stdtraffic_index,strict = False).write_csv(os.path.join(self.PlotDir,"DailyStdTrafficIndicator.csv"))
+        with open(os.path.join(self.PlotDir,"Class2StdtraffickIndex.json"),'w') as f:
+            json.dump(self.Class2StdtraffickIndex,f,indent=2)
+        plt.close()
+
 
     def PTestForTraffic(self):
         """
@@ -979,6 +1430,7 @@ class DailyNetworkStats:
               self.Class2IsSignalPTest[Class]: 1 if the signal is a jam, 0 otherwise
               According to the prinple of ptet
         """
+        
         self.Class2IsSignalPTest = defaultdict()
         for Class in self.Class2Signal.keys():
             y_measured,x = np.histogram(self.Class2Signal[Class],bins = 30)
@@ -990,11 +1442,11 @@ class DailyNetworkStats:
                 mu = fit[0][1]
                 sigma = fit[0][2]
                 logger.info(f"Day: {self.StrDate} Class {Class} mu: {mu} sigma: {sigma}")
-                fig, ax = plt.subplots()
-                ax.hist(self.Class2Signal[Class],bins = 30)
-                ax.plot(x[1:],np.exp(-0.5*((x[1:]-mu)/sigma)**2)/(sigma*np.sqrt(2*np.pi)))
-                plt.savefig(os.path.join(self.PlotDir,"HistogramClass_{}.png".format(Class)))
-                plt.close()
+#                fig, ax = plt.subplots()
+#                ax.hist(self.Class2Signal[Class],bins = 30)
+#                ax.plot(x[1:],np.exp(-0.5*((x[1:]-mu)/sigma)**2)/(sigma*np.sqrt(2*np.pi)))
+#                plt.savefig(os.path.join(self.PlotDir,"HistogramClass_{}.png".format(Class)))
+#                plt.close()
 
             mask_is_signal_p_test,_ = Ptest(x,self.Class2Signal[Class],mu,sigma,percentile = 0.95)
             assert len(mask_is_signal_p_test) == len(self.Class2Signal[Class])
@@ -1012,14 +1464,14 @@ class DailyNetworkStats:
 
 
     def PlotPtest(self):
-        PlotPtest(self.Class2IsSignalPTest,self.TimeIntervalsDt,self.PlotDir)
+        PlotPtest(self.Class2IsSignalPTest,self.TimeIntervalsDt,self.CutIndexTime,self.PlotDir)
 
 ##   PLOT CFAR
     def PlotCFAR(self):
         """
             @brief: Plot the CFAR for the Speed Evolution
         """
-        PlotCFAR(self.Class2Signal,self.Class2Cut,self.Class2CFARClassification,self.TimeIntervalsDt,self.PlotDir)
+        PlotCFAR(self.Class2Signal,self.Class2Cut,self.Class2CFARClassification,self.TimeIntervalsDt,self.CutIndexTime,self.PlotDir)
     
     def PlotMFD(self):
         """
@@ -1049,19 +1501,19 @@ class DailyNetworkStats:
                 ColSpeed = f"speed_kmh_{Class}"
                 ColPop = f"population_{Class}"
                 PlotHysteresis(MFD = self.MFD,
-                            Title = "Hysteresis Cycle Class {}".format(self.IntClass2StrClass[Class]),
+                            Title = "",
                             ColPop= ColPop,
                             ColSpeed= ColSpeed,
                             SaveDir = self.PlotDir,
-                            NameFile = "HysteresysClass_{}.png".format(self.IntClass2StrClass[Class]))
+                            NameFile = "HisteresisClass_{}.png".format(self.IntClass2StrClass[Class]))
                 ColNewSpeed = f"new_speed_kmh_{Class}"
                 ColNewPop = f"new_population_{Class}"
                 PlotHysteresis(MFD = self.MFD,
-                            Title = "Hysteresis Cycle Class {}".format(self.IntClass2StrClass[Class]),
+                            Title = "",
                             ColPop= ColNewPop,
                             ColSpeed= ColNewSpeed,
                             SaveDir = self.PlotDir,
-                            NameFile = "New_HysteresysClass_{}.png".format(self.IntClass2StrClass[Class]))                
+                            NameFile = "HisteresisClass_{}_New.png".format(self.IntClass2StrClass[Class]))                
                 if self.BoolStrClass2IntClass:
                     # OLD CLASSIFICATION
                     ColumnSpeed = f"bin_{ColSpeed}"
@@ -1315,93 +1767,16 @@ class DailyNetworkStats:
 
 
 
-    def PlotDistrFeature(self):
-        PlotComparisonDistributionSpeedNewOld(self.Fcm,self.PlotDir)
-        for Feature in self.Feature2AllFitTry.keys():
-            if "speed" in Feature:
-                pass
-            else:
-                y,x = np.histogram(self.Fcm[Feature],bins = 50)  
-                y = y/np.sum(y)
-                x_mean = np.mean(x)
-                fig,ax = plt.subplots(1,1,figsize = (10,10))
-                fit = pwl.Fit(np.array(self.Fcm[Feature]),
-                            xmin = min(np.array(self.Fcm[Feature])),
-                            xmax = max(np.array(self.Fcm[Feature]))
-                            )
-                ax.plot(x[:-1],y)
-                ax.plot(x[:-1],x[:-1]**[-fit.alpha])
-                ax.vlines(x_mean,0,1,linestyles = "dashed")
-                ax.set_xscale("log")
-                ax.set_yscale("log")
-                ax.set_xlabel(self.Feature2Label[Feature])
-                ax.set_title("Feature: {0} Power Law Fit Alpha: {1} Sigma: {2}".format(Feature,fit.alpha,fit.sigma))
-                plt.savefig(os.path.join(self.PlotDir,"Feature_{0}_PowerLawFit.png".format(Feature)),dpi = 200)
-                plt.close()
-
-
-    def PlotDistrPerClass(self):
-        """
-            Description:
-                Computes the fit for each Feature each class and aggregated.
-                Plots them and save the variables in:
-            Return:
-                InfoDayFit: dict -> {IntClass: {Feature: {Function: [A,b]}}}
-
-        """
-        if self.verbose:
-            print("++++++ Aggregated Fit ++++++")
-
-        self.CountFunctionsCalled += 1
-        self.InfoDayFit = {IntClass: {} for IntClass in self.IntClass2StrClass.keys()}
-        # Compute the Fcm Partition For Each Feature
-
-        self.CountFunctionsCalled += 1
-        fig,ax = PlotFeatureDistrSeparatedByClass(self.Feature2IntClass2FcmDistr,
-                                            self.Feature2InfoPlotDistrFeat,
-                                            self.IntClass2StrClass,
-                                            self.Feature2Class2AllFitTry,
-                                            self.Feature2Legend,
-                                            self.Feature2IntervalBin,
-                                            self.Feature2IntervalCount,
-                                            self.Feature2Label,
-                                            self.Feature2ShiftBin,
-                                            self.Feature2ShiftCount,
-                                            self.Feature2ScaleBins,
-                                            self.Feature2ScaleCount,
-                                            self.Feature2DistributionPlot,
-                                            self.PlotDir,
-                                            self.Feature2SaveName)
-
-        for Feature in self.Feature2Class2AllFitTry.keys():
-            for IntClass in self.Feature2Class2AllFitTry[Feature].keys():
-                fig,ax = PlotFeatureSingleClass(self.Feature2IntClass2FcmDistr[Feature][IntClass],
-                                        self.Feature2Class2AllFitTry[Feature][IntClass],
-                                        self.Feature2IntervalBin[Feature],
-                                        self.Feature2IntervalCount[Feature],
-                                        self.Feature2Label[Feature],
-                                        self.Feature2ShiftBin[Feature],
-                                        self.Feature2ShiftCount[Feature],
-                                        self.Feature2ScaleBins[Feature],
-                                        self.Feature2ScaleCount[Feature])
-                if not os.path.exists(os.path.join(self.PlotDir,"Fit")):
-                    os.makedirs(os.path.join(self.PlotDir,"Fit"),exist_ok = True)
-                if self.Feature2Class2AllFitTry[Feature][IntClass]["best_fit"] == "":
-                    fig.savefig(os.path.join(self.PlotDir,"Fit",'{0}_Class_{1}_{2}_{3}.png'.format("NonConvergedFit",IntClass,self.Feature2SaveName[Feature],self.StrDate)),dpi = 200)
-                else:
-                    fig.savefig(os.path.join(self.PlotDir,"Fit",'{0}_Class_{1}_{2}_{3}.png'.format(self.Feature2Class2AllFitTry[Feature][IntClass]["best_fit"],IntClass,self.Feature2SaveName[Feature],self.StrDate)),dpi = 200)
-                plt.close()
-
     def PlotSpeedEvolutionTransitionClasses(self):
         """
             Description:
                 Computes the speed evolution for each class and the transition between classes.
                 N_{on} (t) = N_{old} \intersection N_{new} (t)
                 N_{on} (t) := number of trajectories that are re-assigned old -> new,
-                             that started in the time interval [t,t +dt]
+                                that started in the time interval [t,t +dt]
                 N_{on} (t) = ClassOld2ClassNewTimeInterval2Transition[ClassOld][ClassNew][TimeInterval]
         """
-        PlotComparisonSpeedClassesAndNPeopleTogether(self.Class2TimeInterval2Road2Speed,self.Class2TimeInterval2Road2SpeedNew,self.ClassNew2TimeInterval2Road2SpeedActualRoads,self.ClassOld2ClassNewTimeInterval2Road2SpeedNew,self.ClassOld2ClassNewTimeInterval2Transition,self.OrderedClass2TimeDeparture2UserId,self.PlotDir)
+        PlotComparisonSpeedClassesAndNPeopleTogether(self.Class2TimeInterval2Road2Speed,self.Class2TimeInterval2Road2SpeedNew,self.ClassNew2TimeInterval2Road2SpeedActualRoads,self.ClassOld2ClassNewTimeInterval2Road2SpeedNew,self.ClassOld2ClassNewTimeInterval2Transition,self.OrderedClass2TimeDeparture2UserId,self.CutIndexTime,self.PlotDir)
 #        PlotSpeedEvolutionTransitionClasses(self.ClassOld2ClassNewTimeInterval2Road2SpeedNew,self.Class2TimeInterval2Road2SpeedNew,self.ClassOld2ClassNewTimeInterval2Transition,self.OrderedClass2TimeDeparture2UserId,self.Class2TimeDeparture2UserId,self.PlotDir)
 #        PlotSpeedEvolutionNewClassConsideringRoadClassification(self.ClassNew2TimeInterval2Road2SpeedActualRoads,self.Class2TimeInterval2Road2SpeedNew,self.Class2TimeInterval2Road2Speed,self.PlotDir)
         
@@ -1410,7 +1785,7 @@ class DailyNetworkStats:
         self.Tij = PlotTransitionClass2ClassNew(self.DfComparison,self.PlotDir)
 
     def PlotTransitionClassesInTime(self):
-        PlotTransitionClassesInTime(self.ClassOld2ClassNewTimeInterval2Transition,self.PlotDir)
+        PlotTransitionClassesInTime(self.ClassOld2ClassNewTimeInterval2Transition,self.CutIndexTime,self.PlotDir)
 ## ------------------- PRINT UTILITIES ---------------- #
     def PrintTimeInfo(self):
         print("StrDate: ", self.StrDate, "Type: ", type(self.StrDate))

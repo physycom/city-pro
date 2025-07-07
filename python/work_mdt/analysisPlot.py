@@ -13,7 +13,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
+logging.getLogger('matplotlib').setLevel(logging.ERROR)
 VERBOSE = True      
 ##----------------------------------- PLOT VELOCITIES -----------------------------------##
 
@@ -241,7 +241,8 @@ def PlotFeatureDistrSeparatedByClass(Feature2IntClass2FcmDistr,
                                     Feature2DistributionPlot,
                                     PlotDir,
                                     Feature2SaveName,
-                                    NormBool = True):
+                                    NormBool = True,
+                                    Case = ""):
     """
         Class2FcmDistr: dict -> {IntClass: {"x":x,"y":y,"maxx":max(x),"maxy":max(y),"minx":min(x),"miny":min(y),"mean":np.mean(Fcm.filter(pl.col("class") == IntClass)[Feature].to_list())}}
         InfoPlotDistrFeat: dict -> {"maxx":0,"maxy":0,"minx":10000000,"miny":10000000}
@@ -264,8 +265,21 @@ def PlotFeatureDistrSeparatedByClass(Feature2IntClass2FcmDistr,
     for Feature in Feature2IntClass2FcmDistr.keys():
         fig,ax = plt.subplots(1,1,figsize = Feature2InfoPlotDistrFeat[Feature]["figsize"])
         legend = []
-        minx,maxx,miny,maxy = ComputeCommonBins(Feature2IntClass2FcmDistr[Feature])
+        if "time" in Feature:
+            minx = 0.1
+            maxx = 22
+            miny = 0.000001
+            maxy = 1
+        if "lenght" in Feature:
+            minx = 0.1
+            maxx = 11
+            miny = 0.000001
+            maxy = 1
+        else:
+            minx,maxx,miny,maxy = ComputeCommonBins(Feature2IntClass2FcmDistr[Feature])
         for IntClass in Feature2IntClass2FcmDistr[Feature].keys():
+            mean = np.nanmean(np.array(Feature2IntClass2FcmDistr[Feature][IntClass]["y"])*np.array(Feature2IntClass2FcmDistr[Feature][IntClass]["x"][1:]))
+
             if NormBool:
                 Feature2IntervalCount[Feature] = 0.05
                 Feature2ShiftCount[Feature] = 0.1
@@ -286,14 +300,14 @@ def PlotFeatureDistrSeparatedByClass(Feature2IntClass2FcmDistr,
             y = Feature2IntClass2FcmDistr[Feature][IntClass]["y"]
             
             # Scatter Points
-            ax.scatter(x,y)
+            ax.scatter(x_windowed,y)
 #            legend.append(str(IntClass2StrClass[IntClass]) + " " + Feature2Legend[Feature] + " " + str(round(mean,3)))
             legend.append(str(IntClass2StrClass[IntClass]))
             # Fit
-            if LabelBestFit != "":
-                if len(x_windowed) == len(fitted_data_windowed):
-#                    ax.plot(x_windowed,fitted_data_windowed)
-                    legend.append(str(IntClass2StrClass[IntClass]))
+ #           if LabelBestFit != "":
+ #               if len(x_windowed) == len(fitted_data_windowed):
+#                    ax.plot(x_windowed,fitted_data_windowed,label = "",linestyle = "--")
+#                    legend.append(str(IntClass2StrClass[IntClass]))
 #                    legend.append(str(IntClass2StrClass[IntClass]) + " " + Feature2Legend[Feature] + " " + str(round(mean,3)))
         ax.set_xticks(np.arange(minx,maxx,Feature2IntervalBin[Feature]))
         ax.set_yticks(np.arange(miny,maxy,Feature2IntervalCount[Feature]))
@@ -311,7 +325,7 @@ def PlotFeatureDistrSeparatedByClass(Feature2IntClass2FcmDistr,
             ax.set_ylabel('P({0})'.format(Feature2Label[Feature]))
         ax.set_xlim(left = 0.1, right = maxx + Feature2ShiftBin[Feature])
         ax.set_ylim(bottom = 0.000001,top = maxy + Feature2ShiftCount[Feature])
-        ax.set_xscale(Feature2ScaleBins[Feature])
+#        ax.set_xscale(Feature2ScaleBins[Feature])
         ax.set_yscale(Feature2ScaleCount[Feature])
 #        ax.set_title(f"Best Fit: {Feature2Class2AllFitTry[Feature][IntClass]["best_fit"]}")
         legend_ = plt.legend(legend)
@@ -320,7 +334,7 @@ def PlotFeatureDistrSeparatedByClass(Feature2IntClass2FcmDistr,
         Feature2DistributionPlot[Feature]["fig"] = fig
         Feature2DistributionPlot[Feature]["ax"] = ax
         Date = os.path.basename(PlotDir)
-        plt.savefig(os.path.join(PlotDir,'{0}_{1}_{2}.png'.format("Aggregated",Feature2SaveName[Feature],Date)),dpi = 200)
+        plt.savefig(os.path.join(PlotDir,'{0}_{1}_{2}{3}.png'.format("Aggregated",Feature2SaveName[Feature],Date,Case)),dpi = 200)
         plt.close()
 #        if VERBOSE:
 #            print("Plot Distributions With All Classes")
@@ -415,12 +429,14 @@ def PlotFeatureAggregatedAllDays(Aggregation2Feature2StrClass2FcmDistr,
         NOTE: 
         This represent the dependence of the Feature to the class integrating out the day
     """
-    Features = ["time_hours","lenght_km","speed_kmh"]
-    Feature2Label = {"time_hours":"t","lenght_km":"L","speed_kmh":"v"}
+#    Features = ["time_hours","lenght_km","speed_kmh"]
+    Features = ["speed_kmh"]
+    Feature2Label = {"time_hours":"t","lenght_km":"L","speed_kmh":"v (km/h)"}
     for Aggregation in Aggregation2Feature2StrClass2FcmDistr.keys():
         for Feature in Features:
             fig,ax = plt.subplots(1,1,figsize = (12,10))
             legend = []
+            StrClass2Fit = {StrClass: {"x":[],"y":[],"x_fit":[],"y_fit":[]} for StrClass in Aggregation2Feature2StrClass2FcmDistr[Aggregation][Feature].keys()}
             for StrClass in Aggregation2Feature2StrClass2FcmDistr[Aggregation][Feature].keys():
                 if NormBool:
                     print(f"Distribution {Feature}: ",Aggregation2Feature2StrClass2FcmDistr[Aggregation][Feature][StrClass]["y"][:3])
@@ -462,15 +478,39 @@ def PlotFeatureAggregatedAllDays(Aggregation2Feature2StrClass2FcmDistr,
 #                ax.set_ylim(bottom = 0.000001,top =max(y) + Feature2ShiftCount[Feature])
                 ax.set_xscale(Feature2ScaleBins[Feature])
                 ax.set_yscale(Feature2ScaleCount[Feature])
+                StrClass2Fit[StrClass]["x"] = list(x)
+                StrClass2Fit[StrClass]["y"] = list(y)
+                StrClass2Fit[StrClass]["x_fit"] = list(x_windowed)
+                StrClass2Fit[StrClass]["y_fit"] = list(y_data)
 #            ax.set_title(f"Best Fit: {LabelBestFit}")
 #            legend_ = plt.legend(legend,fontsize = "small")
 #            frame = legend_.get_frame()
 #            frame.set_facecolor('white')
+            from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+            ax_inset = inset_axes(ax, width="20%", height="20%")
+            PlotInsetSpeedAverage(Feature,ax_inset,PlotDir)
             Date = os.path.basename(PlotDir)
             fig.savefig(os.path.join(PlotDir,'{0}_{1}_{2}.png'.format(Aggregation,Feature2SaveName[Feature],Date)),dpi = 200)
             plt.close()
+            import json
+            with open(os.path.join(PlotDir,'{0}_{1}_{2}.json'.format(Aggregation,Feature2SaveName[Feature],Date)),"w") as f:
+                json.dump(StrClass2Fit,f)
 
-
+def PlotInsetSpeedAverage(Feature,ax_inset,PlotDir):
+    """
+        @describe:
+            Plot the average speed of the inset
+    """
+    df_v_coeff = pl.read_csv(os.path.join(PlotDir,f"df_linear_coeffs_mu_sigma_speed_{Feature}.csv"))
+    df_v = pl.read_csv(os.path.join(PlotDir,f"df_mu_sigma_speed_{Feature}.csv"))
+    a_v = df_v_coeff["a_<v>"].to_numpy()[0]
+    b_v = df_v_coeff["b_<v>"].to_numpy()[0]
+    mu_v = df_v["mu_v"].to_numpy()
+    sigma_v = df_v["sigma_v"].to_numpy()
+    ax_inset.scatter(mu_v,sigma_v,s = 30)
+    ax_inset.set_xlabel(r'$\mu (km/h)$',fontsize = 12)
+    ax_inset.set_ylabel(r'$\sigma (km/h)$',fontsize = 12)
+    ax_inset.plot(mu_v,a_v*np.array(mu_v) + b_v,color = "black",linestyle = "--")
 
 def PlotFeatureAggregatedWithoutFitRescaledByMean(Aggregation2Feature2StrClass2FcmDistr,                   
                                     Aggregation2Feature2Class2AllFitTry,
@@ -496,6 +536,10 @@ def PlotFeatureAggregatedWithoutFitRescaledByMean(Aggregation2Feature2StrClass2F
         for Feature in Features:
             fig,ax = plt.subplots(1,1,figsize = (12,10))
             legend = []
+
+            df_fit_and_data = pl.read_csv(os.path.join(PlotDir,f"df_fit_and_data_expo_{Feature}.csv"))
+            df_parameters = pl.read_csv(os.path.join(PlotDir,f"df_parameters_expo_{Feature}.csv"))
+            
             for StrClass in Aggregation2Feature2StrClass2FcmDistr[Aggregation][Feature].keys():
                 if NormBool:
                     print(f"Distribution {Feature}: ",Aggregation2Feature2StrClass2FcmDistr[Aggregation][Feature][StrClass]["y"][:3])
@@ -598,15 +642,18 @@ def PlotSpeedEvolutionFromGeoJson(Class2TimeInterval2Speed,Class2TimeInterval2Ro
             else:
                 NewClass2Speed[Class].append(0)
         if len(BinHour) == len(Class2Speed[Class]):
-            ax.plot(BinHour,list(Class2Speed[Class]),label = r"$<v>_{traj in subnet}$")
-            ax.plot(BinHour,list(NewClass2Speed[Class]),label = r"$<v>_{traj in hierarchical subnet}$ ")
+            ax.plot(BinHour,list(Class2Speed[Class]),label = r"$\langle v \rangle_{f}$")
+            ax.plot(BinHour,list(NewClass2Speed[Class]),label = r"$\langle v \rangle_{h}$ ")
         else:
             bh = BinHour[1:]
-            ax.plot(bh,list(Class2Speed[Class]),label = r"$<v>_{traj in subnet}$")
-            ax.plot(bh,list(NewClass2Speed[Class]),label = r"$<v>_{traj in hierarchical subnet}$ ")
+            ax.plot(bh,list(Class2Speed[Class]),label = r"$\langle v \rangle_{f}$")
+            ax.plot(bh,list(NewClass2Speed[Class]),label = r"$\langle v \rangle_{h}$ ")
         ax.set_xlabel("Time")
         ax.set_ylabel("Speed")
         ax.set_title("Speed Evolution Sub-Net Class {}".format(Class))
+        ax.set_xticks(range(len(BinHour[1:]))[::8])
+        ax.set_xticklabels(BinHour[1::8], rotation=90)
+
         ax.legend()
         plt.savefig(os.path.join(PlotDir,"SpeedEvolutionClass{}.png".format(Class)),dpi = 200)
         plt.close()
@@ -637,6 +684,18 @@ def SortClass2SpeedBySpeed(Class2Speed):
     return Class2SpeedOrdered
 
 def PrepareSpeedEvolutionNewClassConsideringRoadClassification(ClassNew2TimeInterval2Road2SpeedActualRoads,Class2TimeInterval2Road2SpeedNew,Class2TimeInterval2Road2Speed):
+    """
+        @param: ClassNew2TimeInterval2Road2SpeedActualRoads: dict -> {Class: {TimeInterval: {Road: Speed}}}
+        @param: Class2TimeInterval2Road2SpeedNew: dict -> {Class: {TimeInterval: {Road: Speed}}}
+        @param: Class2TimeInterval2Road2Speed: dict -> {Class: {TimeInterval: {Road: Speed}}}
+        @brief:
+            Prepare the Speed Evolution for the New Class considering
+            the Road Classification
+        @return: Class2Speed: dict -> {Class: [Speed]}
+        @return: Class2SpeedH: dict -> {Class: [Speed]}
+        @return: Class2SpeedO: dict -> {Class: [Speed]}
+        The values are in length as the timeintervals used are in length
+    """
     Classes = list(ClassNew2TimeInterval2Road2SpeedActualRoads.keys())
     TimeIntervals = list(ClassNew2TimeInterval2Road2SpeedActualRoads[Classes[0]].keys())
     if type(TimeIntervals[0]) == int:
@@ -680,7 +739,7 @@ def PrepareSpeedEvolutionNewClassConsideringRoadClassification(ClassNew2TimeInte
                     Class2SpeedO[Class].append(0)
             else:
                 Class2SpeedO[Class].append(0)    
-            logger.info(f"Time: {t}, ClassRoads: {Class}, ClassHierarchical: {k}, ClassOriginal: {k1}")
+        #    logger.info(f"Time: {t}, ClassRoads: {Class}, ClassHierarchical: {k}, ClassOriginal: {k1}")
         assert len(Class2Speed[Class]) == len(Class2SpeedH[Class]) == len(Class2SpeedO[Class]), "Lengths Class2Spped: {0}, Class2SpeedH: {1}, Class2SpeedO: {0}".format(len(Class2Speed[Class]),len(Class2SpeedH[Class]),len(Class2SpeedO[Class]))
 
     Class2Speed = SortClass2SpeedBySpeed(Class2Speed)
@@ -688,101 +747,70 @@ def PrepareSpeedEvolutionNewClassConsideringRoadClassification(ClassNew2TimeInte
     Class2SpeedO = SortClass2SpeedBySpeed(Class2SpeedO)
     return Class2Speed,Class2SpeedH,Class2SpeedO,TimeIntervalsDt
 
-def PlotCFAR(Class2Signal,Class2Cut,Class2CFARClassification,TimeIntervalsDt,PlotDir):
+def PrepareStdDevSpeedEvolutionNewClassConsideringRoadClassification(ClassNew2TimeInterval2Road2SpeedActualRoads,Class2TimeInterval2Road2SpeedNew,Class2TimeInterval2Road2Speed):
     """
-        @param: Class2Signal: dict -> {Class: [Signal]}
-        @param: Class2Cut: dict -> {Class: [Cut]}
-        @param: Class2CFARClassification: dict -> {Class: [CFARClassification]}
-        @param: TimeIntervalsDt: list -> Time Intervals
-        @param: PlotDir: str -> Path to Save the Plot
-        @brief:
-            Plot the CFAR Classification
-            x-axis: Time
-            y-axis: Signal
+        @param: Class2Speed: dict -> {Class: [Speed]}
+        @param: Class2SpeedH: dict -> {Class: [Speed]}
+        @param: Class2SpeedO: dict -> {Class: [Speed]}
+        @return: Class2StdDevSpeed: dict -> {Class: StdDev Speed}
+        @return: Class2StdDevSpeedH: dict -> {Class: StdDev Speed Hierarchical}
+        @return: Class2StdDevSpeedO: dict -> {Class: StdDev Speed Original}
     """
-    fig,axs = plt.subplots(2,2,figsize = (20,20)) 
-    for Class in Class2Signal.keys():
-        if int(Class) == 0:
-            i = 0
-            j = 0
-        elif int(Class) == 1:
-            i = 0
-            j = 1
-        elif int(Class) == 2:
-            i = 1
-            j = 0
-        else:
-            i = 1
-            j = 1
-        
-        axs[i,j].scatter(TimeIntervalsDt,Class2Signal[Class],label = "Signal")
-#        axs[i,j].plot(TimeIntervalsDt,Class2Cut[Class],label = "Cut")
-        Class2CFARClassification[Class] = [0 if x < 0 else x for x in Class2CFARClassification[Class]]
-        axs[i,j].plot(TimeIntervalsDt,Class2CFARClassification[Class],label = "CFAR Classification")
-        axs[i,j].set_xlabel("Time")
-        axs[i,j].set_ylabel("Signal")
-        axs[i,j].set_title("CFAR Classification Class {}".format(Class))
-        axs[i,j].set_xticks(range(len(TimeIntervalsDt))[::8])
-        axs[i,j].set_xticklabels(TimeIntervalsDt[::8], rotation=90)
-        axs[i,j].legend()
-#    plt.savefig(os.path.join(PlotDir,"CFARClassificationClass.png"),dpi = 200)
-    plt.close()
+    # Number Classes
+    Classes = list(ClassNew2TimeInterval2Road2SpeedActualRoads.keys())
+    # Number Time Intervals
+    TimeIntervals = list(ClassNew2TimeInterval2Road2SpeedActualRoads[Classes[0]].keys())
+    if type(TimeIntervals[0]) == int:
+        TimeIntervalsDt = [datetime.datetime.fromtimestamp(int(t)).strftime("%Y-%m-%d %H:%M:%S").split(" ")[1] for t in TimeIntervals]
+    else:
+        TimeIntervalsDt = TimeIntervals
+        pass
 
-def PlotPtest(Class2Ptest,TimeIntervalsDt,PlotDir):
-    """
-        @param: Class2Ptest: dict -> {Class: [Ptest]}
-        @param: TimeIntervalsDt: list -> Time Intervals
-        @param: PlotDir: str -> Path to Save the Plot
-        @brief:
-            Plot the Ptest
-            x-axis: Time
-            y-axis: Ptest
-    """
-    fig,axs = plt.subplots(2,2,figsize = (12,10)) 
-    for Class in Class2Ptest.keys():
-        if int(Class) == 0: 
-            i = 0
-            j = 0
-        elif int(Class) == 1:
-            i = 0
-            j = 1
-        elif int(Class) == 2:
-            i = 1
-            j = 0
-        else:
-            i = 1
-            j = 1
-        axs[i,j].scatter(TimeIntervalsDt,Class2Ptest[Class],label = "Ptest")
-        axs[i,j].set_xlabel("Time")
-        axs[i,j].set_ylabel("is traffic")
-        axs[i,j].set_title("Ptest Class {}".format(Class))
-        axs[i,j].set_xticks(range(len(TimeIntervalsDt))[::8])
-        axs[i,j].set_xticklabels(TimeIntervalsDt[::8], rotation=90)
-    plt.savefig(os.path.join(PlotDir,"PtestClass.png"),dpi = 200)
-    plt.close()
-    PlotPtestSingleClass(Class2Ptest,TimeIntervalsDt,PlotDir)
+    Class2StdSpeed = defaultdict()
+    Class2StdSpeedH = defaultdict()
+    Class2StdSpeedO = defaultdict()
+    for i,Class in enumerate(list(ClassNew2TimeInterval2Road2SpeedActualRoads.keys())):
+        Class2StdSpeed[Class] = []
+        Class2StdSpeedH[Class] = []
+        Class2StdSpeedO[Class] = []
+        for t,TimeInterval in enumerate(list(ClassNew2TimeInterval2Road2SpeedActualRoads[Class].keys())):
+            if len(list(ClassNew2TimeInterval2Road2SpeedActualRoads[Class][TimeInterval].keys()))!=0:
+                FirstRoad = list(ClassNew2TimeInterval2Road2SpeedActualRoads[Class][TimeInterval].keys())[0]
+                Class2StdSpeed[Class].append(ClassNew2TimeInterval2Road2SpeedActualRoads[Class][TimeInterval][FirstRoad])
+            else:
+                Class2StdSpeed[Class].append(0)
+            k = CastKeys(list(Class2TimeInterval2Road2SpeedNew.keys())[i])
+            if len(list(Class2TimeInterval2Road2SpeedNew[k].keys()))!=0:
+                kt = CastKeys(list(Class2TimeInterval2Road2SpeedNew[k].keys())[t])
+                if len(list(Class2TimeInterval2Road2SpeedNew[k][kt].keys()))!=0:
+                    FirstRoad = list(Class2TimeInterval2Road2SpeedNew[k][kt].keys())[0]
+                    FirstRoad = CastKeys(FirstRoad)
+                    Class2StdSpeedH[Class].append(Class2TimeInterval2Road2SpeedNew[k][kt][FirstRoad])
+                else:
+                    Class2StdSpeedH[Class].append(0)
+            else:
+                Class2StdSpeedH[Class].append(0)
+            k1 = CastKeys(list(Class2TimeInterval2Road2Speed.keys())[i])
+            if len(list(Class2TimeInterval2Road2Speed[k1].keys()))!=0:
+                kt2 = CastKeys(list(Class2TimeInterval2Road2Speed[k1].keys())[t])
+                if len(list(Class2TimeInterval2Road2Speed[k1][kt2].keys()))!=0:
+                    FirstRoad = list(Class2TimeInterval2Road2Speed[k1][kt].keys())[0]
+                    FirstRoad = CastKeys(FirstRoad)
+                    Class2StdSpeedO[Class].append(Class2TimeInterval2Road2Speed[k1][kt2][FirstRoad])
+                else:
+                    Class2StdSpeedO[Class].append(0)
+            else:
+                Class2StdSpeedO[Class].append(0)    
+        #    logger.info(f"Time: {t}, ClassRoads: {Class}, ClassHierarchical: {k}, ClassOriginal: {k1}")
+        assert len(Class2StdSpeed[Class]) == len(Class2StdSpeedH[Class]) == len(Class2StdSpeedO[Class]), "Lengths Class2Spped: {0}, Class2SpeedH: {1}, Class2SpeedO: {0}".format(len(Class2Speed[Class]),len(Class2SpeedH[Class]),len(Class2SpeedO[Class]))
 
-def PlotPtestSingleClass(Class2Ptest,TimeIntervalsDt,PlotDir):
-    """
-        @param: Class2Ptest: dict -> {Class: [Ptest]}
-        @param: TimeIntervalsDt: list -> Time Intervals
-        @param: PlotDir: str -> Path to Save the Plot
-        @brief:
-            Plot the Ptest
-            x-axis: Time
-            y-axis: Ptest
-    """
-    for Class in Class2Ptest.keys():
-        fig,ax = plt.subplots(1,1,figsize = (12,10)) 
-        ax.scatter(TimeIntervalsDt,Class2Ptest[Class],label = "Ptest")
-        ax.set_xlabel("Time")
-        ax.set_ylabel("is traffic")
-        ax.set_title("Ptest Class {}".format(Class))
-        ax.set_xticks(range(len(TimeIntervalsDt))[::8])
-        ax.set_xticklabels(TimeIntervalsDt[::8], rotation=90)
-        plt.savefig(os.path.join(PlotDir,f"Ptest_{Class}.png"),dpi = 200)
-        plt.close()
-def PlotSingleSpeedEvolutionNewClassConsideringRoadClassification(Class2Speed,Class2SpeedH,Class2SpeedO,TimeIntervalsDt,Class,ax,StrDate,PlotDir):
+    Class2StdSpeed = SortClass2SpeedBySpeed(Class2StdSpeed)
+    Class2StdSpeedH = SortClass2SpeedBySpeed(Class2StdSpeedH)
+    Class2StdSpeedO = SortClass2SpeedBySpeed(Class2StdSpeedO)
+    return Class2Speed,Class2SpeedH,Class2SpeedO,TimeIntervalsDt
+
+
+def PlotSingleSpeedEvolutionNewClassConsideringRoadClassification(Class2Speed,Class2SpeedH,Class2SpeedO,TimeIntervalsDt,Class,ax,StrDate,CutIndexTime,PlotDir):
     """
         @param: Class2Speed: dict -> {Class: [Speed]}
         @param: Class2SpeedH: dict -> {Class: [Speed]}
@@ -796,20 +824,21 @@ def PlotSingleSpeedEvolutionNewClassConsideringRoadClassification(Class2Speed,Cl
             y-axis: Speed
 
     """
-    logger.info(f"Class2Speed: {Class2Speed[Class][3]}, Class2SpeedH: {Class2SpeedH[Class][3]}, Class2SpeedO: {Class2SpeedO[Class][3]}")
+#    logger.info(f"Class2Speed: {Class2Speed[Class]}, Class2SpeedH: {Class2SpeedH[Class]}, Class2SpeedO: {Class2SpeedO[Class]}")
 #    fig,ax = plt.subplots(1,1,figsize = (12,10))        
-    ax.scatter(TimeIntervalsDt,list(Class2Speed[Class]),label = r"$\langle v_R \rangle$ ")
-    ax.plot(TimeIntervalsDt,list(Class2SpeedH[Class]),label = r"$\langle v_h \rangle$ ")
-    ax.plot(TimeIntervalsDt,list(Class2SpeedO[Class]),label = r"$\langle v_o \rangle$ ")
+    ax.scatter(TimeIntervalsDt[CutIndexTime:],list(Class2Speed[Class][CutIndexTime:]),label = r"$\langle v_R \rangle$ ")
+    ax.plot(TimeIntervalsDt[CutIndexTime:],list(Class2SpeedH[Class][CutIndexTime:]),label = r"$\langle v_h \rangle$ ")
+#    ax.plot(TimeIntervalsDt[CutIndexTime:],list(Class2SpeedO[Class][CutIndexTime:]),label = r"$\langle v_o \rangle$ ")
     ax.set_xlabel("Time")
     ax.set_ylabel("v (km/h)")
-    ax.set_title("Speed Evolution Hierarchical Sub-Net Class {}".format(Class))
-    ax.set_xticks(range(len(TimeIntervalsDt))[::8])  # Set the ticks to correspond to the labels
-    ax.set_xticklabels(TimeIntervalsDt[::8], rotation=90)  # Set the labels with rotation    ax.set_title("Time Percorrence Distribution")
+#    ax.set_title("Speed Evolution Hierarchical Sub-Net Class {}".format(Class))
+    ax.set_xticks(range(len(TimeIntervalsDt[CutIndexTime:]))[::8])  # Set the ticks to correspond to the labels
+    ax.set_xticklabels(TimeIntervalsDt[CutIndexTime::8], rotation=90)  # Set the labels with rotation    ax.set_title("Time Percorrence Distribution")
     ax.legend(["Road Classification","Hierarchical","No Hierarchical"])
     plt.savefig(os.path.join(PlotDir,"SpeedEvolutionClass_RoadReClassificaion_{0}_{1}.png".format(Class,StrDate)),dpi = 200)
     plt.close()
     return ax
+
 
 # Def Plot Number People Per Class and Contribution Per Class 2 Speed
 
@@ -836,11 +865,10 @@ def PrepareSpeedEvolutionTransitionClasses(ClassOld2ClassNewTimeInterval2Road2Sp
     TimeIntervals = list(ClassOld2ClassNewTimeInterval2Road2SpeedNew[ClassesOld[0]][ClassesNew[0]].keys())
     if type(TimeIntervals[0]) == int:
         TimeIntervalsDt = [datetime.datetime.fromtimestamp(int(t)).strftime("%Y-%m-%d %H:%M:%S").split(" ")[1] for t in TimeIntervals]
-#        TimeIntervalsDt = [datetime.datetime.fromtimestamp(int(t)).replace(minute=0, second=0, microsecond=0) for t in TimeIntervals]
     elif type(TimeIntervals[0]) == datetime.datetime:
-        TimeIntervalsDt = TimeIntervals
-    elif type(TimeIntervals[0]) == str:
         TimeIntervalsDt = [t.replace(minute=0, second=0, microsecond=0) for t in TimeIntervals]
+    elif type(TimeIntervals[0]) == str:
+        TimeIntervalsDt = [datetime.datetime.fromtimestamp(int(t)).strftime("%Y-%m-%d %H:%M:%S").split(" ")[1] for t in TimeIntervals]
     else:
         pass
     NTimeIntervals = len(TimeIntervals)
@@ -851,7 +879,7 @@ def PrepareSpeedEvolutionTransitionClasses(ClassOld2ClassNewTimeInterval2Road2Sp
     # Take The Old Partition 
     for i,ClassOld in enumerate(ClassesOld):
         for j,ClassNew in enumerate(ClassesNew):
-            KeysT2R = list(OrderedClass2TimeDeparture2UserId[ClassNew].keys())
+#            KeysT2R = list(OrderedClass2TimeDeparture2UserId[ClassNew].keys())
             for t in range(len(TimeIntervals)):
                 TimeInterval = TimeIntervals[t]
                 # Consider The Average Speed On the New Sub Network (Considering Just the speed of Trajectories Newly Classified)
@@ -882,65 +910,9 @@ def PrepareSpeedEvolutionTransitionClasses(ClassOld2ClassNewTimeInterval2Road2Sp
         N_new_t = np.nansum(T_new_old_t,axis = 1)
     return T_new_old_t,v_new_old_t,v_new_t,weighted_v_new_t,N_new_t,TimeIntervalsDt,ClassesOld,ClassesNew
 
-def PlotSingleSpeedEvolutionTransitionClasses(weighted_v_new_t,N_new_t,T_new_old_t,v_new_old_t,TimeIntervalsDt,i,ClassesOld,ClassNew,ax00,ax01,PlotDir):
-    """
-        @params weighted_v_new_t: np.array -> Weighted Speed of People Transitioning
-        @params N_new_t: np.array -> Number of People Transitioning
-        @params T_new_old_t: np.array -> Transition Matrix
-        @params v_new_old_t: np.array -> Speed of People Transitioning
-        @params TimeIntervalsDt: list -> Time Intervals
-        @params i: int -> Index of the Class
-        @params ClassesOld: list -> Old Classes
-        @params ClassNew: str -> New Class
-        @params PlotDir: str -> Plot Directory
-        @return: ax00: plt -> Plot of Number of People Transitioning
-        @return: ax01: plt -> Plot of Speed of People Transitioning
-        NOTE: Used as input for PlotComparisonSpeedClassesAndNPeopleTogether
-    """    
-    colors = ["red","green","yellow","black","orange","purple","pink","brown","grey"]    
-    weighted_v_new_t[i] = weighted_v_new_t[i]/N_new_t[i] 
-    # Average Speed of People Transitioning
-#    fig00,ax00 = plt.subplots(1,1,figsize = (12,10))
-#    fig01,ax01 = plt.subplots(1,1,figsize = (12,10))
-    ax00.plot(TimeIntervalsDt,N_new_t[i],color = "blue")
-    ax01.plot(TimeIntervalsDt,weighted_v_new_t[i],color = "blue")
-    for j,ClassOld in enumerate(ClassesOld):
-        ax00.scatter(TimeIntervalsDt,T_new_old_t[i][j],color = colors[j],label = f"{ClassOld} -> {ClassNew}")
-        ax01.scatter(TimeIntervalsDt,v_new_old_t[i][j],color = colors[j],label = f"{ClassOld} -> {ClassNew}")
-    ax01.set_xlabel("Time")
-    ax01.set_ylabel(r"$\langle v_h \rangle$")
-    ax01.set_title(f"v(t) in Hierarchical Sub-Net {ClassNew}")
-    ax01.set_xticks(range(len(TimeIntervalsDt))[::8])  # Set the ticks to correspond to the labels
-    ax01.set_xticklabels(TimeIntervalsDt[::8], rotation=90)  # Set the labels with rotation    ax.set_title("Time Percorrence Distribution")
-    ax01.legend(loc='upper left', bbox_to_anchor=(0.5, 1))
-    ax00.set_xlabel("Time")
-    ax00.set_ylabel("Number People")
-    ax00.set_xticks(range(len(TimeIntervalsDt))[::8])  # Set the ticks to correspond to the labels
-    ax00.set_xticklabels(TimeIntervalsDt[::8], rotation=90)  # Set the labels with rotation    ax.set_title("Time Percorrence Distribution")
-    ax00.set_title(f"N(t) in Hierarchical Sub-Net {ClassNew}")
-    ax00.legend(loc='upper left', bbox_to_anchor=(0.5, 1))
-#    plt.savefig(os.path.join(PlotDir,f"SpeedEvolution_Class_{ClassNew}.png"),dpi = 200)
-#    plt.savefig(os.path.join(PlotDir,f"Nt_Class_{ClassNew}.png"),dpi = 200)            
-    return ax00,ax01
 
 
-def PlotComparisonSpeedClassesAndNPeopleTogether(Class2TimeInterval2Road2Speed,Class2TimeInterval2Road2SpeedNew,ClassNew2TimeInterval2Road2SpeedActualRoads,ClassOld2ClassNewTimeInterval2Road2SpeedNew,ClassOld2ClassNewTimeInterval2Transition,OrderedClass2TimeDeparture2UserId,PlotDir):
-    T_new_old_t,v_new_old_t,_,weighted_v_new_t,N_new_t,TimeIntervalsDt,ClassesOld,ClassesNew = PrepareSpeedEvolutionTransitionClasses(ClassOld2ClassNewTimeInterval2Road2SpeedNew,Class2TimeInterval2Road2Speed,ClassOld2ClassNewTimeInterval2Transition,OrderedClass2TimeDeparture2UserId) 
-    Class2Speed,Class2SpeedH,Class2SpeedO,TimeIntervalsDt = PrepareSpeedEvolutionNewClassConsideringRoadClassification(ClassNew2TimeInterval2Road2SpeedActualRoads,Class2TimeInterval2Road2SpeedNew,Class2TimeInterval2Road2Speed)    
-    logger.info("PlotSpeedEvolutionTransitionClasses")
-    StrDate = PlotDir.split("/")[-1]
-    for i,ClassNew in enumerate(ClassesNew):
-        fig, axd = plt.subplot_mosaic([['people', 'division_class_speed'],
-                                    ['three_associations','three_associations']],
-                                    figsize=(20,20),constrained_layout=True)   
-
-        axd["people"],axd["division_class_speed"] = PlotSingleSpeedEvolutionTransitionClasses(weighted_v_new_t,N_new_t,T_new_old_t,v_new_old_t,TimeIntervalsDt,i,ClassesOld,ClassNew,axd["people"],axd["division_class_speed"],PlotDir)        
-        axd["three_associations"] = PlotSingleSpeedEvolutionNewClassConsideringRoadClassification(Class2Speed,Class2SpeedH,Class2SpeedO,TimeIntervalsDt,ClassNew,axd["three_associations"],StrDate,PlotDir)        
-        plt.savefig(os.path.join(PlotDir,f"SpeedEvolutionComparison_{ClassNew}.png"),dpi = 200)
-        plt.close()
-
-
-def PlotTransitionClassesInTime(ClassOld2ClassNewTimeInterval2Road2Transition,PlotDir):
+def PlotTransitionClassesInTime(ClassOld2ClassNewTimeInterval2Road2Transition,CutIndexTime,PlotDir):
     for ClassOld in ClassOld2ClassNewTimeInterval2Road2Transition.keys():
         for ClassNew in ClassOld2ClassNewTimeInterval2Road2Transition[ClassOld].keys():
             fig,ax = plt.subplots(1,1,figsize = (12,10))
@@ -949,7 +921,7 @@ def PlotTransitionClassesInTime(ClassOld2ClassNewTimeInterval2Road2Transition,Pl
             for TimeInterval in ClassOld2ClassNewTimeInterval2Road2Transition[ClassOld][ClassNew].keys():
                 TimeInvervals.append(TimeInterval)    
                 NumberInIntervals.append(ClassOld2ClassNewTimeInterval2Road2Transition[ClassOld][ClassNew][TimeInterval])
-            ax.plot(TimeInterval,NumberInIntervals,label = f"{TimeInterval}")
+            ax.plot(TimeInterval[CutIndexTime:],NumberInIntervals[CutIndexTime:],label = f"{TimeInterval}")
             ax.set_xlabel("Time")
             ax.set_ylabel("Transition")
             ax.set_title(f"Transition {ClassOld} -> {ClassNew}")
@@ -972,6 +944,110 @@ def PlotComparisonDistributionSpeedNewOld(Fcm,PlotDir):
         plt.savefig(os.path.join(PlotDir,"SpeedDistributionClass{}.png".format(Class)),dpi = 200)
         plt.close()
 
+
+## PLOT FIT
+def Plot_distribution_length_time_daily_and_condtioned_to_classes(Days,Features,Classes,Cases,InputDir,Class2ClassStr,Feature2Label,PlotDir):
+    """
+        @param Days: List of Days in the DataSet
+        @param Features: List of Features to be analyzed (length_km,time_hours)
+        @param Classes: List of Classes to be analyzed (0,1,2,3)
+        @param Cases: List of Cases to be analyzed ("","New")
+        @param InputDir: Directory where the data is stored
+        @param PlotDir: Directory where the plots will be stored
+        @Description: 
+            This function compares the exponential and power law fits for the distribution of the features
+            It saves the results in csv files:
+            1. aggregated_fit_parameters_{Feature}_powerlaw_new.csv
+            2. aggregated_fit_parameters_{Feature}_exponential_new.csv
+            Each of these files contains the following columns:
+                - Day: Day of the dataset
+                - A: Amplitude of the fit
+                - class: Class of the distribution
+            if powerlaw:
+                - alpha: Exponent of the power law
+            if exponential:
+                - <x>: Average value of the feature
+                - 1/x0: Decay constant of the exponential
+    """
+    import polars as pl
+    import os
+    for Feature in Features:
+        for Day in Days:
+            fig,ax = plt.subplots(1,1,figsize = (10,10))
+            for Case in Cases:
+                if Case == "New":
+                    post_fix = "_new"
+                else:
+                    post_fix = ""
+                for Class in Classes:
+                    if os.path.isfile(os.path.join(InputDir,f"df_fit_and_data_expo_{Feature}_conditional_class{post_fix}.csv")):
+                        DfDataFit = pl.read_csv(os.path.join(InputDir,f"df_fit_and_data_expo_{Feature}_conditional_class{post_fix}.csv"))
+                        is_exponential = True
+                    else:
+                        DfDataFit = pl.read_csv(os.path.join(InputDir,f"df_fit_and_data_pl_{Feature}_conditional_class{post_fix}.csv"))
+                        is_exponential = False
+                    x = DfDataFit.filter(pl.col("Class") == int(Class),
+                                         pl.col("Day") == Day)["x"].to_numpy()
+                    y = DfDataFit.filter(pl.col("Class") == int(Class),
+                                         pl.col("Day") == Day)["y"].to_numpy()
+                    y_fit = DfDataFit.filter(pl.col("Class") == int(Class),
+                                            pl.col("Day") == Day)["y_fit"].to_numpy()
+                    x_over_xmean = x/(np.sum(x)/len(x))
+                    y_scaled = y/np.sum(y)
+                    y_fit = y_fit/np.sum(y_fit)
+                    ax.scatter(x_over_xmean,y_scaled,label = Class2ClassStr[Class])
+                    ax.plot(x_over_xmean,y_fit,label ="",linestyle = "--")
+            str_ = Feature2Label[Feature]
+            fraction_label = r"$\langle $" + str_ + r"$\rangle$"
+            ax.set_xlabel(f"{Feature2Label[Feature]}/{fraction_label}")
+            ax.set_ylabel(f"P({Feature2Label[Feature]}/{fraction_label})" )
+            if Feature == "lenght_km":
+                ax.set_ylim(0.0001)
+            else:
+                ax.set_ylim(0.004)
+            ax.set_xlim(0.1,1.8)
+            ax.legend(loc = "best")
+            ax.set_yscale("log")
+            plt.savefig(os.path.join(PlotDir,Day,f"distribution_{Feature}_{Day}{post_fix}.png"))
+            plt.close(fig)
+
+
+
+def Plot_distribution_length_time_not_conditional_class(Cases,Days,Features,Feature2Label,PlotDir):
+    """
+        @plot distribution of 
+    """
+    id_aggregated_col = 10
+    for Case in Cases:
+        for Feature in Features:
+            if Case == "New":
+                post_fix = "_new"
+            else:
+                post_fix = ""
+            if os.path.isfile(os.path.join(PlotDir,f"df_fit_and_data_expo_{Feature}_conditional_class{post_fix}.csv")):
+                DfDataFit = pl.read_csv(os.path.join(PlotDir,f"df_fit_and_data_expo_{Feature}_conditional_class{post_fix}.csv"))
+            else:
+                DfDataFit = pl.read_csv(os.path.join(PlotDir,f"df_fit_and_data_pl_{Feature}_conditional_class{post_fix}.csv"))
+            fig,ax = plt.subplots(1,1,figsize = (10,10))
+            for Day in Days:
+                DfDataFitDay = DfDataFit.filter(pl.col("Day") == Day,
+                                                pl.col("Class") == id_aggregated_col)              
+                x = DfDataFitDay["x"].to_numpy()
+                y = DfDataFitDay["y"].to_numpy()
+                x_over_xmean = x/(np.sum(x)/len(x))
+                y_scaled = y/np.sum(y)
+                ax.scatter(x_over_xmean,y_scaled,label = Day)
+            ax.plot(x_over_xmean,np.exp(-x_over_xmean),label ="",linestyle = "--")
+            ax.set_xlabel(Feature2Label[Feature])
+            ax.set_ylabel(f"P({Feature2Label[Feature]})")
+            if Feature == "lenght_km":
+                ax.set_ylim(0.0001)
+            else:
+                ax.set_ylim(0.004)
+            ax.set_xlim(0.1,1.8)
+            ax.legend(loc = "best")
+            ax.set_yscale("log")
+            plt.savefig(os.path.join(PlotDir,f"distribution_{Feature}_{post_fix}.png"))
 
 ### SPARSENESS DATA
 
@@ -1001,7 +1077,6 @@ def PlotNPeopNRoadsClass(OrderedClass2TimeDeparture2UserId,IntClass2RoadsIncreas
         ax[Class].set_ylabel("Number people/Number Roads")
         ax[Class].set_xticks(range(len(TimeIntervalsDt))[::8])  # Set the ticks to correspond to the labels
         ax[Class].set_xticklabels(TimeIntervalsDt[::8], rotation=90)  # Set the labels with rotation    ax.set_title("Time Percorrence Distribution")
-        ax[Class].set_title(f"Evolution Number People {case} Class {Class}")
         ax[Class].legend()
     plt.savefig(os.path.join(PlotDir,f"EvolutionNumberPeople_{case}.png"),dpi = 200)
     plt.close()
@@ -1261,16 +1336,15 @@ def ComputeDay2PopulationTime(ListDailyNetwork,Classes):
                 Day2PopulationTime[StrDate]["population"][t] += MobDate.MFD[f"population_{Class}"][t]
     return Day2PopulationTime
 
-def PlotDay2PopulationTime(Day2PopulationTime,PlotDir):
-    fig,ax = plt.subplots(1,1,figsize = (12,10))
+def PlotDay2PopulationTime(Day2PopulationTime,IndexTime,PlotDir):
+    fig,ax = plt.subplots(1,1,figsize = (10,10))
     for StrDate in Day2PopulationTime.keys():
-        ax.plot(Day2PopulationTime[StrDate]["time"],Day2PopulationTime[StrDate]["population"],label = StrDate)
+        ax.plot(Day2PopulationTime[StrDate]["time"][IndexTime:],Day2PopulationTime[StrDate]["population"][IndexTime:],label = StrDate)
     time_labels =  [str(t) for t in Day2PopulationTime[StrDate]["time"]]
-    ax.set_xticks(range(len(time_labels))[::8])
-    ax.set_xticklabels(time_labels[::8], rotation=90)  # Set the labels with rotation    ax.set_title("Time Percorrence Distribution")
+    ax.set_xticks(range(len(time_labels))[IndexTime::8])
+    ax.set_xticklabels(time_labels[IndexTime::8], rotation=90)  # Set the labels with rotation    ax.set_title("Time Percorrence Distribution")
     ax.set_xlabel("Time")
-    ax.set_ylabel("Population")
-    ax.set_title("Population Over Time")
+    ax.set_ylabel("Number of paths")
     ax.legend()
     plt.savefig(os.path.join(PlotDir,"AllDaysPopulationOverTime.png"))
     plt.close()
@@ -1473,3 +1547,385 @@ def PlotUnionPlotply(GpdClasses,UniqueClasses,StrUnion = "OrderedUnion_"):
 
             fig = px.line_geo(lat=lats, lon=lons, hover_name=names)
             fig.show()    
+
+
+def PlotTruncatedInset(Day2TruncatedFit,ax_inset,Colors):
+    """
+        @param Day2TruncatedFit: Dictionary with the truncated fit {Day: gamma,delta}
+        @param ax_inset: axis to plot the inset
+
+    """
+    Gammas = []
+    Deltas = []
+    Days = list(Day2TruncatedFit.keys())
+    for i,Day in enumerate(Days):
+        Gammas.append(Day2TruncatedFit[Day]["gamma"])
+        Deltas.append(Day2TruncatedFit[Day]["delta"])
+        ax_inset.scatter(Day2TruncatedFit[Day]["gamma"],Day2TruncatedFit[Day]["delta"],Colors[i])
+    ax_inset.set_xlabel(r"\gamma",fontsize = 12)
+    ax_inset.set_ylabel(r"\delta",fontsize = 12)
+    return ax_inset
+    
+def PlotTrafficIForEachDay(Classes,Days,PlotDir):
+    """Plot the comparison of the highest two peaks."""
+    from scipy.ndimage import gaussian_filter1d
+    from scipy.signal import find_peaks
+    import json
+    Class2AvgPeak = {Class:{"LinCoef":[], "AvPeak":[] }for Class in Classes}
+    for Class in Classes:
+        DfLinCoefClass = pl.read_csv(os.path.join(PlotDir,f"LinearCoeff_NewClass.csv"))
+        DfLinCoefClass = DfLinCoefClass.filter(pl.col("Class")==int(Class))
+        fig,ax = plt.subplots(1,1,figsize = (12,12))
+        DfLinCoefClassDay = DfLinCoefClass["LinearCoeff"].to_numpy()#.filter(pl.col("Days")==Day)
+        DaysNew = DfLinCoefClass["Days"].unique().to_numpy()
+        DaysNew, DfLinCoefClassDay = sort_according_to_order(Days, DaysNew, DfLinCoefClassDay)
+        i = 0
+        for Day in Days:
+            with open(os.path.join(PlotDir,"TrafficIndexAllDays.json"), "r") as file:
+                TrafficIndexAllDays = json.load(file)
+            TrafficIndexDayClass = TrafficIndexAllDays[Day + "_" + Class]
+            if Class == "0" or Class == 0:
+                y = gaussian_filter1d(TrafficIndexDayClass, sigma=3)
+            else:
+                y = gaussian_filter1d(TrafficIndexDayClass, sigma=3)            
+            peaks, _ = find_peaks(y)
+            x = np.arange(len(y))
+            ax.plot(x, y, label=Day)
+            ax.plot(x[peaks], y[peaks], 'ro')
+            plt.title(f"Class {Class}")
+            plt.legend()
+            if len(peaks) >= 2:
+                mean = np.sort(y[peaks])
+                Class2AvgPeak[Class]["AvPeak"].append(np.mean(mean[-2:]))
+            else:
+                Class2AvgPeak[Class]["AvPeak"].append(0)
+            Class2AvgPeak[Class]["LinCoef"].append(DfLinCoefClassDay[i])
+    #        print(Class,"Linear Coefficient: ",Class2AvgPeak[Class]["LinCoef"],"\nAverage Peak: ",Class2AvgPeak[Class]["AvPeak"])
+            i += 1
+        plt.show()
+        plt.close()
+    marker_style = {0: "o", 1: "s", 2: "^", 3: "v"}
+    Colors = ["blue","orange","green","red"]
+    fig,ax = plt.subplots(1,1,figsize = (10,10))
+    for Class in Classes:
+        ax.scatter(Days,Class2AvgPeak[Class]["AvPeak"],label="Class " +Class,color =Colors[int(Class)],marker = marker_style[int(Class)],s = 100)
+        ax.hlines(np.mean(Class2AvgPeak[Class]["AvPeak"]),0,len(Days),colors=Colors[int(Class)],linestyles='dashed')
+        ax.set_xlabel("Day")
+        ax.set_ylabel(r"$\langle \Gamma_k \rangle_{peaks}$",fontsize = 18)
+        ax.legend(fontsize = 10)
+        ax.set_xticklabels(Days,rotation = 90)  # Set the ticks to correspond to the labels
+    plt.savefig(os.path.join(PlotDir,"AveragePeak.png"))
+    plt.show()
+    plt.close()
+
+def sort_according_to_order(fixed_order, values_list, associated_list):
+    # Pair the elements of the values_list with the associated_list
+    paired_list = list(zip(values_list, associated_list))
+    
+    # Create a dictionary to map values to their positions in the fixed order
+    order_dict = {value: index for index, value in enumerate(fixed_order)}
+    
+    # Sort the paired list according to the fixed order
+    sorted_paired_list = sorted(paired_list, key=lambda x: order_dict[x[0]])
+    
+    # Unzip the sorted pairs back into separate lists
+    sorted_values_list, sorted_associated_list = zip(*sorted_paired_list)
+    
+    return list(sorted_values_list), list(sorted_associated_list)
+
+
+def PlotVideoTrafficFromGeoJsonWithSpeedColumn(gdf,case,PlotDir):
+    """
+        @param gdf: GeoDataFrame with the speed column 
+            - new_class_Speed
+            - class
+        
+    """
+    import contextily as ctx
+    if case == "New":
+        timestamps = []
+        Columns2Plot = []
+        for col in gdf.columns:
+            if 'new_class_Speed' in col:
+                Day = col.split("_")[3]
+                TimeInterval = int(col.split("_")[4])
+                timestamps.append(TimeInterval)
+                Columns2Plot.append(col)
+    elif case == "Fuzzy":
+        timestamps = []
+        Columns2Plot = []
+        for col in gdf.columns:
+            if 'class_Speed' in col and "new" not in col:
+                Day = col.split("_")[3]
+                TimeInterval = int(col.split("_")[4])
+                timestamps.append(TimeInterval)
+                Columns2Plot.append(col)
+    else:
+        raise ValueError("Case not recognized")
+    timestamps = sorted(timestamps)
+    Time = [datetime.datetime.fromtimestamp(int(t)).strftime("%Y-%m-%d %H:%M:%S").split(" ")[1] for t in timestamps]
+    cmap = "viridis"
+    y_label = r" \langle v \rangle km/h"
+    ColorMap = plt.Normalize(vmin=0, vmax=100)
+    gdf = gdf.to_crs(epsg=3857)
+    Class2AvSpeed = {}
+
+    for Class, gdfClass in gdf.groupby(f"IntClassOrdered_{Day}"):
+        AvSpeed = []
+        for t in range(len(timestamps)):         
+            AvSpeed.append(np.mean(gdfClass[Columns2Plot[t]]))
+        Class2AvSpeed[Class] = AvSpeed
+
+    for t in range(len(timestamps)): 
+        if t >0:   
+    #            fig, ax = plt.subplots(1,1,figsize=(10,5))
+            fig, (ax_curve,ax_geo) = plt.subplots(1,2,width_ratios=[1,4],figsize = (20,20))#,gridspec_kw={'height_ratios': [1, 2]}
+            for Class, gdfClass in gdf.groupby(f"IntClassOrdered_{Day}"):
+                AvSpeed = Class2AvSpeed[Class]
+                # Global Variables
+                ax_curve.plot(Time[:t], AvSpeed[:t], linewidth=1)
+            ax_curve.set_xticks(range(len(Time))[::8])
+            ax_curve.set_xticklabels(Time[::8], rotation=90)  # Set the labels with rotation    ax.set_title("Time Percorrence Distribution")
+            ax_curve.set(xlabel='Time', ylabel=y_label)
+            ax_curve.set_aspect(aspect= 0.5)
+            ax_curve.set_position([0.05, 0, 0.2, 0.8])  # [left, bottom, width, height]
+            ax_curve.set_xlim([0, len(Time)])
+            ax_curve.set_ylim([0, 140])
+            # Base Geo-Map
+            linewidth = 0.1
+            linewidth_traffic = 2           
+            gdf.plot(Columns2Plot[t], ax=ax_geo,cmap = cmap,norm=ColorMap,linewidth=linewidth_traffic, alpha=1)
+            ctx.add_basemap(ax_geo, crs =gdf.crs.to_string(), source=ctx.providers.OpenStreetMap.Mapnik,alpha = 0.5)
+            sm = plt.cm.ScalarMappable(cmap=cmap, norm=ColorMap)
+            sm._A = []  # Dummy array for the ScalarMappable
+            cbar = fig.colorbar(sm, ax=ax_geo,orientation='horizontal', shrink=1, pad=0.05)
+            cbar.set_label(y_label)    
+            ax_geo.set_title(f"{Day} {Time[t]}")
+            ax_geo.set_aspect(aspect= 1.5)
+            if t < 10:
+                strt = "00"+str(t)
+            elif t < 100:
+                strt = "0"+str(t)
+            else:
+                strt = str(t)    
+            os.makedirs(os.path.join(PlotDir,"Video","Aggregated"),exist_ok = True)
+            plt.savefig(os.path.join(PlotDir,"Video","Aggregated",f"Speed_{Day}_{strt}.png"),dpi = 200)
+            plt.close()
+    CreateVideoFromImages(os.path.join(PlotDir,"Video","Aggregated"),f"Speed_{Day}")
+    DeleteImages(os.path.join(PlotDir,"Video","Aggregated"))
+
+def CreateVideoFromImages(DirImagesAndVideo,PrefixFile):
+    """
+    Launches the ffmpeg command to create a video from a sequence of images.
+    NOTE: The images must be named as Density_000.png, Density_001.png, etc.
+    """
+    import subprocess
+    ImagesString = os.path.join(DirImagesAndVideo,"{}_%03d.png".format(PrefixFile))
+    VideoString = os.path.join(DirImagesAndVideo,"{}.mp4".format(PrefixFile))
+    command = [
+        'ffmpeg',
+        '-f', 'image2',
+        '-framerate', '1.5',
+        '-start_number', '0',
+        '-i', ImagesString,
+        '-vf', 'pad=width=iw:height=ih+ih/1.5:color=black',
+        '-frames:v', '281',
+        '-vcodec', 'libx264',
+        VideoString
+    ]
+    
+    try:
+        subprocess.run(command, check=True)
+        print("Video created successfully.")
+    except subprocess.CalledProcessError as e:
+        print(f"An error occurred while creating the video: {e}")
+
+def DeleteImages(DirImagesAndVideo):
+    """
+    Deletes the images created for the video.
+    """
+    for file in os.listdir(DirImagesAndVideo):
+        if file.endswith(".png"):
+            os.remove(os.path.join(DirImagesAndVideo, file))
+    print("Images deleted successfully.")
+
+
+
+###############################################################################################################################
+#################################################### DEPRECATED ###############################################################
+###############################################################################################################################
+
+def PlotCFAR(Class2Signal,Class2Cut,Class2CFARClassification,TimeIntervalsDt,CutIndexTime,PlotDir):
+    """
+        @param: Class2Signal: dict -> {Class: [Signal]}
+        @param: Class2Cut: dict -> {Class: [Cut]}
+        @param: Class2CFARClassification: dict -> {Class: [CFARClassification]}
+        @param: TimeIntervalsDt: list -> Time Intervals
+        @param: PlotDir: str -> Path to Save the Plot
+        @brief:
+            Plot the CFAR Classification
+            x-axis: Time
+            y-axis: Signal
+    """
+    fig,axs = plt.subplots(2,2,figsize = (20,20)) 
+    for Class in Class2Signal.keys():
+        if int(Class) == 0:
+            i = 0
+            j = 0
+        elif int(Class) == 1:
+            i = 0
+            j = 1
+        elif int(Class) == 2:
+            i = 1
+            j = 0
+        else:
+            i = 1
+            j = 1
+        
+        axs[i,j].scatter(TimeIntervalsDt,Class2Signal[Class],label = "Signal")
+#        axs[i,j].plot(TimeIntervalsDt,Class2Cut[Class],label = "Cut")
+        Class2CFARClassification[Class] = [0 if x < 0 else x for x in Class2CFARClassification[Class]]
+        axs[i,j].plot(TimeIntervalsDt,Class2CFARClassification[Class],label = "CFAR Classification")
+        axs[i,j].set_xlabel("Time")
+        axs[i,j].set_ylabel("Signal")
+        axs[i,j].set_title("CFAR Classification Class {}".format(Class))
+        axs[i,j].set_xticks(range(len(TimeIntervalsDt[CutIndexTime:]))[::8])
+        axs[i,j].set_xticklabels(TimeIntervalsDt[CutIndexTime::8], rotation=90)
+        axs[i,j].legend()
+#    plt.savefig(os.path.join(PlotDir,"CFARClassificationClass.png"),dpi = 200)
+    plt.close()
+
+def PlotPtest(Class2Ptest,TimeIntervalsDt,CutIndexTime,PlotDir):
+    """
+        @param: Class2Ptest: dict -> {Class: [Ptest]}
+        @param: TimeIntervalsDt: list -> Time Intervals
+        @param: PlotDir: str -> Path to Save the Plot
+        @brief:
+            Plot the Ptest
+            x-axis: Time
+            y-axis: Ptest
+    """
+    fig,axs = plt.subplots(2,2,figsize = (12,10)) 
+    for Class in Class2Ptest.keys():
+        if int(Class) == 0: 
+            i = 0
+            j = 0
+        elif int(Class) == 1:
+            i = 0
+            j = 1
+        elif int(Class) == 2:
+            i = 1
+            j = 0
+        else:
+            i = 1
+            j = 1
+        axs[i,j].scatter(TimeIntervalsDt,Class2Ptest[Class],label = "Ptest")
+        axs[i,j].set_xlabel("Time")
+        axs[i,j].set_ylabel("is traffic")
+        axs[i,j].set_title("Ptest Class {}".format(Class))
+        axs[i,j].set_xticks(range(len(TimeIntervalsDt[CutIndexTime:]))[::8])
+        axs[i,j].set_xticklabels(TimeIntervalsDt[CutIndexTime::8], rotation=90)
+    plt.savefig(os.path.join(PlotDir,"PtestClass.png"),dpi = 200)
+    plt.close()
+    #PlotPtestSingleClass(Class2Ptest,TimeIntervalsDt,CutIndexTime,PlotDir)
+
+def PlotPtestSingleClass(Class2Ptest,TimeIntervalsDt,CutIndexTime,PlotDir):
+    """
+        @param: Class2Ptest: dict -> {Class: [Ptest]}
+        @param: TimeIntervalsDt: list -> Time Intervals
+        @param: PlotDir: str -> Path to Save the Plot
+        @brief:
+            Plot the Ptest
+            x-axis: Time
+            y-axis: Ptest
+        NOTE: Useless -> Does not work
+    """
+    for Class in Class2Ptest.keys():
+        fig,ax = plt.subplots(1,1,figsize = (12,10)) 
+        ax.scatter(TimeIntervalsDt,Class2Ptest[Class],label = "Ptest")
+        ax.set_xlabel("Time")
+        ax.set_ylabel("is traffic")
+        ax.set_title("Ptest Class {}".format(Class))
+        ax.set_xticks(range(len(TimeIntervalsDt[CutIndexTime:]))[::8])
+        ax.set_xticklabels(TimeIntervalsDt[CutIndexTime::8], rotation=90)
+        plt.savefig(os.path.join(PlotDir,f"Ptest_{Class}.png"),dpi = 200)
+        plt.close()
+
+
+
+def PlotSingleSpeedEvolutionTransitionClasses(weighted_v_new_t,N_new_t,T_new_old_t,v_new_old_t,TimeIntervalsDt,i,ClassesOld,ClassNew,ax00,ax01,PlotDir):
+    """
+        @params weighted_v_new_t: np.array -> Weighted Speed of People Transitioning
+        @params N_new_t: np.array -> Number of People Transitioning
+        @params T_new_old_t: np.array -> Transition Matrix
+        @params v_new_old_t: np.array -> Speed of People Transitioning
+        @params TimeIntervalsDt: list -> Time Intervals
+        @params i: int -> Index of the Class
+        @params ClassesOld: list -> Old Classes
+        @params ClassNew: str -> New Class
+        @params PlotDir: str -> Plot Directory
+        @return: ax00: plt -> Plot of Number of People Transitioning
+        @return: ax01: plt -> Plot of Speed of People Transitioning
+        NOTE: Used as input for PlotComparisonSpeedClassesAndNPeopleTogether
+    """    
+    colors = ["red","green","yellow","black","orange","purple","pink","brown","grey"]    
+    weighted_v_new_t[i] = weighted_v_new_t[i]/N_new_t[i] 
+    # Average Speed of People Transitioning
+#    fig00,ax00 = plt.subplots(1,1,figsize = (12,10))
+#    fig01,ax01 = plt.subplots(1,1,figsize = (12,10))
+    ax00.plot(TimeIntervalsDt,N_new_t[i],color = "blue")
+    ax01.plot(TimeIntervalsDt,weighted_v_new_t[i],color = "blue")
+    for j,ClassOld in enumerate(ClassesOld):
+        ax00.scatter(TimeIntervalsDt,T_new_old_t[i][j],color = colors[j],label = f"{ClassOld} -> {ClassNew}")
+        ax01.scatter(TimeIntervalsDt,v_new_old_t[i][j],color = colors[j],label = f"{ClassOld} -> {ClassNew}")
+    ax01.set_xlabel("Time")
+    ax01.set_ylabel(r"$\langle v_h \rangle$")
+    ax01.set_title(f"v(t) in Hierarchical Sub-Net {ClassNew}")
+    ax01.set_xticks(range(len(TimeIntervalsDt))[::8])  # Set the ticks to correspond to the labels
+    ax01.set_xticklabels(TimeIntervalsDt[::8], rotation=90)  # Set the labels with rotation    ax.set_title("Time Percorrence Distribution")
+    ax01.legend(loc='upper left', bbox_to_anchor=(0.5, 1))
+    ax00.set_xlabel("Time")
+    ax00.set_ylabel("Number People")
+    ax00.set_xticks(range(len(TimeIntervalsDt))[::8])  # Set the ticks to correspond to the labels
+    ax00.set_xticklabels(TimeIntervalsDt[::8], rotation=90)  # Set the labels with rotation    ax.set_title("Time Percorrence Distribution")
+    ax00.set_title(f"N(t) in Hierarchical Sub-Net {ClassNew}")
+    ax00.legend(loc='upper left', bbox_to_anchor=(0.5, 1))
+#    plt.savefig(os.path.join(PlotDir,f"SpeedEvolution_Class_{ClassNew}.png"),dpi = 200)
+#    plt.savefig(os.path.join(PlotDir,f"Nt_Class_{ClassNew}.png"),dpi = 200)            
+    return ax00,ax01
+
+
+def PlotComparisonSpeedClassesAndNPeopleTogether(Class2TimeInterval2Road2Speed,Class2TimeInterval2Road2SpeedNew,ClassNew2TimeInterval2Road2SpeedActualRoads,ClassOld2ClassNewTimeInterval2Road2SpeedNew,ClassOld2ClassNewTimeInterval2Transition,OrderedClass2TimeDeparture2UserId,CutIndexTime,PlotDir):
+    """
+        @params Class2TimeInterval2Road2Speed: dict -> {Class: {TimeInterval: {Road: Speed}}}
+        @params Class2TimeInterval2Road2SpeedNew: dict -> {Class: {TimeInterval: {Road: Speed}}}
+        @params ClassNew2TimeInterval2Road2SpeedActualRoads: dict -> {Class: {TimeInterval: {Road: Speed}}}
+        @params ClassOld2ClassNewTimeInterval2Road2SpeedNew: dict -> {ClassOld: {ClassNew: {TimeInterval: {Road: Speed}}}}
+        @params ClassOld2ClassNewTimeInterval2Transition: dict -> {ClassOld: {ClassNew: {TimeInterval: NumberPeople}}}
+        @params OrderedClass2TimeDeparture2UserId: dict -> {Class: {TimeDeparture: UserId}}
+        @params CutIndexTime: int -> Cut Index Time
+        @params PlotDir: str -> Plot Directory
+        @brief:
+            Plot the Speed Evolution Transition Classes
+            x-axis: Time
+            y-axis: Speed
+
+    """
+    T_new_old_t,v_new_old_t,_,weighted_v_new_t,N_new_t,TimeIntervalsDt,ClassesOld,ClassesNew = PrepareSpeedEvolutionTransitionClasses(ClassOld2ClassNewTimeInterval2Road2SpeedNew,Class2TimeInterval2Road2Speed,ClassOld2ClassNewTimeInterval2Transition,OrderedClass2TimeDeparture2UserId) 
+    Class2Speed,Class2SpeedH,Class2SpeedO,TimeIntervalsDt = PrepareSpeedEvolutionNewClassConsideringRoadClassification(ClassNew2TimeInterval2Road2SpeedActualRoads,Class2TimeInterval2Road2SpeedNew,Class2TimeInterval2Road2Speed)    
+    for Class in Class2Speed.keys():
+        print(f"Class: {Class}, len Speed: {len(Class2Speed[Class])}, len SpeedH: {len(Class2SpeedH[Class])}, len SpeedO: {len(Class2SpeedO[Class])}")
+    logger.info("PlotSpeedEvolutionTransitionClasses")
+    StrDate = PlotDir.split("/")[-1]
+    ClassesNew = list(Class2Speed.keys())
+    for i,ClassNew in enumerate(ClassesNew):
+        fig, axd = plt.subplot_mosaic([['people', 'division_class_speed'],
+                                    ['three_associations','three_associations']],
+                                    figsize=(20,20),constrained_layout=True)   
+
+        axd["people"],axd["division_class_speed"] = PlotSingleSpeedEvolutionTransitionClasses(weighted_v_new_t,N_new_t,T_new_old_t,v_new_old_t,TimeIntervalsDt,i,ClassesOld,ClassNew,axd["people"],axd["division_class_speed"],PlotDir)        
+        axd["three_associations"] = PlotSingleSpeedEvolutionNewClassConsideringRoadClassification(Class2Speed,Class2SpeedH,Class2SpeedO,TimeIntervalsDt,ClassNew,axd["three_associations"],StrDate,CutIndexTime,PlotDir)        
+        plt.savefig(os.path.join(PlotDir,f"SpeedEvolutionComparison_{ClassNew}.png"),dpi = 200)
+        plt.close(fig)
+        fig,ax = plt.subplots(1,1,figsize = (12,10))
+        PlotSingleSpeedEvolutionNewClassConsideringRoadClassification(Class2Speed,Class2SpeedH,Class2SpeedO,TimeIntervalsDt,ClassNew,ax,StrDate,CutIndexTime,PlotDir)

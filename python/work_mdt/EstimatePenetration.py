@@ -64,7 +64,7 @@ def DiscardColumnsSpeedGdfRoads(GdfRoads):
     GdfRoads = GdfRoads[Columns2Accept]
     return GdfRoads
 
-def EstimatePenetrationAndPlot(GdfRoads,DfTrafficOpenData,Bbox,Days,DirTimedFluxes,PlotDir):
+def EstimatePenetrationAndPlot(GdfRoads,DfTrafficOpenData,Bbox,Days,DirTimedFluxes,CutIndex,PlotDir):
     """
         @param GdfRoads: GeoDataFrame with the roads
         @param DfTrafficOpenData: DataFrame with the traffic data
@@ -83,18 +83,21 @@ def EstimatePenetrationAndPlot(GdfRoads,DfTrafficOpenData,Bbox,Days,DirTimedFlux
     Column2ConsiderGdfTrafficOpenData.append("geometry")
     GdfTrafficOpenData = GdfTrafficOpenData[Column2ConsiderGdfTrafficOpenData]
     GdfRoads = FilterGeoDataFrameWithBoundingBox(GdfRoads,Bbox)
-    fig,ax = plt.subplots()
+    fig,ax = plt.subplots(1,1,figsize=(10,10))
     
     Colors = ["red","blue","green","black","yellow","orange","purple","pink"]
     if len(Days) > len(Colors):
         raise ValueError("Too many days to plot, change EstimatePenetrationAndPlot:Colors")
     Day2Color = dict(zip(Days,Colors))
+    CountDay = 0
     for Day in Days:
         TimeRange2Time = GetTimeRanges(TimeRanges,Day)
-        TimedFluxes = pl.read_csv(os.path.join(DirTimedFluxes,f"/bologna_mdt_{Day}_{Day}_timed_fluxes.csv"),separator=';')
+        TimedFluxes = pl.read_csv(DirTimedFluxes[CountDay],separator=';')#,f"bologna_mdt_{Day}_{Day}_timed_fluxes.csv"
         GdfTrafficOpenData = GdfTrafficOpenData.to_crs(epsg=3857)
         GdfRoads = GdfRoads.to_crs(epsg=3857)    
         GdfJoin = gpd.sjoin_nearest(GdfTrafficOpenData, GdfRoads, how='left', distance_col='distance')
+        CountDay += 1
+        GdfJoin = GdfJoin.loc[GdfJoin["distance"]<2]
         GdfJoin.set_crs(epsg=4326, inplace=True,allow_override=True)
         GdfJoin = DiscardColumnsSpeedGdfRoads(GdfJoin)
         PolyLid2VectorFluxes = {"average_penetration_tot": [], "average_penetration_FT": [], "average_penetration_TF": []}
@@ -106,11 +109,15 @@ def EstimatePenetrationAndPlot(GdfRoads,DfTrafficOpenData,Bbox,Days,DirTimedFlux
             DfJoinAtTime = DfJoinAtTime.filter(pl.col(TimeRange).is_not_null(),
                                 pl.col(TimeRange).is_not_nan(),
                                 pl.col(TimeRange) > 0)
+            # Cast
+            FluxesPolysAtTime = FluxesPolysAtTime.with_columns(pl.col("id").cast(pl.Int32))
+            DfJoinAtTime = DfJoinAtTime.with_columns(pl.col("poly_lid").cast(pl.Int32))            
+
             FluxesPolysAtTime = FluxesPolysAtTime.join(DfJoinAtTime,left_on="id",right_on="poly_lid")
             
             FluxesPolysAtTime = FluxesPolysAtTime.with_columns((pl.col("total_fluxes")/pl.col(TimeRange)).alias("penetration_total"),
-                                                            (pl.col("total_fluxes")/pl.col(TimeRange)).alias("penetration_FT"),
-                                                            (pl.col("total_fluxes")/pl.col(TimeRange)).alias("penetration_TF")
+                                                            (pl.col("n_traj_FT")/pl.col(TimeRange)).alias("penetration_FT"),
+                                                            (pl.col("n_traj_TF")/pl.col(TimeRange)).alias("penetration_TF")
                                                             )
             FluxesPolysAtTime = FluxesPolysAtTime.filter(pl.col("penetration_total").is_not_null(),
                                                         pl.col("penetration_FT").is_not_null(),
@@ -118,20 +125,36 @@ def EstimatePenetrationAndPlot(GdfRoads,DfTrafficOpenData,Bbox,Days,DirTimedFlux
                                                         pl.col("penetration_total").is_not_nan(),
                                                         pl.col("penetration_FT").is_not_nan(),
                                                         pl.col("penetration_TF").is_not_nan(),
-                                                        pl.col("penetration_total") > 0)
-            PenetrationTotal = np.nanmean(FluxesPolysAtTime["penetration_total"].to_numpy())
-            PenetrationFT = np.nanmean(FluxesPolysAtTime["penetration_FT"].to_numpy())
-            PenetrationTF = np.nanmean(FluxesPolysAtTime["penetration_TF"].to_numpy())
+                                                        pl.col("penetration_total") > 0,
+                                                        pl.col("penetration_TF") < 1,
+                                                        pl.col("penetration_FT") < 1,
+                                                        pl.col("penetration_total") < 1,
+    #                                                    pl.col("length") >100,
+                                                        pl.col("id")!=18952)
+    #        print(FluxesPolysAtTime[["total_fluxes","id_local",TimeRange,"penetration_total","penetration_TF","penetration_FT"]].head())
+    #        plt.hist(FluxesPolysAtTime["penetration_FT"].to_numpy())
+    #        plt.title("Penetration_FT" + TimeRange)
+    #        plt.show()
+    #        plt.hist(FluxesPolysAtTime["penetration_TF"].to_numpy())
+    #        plt.title("Penetration_TF" + TimeRange)
+    #        plt.show()
+    #        plt.hist(FluxesPolysAtTime["penetration_total"].to_numpy())
+    #        plt.title("Penetration_total" + TimeRange)
+    #        plt.show()
+            PenetrationTotal = np.nanmedian(FluxesPolysAtTime["penetration_total"].to_numpy())
+            PenetrationFT = np.nanmedian(FluxesPolysAtTime["penetration_FT"].to_numpy())
+            PenetrationTF = np.nanmedian(FluxesPolysAtTime["penetration_TF"].to_numpy())
             PolyLid2VectorFluxes["average_penetration_tot"].append(PenetrationTotal) 
             PolyLid2VectorFluxes["average_penetration_FT"].append(PenetrationFT)
             PolyLid2VectorFluxes["average_penetration_TF"].append(PenetrationTF) 
     #    ax.plot(TimeHours,PolyLid2VectorFluxes["average_penetration_tot"],label=Day,color=Day2Color[Day])
-        ax.plot(TimeHours,PolyLid2VectorFluxes["average_penetration_FT"],label=Day,color=Day2Color[Day])
-    #    ax.plot(TimeHours,PolyLid2VectorFluxes["average_penetration_TF"],label=Day,color=Day2Color[Day])
-        ax.legend()
-        ax.set_xticks(range(len(TimeHours))[::4])  # Set the ticks to correspond to the labels
-        ax.set_xticklabels(TimeHours[::4], rotation=90)  # Set the labels with rotation    ax.set_title("Time Percorrence Distribution")
-        ax.set_xlabel("Time")
-        ax.set_ylabel("Penetration")
+        #    ax.plot(TimeHours,PolyLid2VectorFluxes["average_penetration_tot"],label=Day,color=Day2Color[Day])
+        ax.plot(TimeHours[CutIndex:],PolyLid2VectorFluxes["average_penetration_FT"][CutIndex:],label=Day,color=Day2Color[Day])
+#    ax.plot(TimeHours,PolyLid2VectorFluxes["average_penetration_TF"],label=Day,color=Day2Color[Day])
+    ax.legend()
+    ax.set_xticks(range(len(TimeHours[CutIndex:]))[::4])  # Set the ticks to correspond to the labels
+    ax.set_xticklabels(TimeHours[CutIndex::4], rotation=90)  # Set the labels with rotation    ax.set_title("Time Percorrence Distribution")
+    ax.set_xlabel("Time")
+    ax.set_ylabel("Penetration")
     plt.savefig(os.path.join(PlotDir,"penetration.png"))
     plt.show()

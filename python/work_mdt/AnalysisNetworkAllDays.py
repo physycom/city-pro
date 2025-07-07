@@ -1,3 +1,153 @@
+"""
+Multi-Day Network Analysis for Urban Mobility Data Processing
+===========================================================
+
+This module provides comprehensive analysis capabilities for urban mobility networks
+across multiple days using trajectory data from mobility datasets. It processes FCM 
+(Fuzzy C-Means) clustering results and performs temporal comparative analysis.
+
+MAIN CLASS: NetworkAllDays
+==========================
+
+PURPOSE:
+--------
+Analyzes urban mobility patterns across multiple days by aggregating and comparing
+daily network statistics, computing temporal trends, and identifying persistent
+mobility patterns including:
+- Cross-day class mapping and trajectory clustering consistency
+- Temporal evolution of traffic indicators and congestion patterns
+- Multi-day statistical distribution fitting and model comparison
+- Network topology changes and subnet persistence analysis
+- Traffic penetration estimation and validation against open data
+
+INPUT DATA REQUIREMENTS:
+-----------------------
+- List of DailyNetworkStats objects: pre-computed daily analysis results
+- Configuration dictionary: analysis parameters, date ranges, and spatial bounds
+- Holiday/weekday classification: temporal aggregation specifications
+- Open traffic data: validation datasets for penetration analysis
+- Network topology: persistent road network structure across days
+
+KEY FEATURES:
+------------
+
+1. TEMPORAL CLASS MAPPING & CONSISTENCY:
+   - Maps mobility classes across days based on average speed similarity
+   - Generates consistent string class labels for cross-day comparison
+   - Handles varying numbers of classes per day through reference alignment
+   - Creates day-to-class mapping dictionaries for temporal analysis
+
+2. CROSS-DAY AGGREGATION & STATISTICAL ANALYSIS:
+   - Concatenates trajectory data across multiple temporal aggregation levels
+   - Performs multi-day statistical distribution fitting (exponential/power-law)
+   - Computes aggregated fit parameters and model selection metrics
+   - Handles holiday vs. weekday vs. overall aggregation strategies
+
+3. TRAFFIC EVOLUTION & TEMPORAL PATTERNS:
+   - Computes daily traffic indicators and congestion evolution
+   - Analyzes population-time relationships across multiple days
+   - Performs CFAR-based traffic anomaly detection over time
+   - Calculates temporal variance in mobility fundamental diagrams
+
+4. NETWORK TOPOLOGY & SUBNET ANALYSIS:
+   - Computes union and intersection of mobility subnets across days
+   - Analyzes subnet persistence and temporal stability
+   - Creates incremental inclusion maps for class-specific road networks
+   - Generates interactive HTML visualizations of temporal network changes
+
+5. COMPARATIVE VISUALIZATION & ANALYSIS:
+   - Produces grid plots comparing distributions across days
+   - Creates time-series analysis of mobility parameters
+   - Generates comparative MFD plots for different user classes
+   - Plots parameter evolution (fitting coefficients) over time
+
+6. HETEROGENEITY & SCALING ANALYSIS:
+   - Implements heterogeneous mobility analysis across classes
+   - Computes scaling relationships between class size and mobility features
+   - Analyzes class contribution to overall mobility distributions
+   - Performs reconstruction analysis from class-specific patterns
+
+7. TRAFFIC PENETRATION & VALIDATION:
+   - Estimates traffic penetration rates using network flux data
+   - Validates against municipal open traffic datasets
+   - Computes temporal correlation with official traffic measurements
+   - Performs statistical hypothesis testing for data quality assessment
+
+ANALYSIS WORKFLOW:
+-----------------
+1. Initialize with list of daily network objects and configuration
+2. Map classes across days using speed-based similarity metrics
+3. Concatenate trajectory data by temporal aggregation levels
+4. Perform cross-day statistical fitting and model comparison
+5. Compute temporal evolution of traffic and network indicators
+6. Analyze subnet persistence and network topology changes
+7. Generate comprehensive comparative visualizations
+8. Validate results against external traffic datasets
+9. Export aggregated results and temporal trend analysis
+
+AGGREGATION LEVELS:
+------------------
+- "holidays": Analysis restricted to holiday periods
+- "not_holidays": Analysis for regular weekdays/weekends
+- "aggregated": Complete dataset analysis across all days
+
+SCIENTIFIC APPLICATIONS:
+-----------------------
+- Temporal stability analysis of urban mobility patterns
+- Long-term traffic trend identification and forecasting
+- Transportation policy impact assessment over time
+- Urban network resilience and adaptation analysis
+- Multi-modal transportation system optimization
+- Data quality validation and penetration rate estimation
+
+TECHNICAL DEPENDENCIES:
+----------------------
+- AnalysisNetwork1Day: Single-day analysis foundation
+- GeoPandas: Spatial data processing and network analysis
+- Polars/Pandas: High-performance temporal data manipulation
+- Folium: Interactive temporal mapping and visualization
+- NumPy/SciPy: Statistical analysis and temporal modeling
+- Matplotlib: Comprehensive temporal plotting capabilities
+
+CONFIGURATION REQUIREMENTS:
+---------------------------
+- StrDates: List of date strings for analysis
+- holidays/not_holidays: Date classification for aggregation
+- InputBaseDir: Base directory for input data files
+- Spatial bounding box: Geographic extent for analysis
+- Statistical fitting parameters: Model preferences and thresholds
+- Temporal aggregation settings: Cut-off times, bin sizes, etc.
+- Open data validation sources: URLs or file paths for traffic datasets
+- Feature2ScaleCount: Scaling parameters for feature distributions
+- Feature2ScaleBins: Binning parameters for feature distributions
+- Feature2MaxBins: Maximum bin counts for feature distributions
+- Feature2ShiftBin/Count: Parameters for shifting feature distributions
+- Feature2IntervalBin/Count: Parameters for interval-based analysis
+- Feature2Label: Human-readable labels for features
+- Feature2SaveName: Filenames for saving feature distributions
+- Feature2Legend: Legends for feature plots
+- Feature2IntervalBin: Interval binning parameters for features
+- Feature2ShiftBin: Shift binning parameters for features
+- Feature2ShiftCount: Shift count parameters for features
+- Feature2MaxBins: Maximum bin counts for features
+- Feature2Function2Fit2InitialGuess: Initial guess for fitting functions
+- Feature2Class2AllFitTry: Dictionary of all fitting attempts per feature
+- Feature2Class2Function2Fit2InitialGuess: Initial guess for class-specific fitting functions
+- Feature2Class2AllFitTry: Dictionary of all fitting attempts per class
+- Feature2Class2Function2Fit2InitialGuess: Initial guess for class-specific fitting functions
+- Feature2Class2AllFitTry: Dictionary of all fitting attempts per class
+OUTPUT FILES:
+------------
+- Cross-day statistical fit parameters (CSV/JSON)
+- Temporal evolution plots and time-series analysis (PNG)
+- Interactive subnet evolution maps (HTML)
+- Traffic indicator aggregations and trends (CSV)
+- Penetration analysis and validation reports
+- Comparative distribution and MFD visualizations
+
+AUTHORS: Alberto Amaduzzi
+LAST UPDATED: [12/06/2025]
+"""
 from AnalysisNetwork1Day import *
 from analysisPlot import *
 from collections import defaultdict
@@ -5,6 +155,7 @@ import numpy as np
 from LatexFunctions import *
 from UsefulStructures import *
 import contextily as ctx
+from Heterogeneity import *
 import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -63,7 +214,6 @@ class NetworkAllDays:
                 self.Feature2ShiftCount = MobDate.Feature2ShiftCount
                 self.Feature2MaxBins = MobDate.Feature2MaxBins   
                 #
-                self.MFDAggregated = {Key: [] for Key in MobDate.MFD.columns}
                 self.StrClass2MFDAggregated = defaultdict() 
                 self.StrClass2MFDNewAggregated = defaultdict()                 
                 self.StrClass2MFDAggregated2Plot = defaultdict()
@@ -82,9 +232,6 @@ class NetworkAllDays:
         self.Aggregation2MFD = {Aggregation:{MobDate.StrDate:MobDate.MFD for MobDate in self.ListDailyNetwork if MobDate.StrDate in self.AggregationLevel2ListDays[Aggregation]} for Aggregation in self.AggregationLevel}
         # FIT
         self.StrDay2Color = {StrDay: self.ListColors[i] for i,StrDay in enumerate(self.StrDates)}
-        self.MinMaxPlotPerClass = {StrClass: defaultdict() for StrClass in self.ListStrClassReference}
-        self.MinMaxPlotPerClassNew = {StrClass: defaultdict() for StrClass in self.ListStrClassReference}
-
         # Set The Plot Lim as The Maximum Among all Days
         for Day in self.Day2Feature2MaxBins.keys():
             for Feature in self.Day2Feature2MaxBins[Day].keys():
@@ -100,8 +247,14 @@ class NetworkAllDays:
         self.Aggregation2Class2Fcm = {Aggregation: {StrClass: pl.DataFrame() for StrClass in self.Day2StrClass2IntClass[self.DayReferenceClasses].keys()} for Aggregation in self.AggregationLevel}
         self.Aggregation2DictFittedData = {Aggregation:defaultdict(dict) for Aggregation in self.Aggregation2Class2Fcm.keys()}
         self.Aggregation2Class2InfoFittedParameters = {Aggregation:{StrClass: defaultdict(dict) for StrClass in self.Aggregation2Class2Fcm[Aggregation]} for Aggregation in self.Aggregation2Class2Fcm.keys()}
-
-
+        # 
+        self.GpdClasses = None
+        # Cut Time To avoid Midnight Where Data are Noisy
+        self.CutIndexTime = 8  
+        #
+        self.Colors = ["red","blue","green","black","yellow","orange","purple","pink","brown","cyan"]
+        self.Markers = ["o","s","^","v","<",">","1","2","3","4"]
+        self.Day2Marker = {Day: self.Markers[i] for i,Day in enumerate(self.StrDates)}
     def InitListStrClassReference(self):
         # Take The Day with More Classes.
         NumberClasses = 0
@@ -134,10 +287,6 @@ class NetworkAllDays:
             MobDate.Fcm = MobDate.Fcm.with_columns(pl.col("class").apply(lambda x: self.Day2IntClass2StrClass[StrDate][x], return_dtype=pl.Utf8).alias("str_class"))
             MobDate.Fcm = MobDate.Fcm.with_columns(pl.col("class_new").apply(lambda x: self.Day2IntClass2StrClass[StrDate][x], return_dtype=pl.Utf8).alias("str_class_new"))
             MobDate.FcmCenters = MobDate.FcmCenters.with_columns(pl.col("class").apply(lambda x: self.Day2IntClass2StrClass[StrDate][x], return_dtype=pl.Utf8).alias("str_class"))
-            print("StrDate:\n",MobDate.StrDate)
-            print("FcmCenters:\n",MobDate.FcmCenters)
-            print("Fcm:\n",MobDate.Fcm)
-
         self.CountFunctions += 1
         Message = "AddStrClassColumn2Fcm: True\n"
         self.AddStrClassColumn2FcmBool = True
@@ -221,7 +370,7 @@ class NetworkAllDays:
         for Aggregation in self.AggregationLevel:
             for MobDate in self.ListDailyNetwork:
                 if MobDate.StrDate in self.AggregationLevel2ListDays[Aggregation]:
-                    for Feature in MobDate.Feature2AllFitTry.keys():
+                    for Feature in MobDate.Feature2Class2AllFitTry.keys():
                         self.Aggregation2Feature2Function2Fit2InitialGuess[Aggregation][Feature] = defaultdict()
                         self.Aggregation2Feature2Class2Function2Fit2InitialGuess[Aggregation][Feature] = defaultdict()
 
@@ -230,7 +379,7 @@ class NetworkAllDays:
         for Aggregation in self.AggregationLevel:
             for MobDate in self.ListDailyNetwork:
                 if MobDate.StrDate in self.AggregationLevel2ListDays[Aggregation]:
-                    for Feature in MobDate.Feature2AllFitTry.keys():
+                    for Feature in MobDate.Feature2Class2AllFitTry.keys():
                         for StrClass in self.Day2StrClass2IntClass[MobDate.StrDate].keys():
                             IntClass = self.Day2StrClass2IntClass[MobDate.StrDate][StrClass]
                             self.Aggregation2Feature2Class2Function2Fit2InitialGuess[Aggregation][Feature][StrClass] = defaultdict()    
@@ -259,6 +408,225 @@ class NetworkAllDays:
                     self.Aggregation2Feature2AllFitTry[Aggregation][Feature] = FillIterationFitDictsTimeLength(ObservedData,
                                                                                                     self.Aggregation2Feature2Function2Fit2InitialGuess[Aggregation][Feature],
                                                                                                     self.Aggregation2Feature2AllFitTry[Aggregation][Feature])
+
+    def ConcatenateplExpFits(self):
+        """
+            @Describe:
+                - Aggregate:
+                parameters_df:
+                    - class - fuzzy - exp
+                    - class - pl - exp
+                    - class - new - exp
+                    - class - pl - exp
+                    - aggregated - fuzzy - exp
+                    - aggregated - pl - exp
+                    - aggregated - new - exp
+                    - aggregated - pl - exp
+                data_and_fit_df:
+                    - class - fuzzy - exp
+                    - class - pl - exp
+                    - class - new - exp
+                    - class - pl - exp
+                    - aggregated - fuzzy - exp
+                    - aggregated - pl - exp
+                    - aggregated - new - exp
+                    - aggregated - pl - exp
+        """
+        for Feature in ["time_hours","lenght_km"]:
+            #----------- Parameters -------------#
+            # class - fuzzy
+            _df_parameters_pl_conditional_on_class = pl.DataFrame()
+            _df_parameters_exp_conditional_on_class = pl.DataFrame()
+            # class - new
+#            _df_parameters_exp_conditional_on_class_new = pl.DataFrame()
+#            _df_parameters_pl_conditional_on_class_new = pl.DataFrame()
+            
+            # aggregated - fuzzy
+            _df_parameters_pl = pl.DataFrame()
+            _df_parameters_exp = pl.DataFrame()
+            # aggregated - new
+#            _df_parameters_pl_new = pl.DataFrame()
+#            _df_parameters_exp_new = pl.DataFrame()
+            # ------------ Data & fit ---------------#
+            # Data - class - fuzzy
+            _df_fit_and_data_pl = pl.DataFrame()
+            _df_fit_and_data_exp = pl.DataFrame()
+            # Data - class - new
+#            _df_fit_and_data_pl_new = pl.DataFrame()
+#            _df_fit_and_data_exp_new = pl.DataFrame()
+            # Data - aggregated - fuzzy
+            _df_fit_and_data_pl = pl.DataFrame()
+            _df_fit_and_data_exp = pl.DataFrame()
+            # Data - aggregated - new
+#            _df_fit_and_data_pl_new = pl.DataFrame()
+#            _df_fit_and_data_exp_new = pl.DataFrame()
+            for MobDate in self.ListDailyNetwork:
+                StrDate = MobDate.StrDate
+                for Aggregation in self.Aggregation2Class2Fcm.keys():
+                    if StrDate in self.AggregationLevel2ListDays[Aggregation]:
+                        date_dir = os.path.join(self.PlotDir,StrDate)
+                        # read params - class - fuzzy - exp
+                        if os.path.isfile(os.path.join(date_dir,f"df_parameters_expo_{Feature}_{StrDate}_conditional_class.csv")):
+                            df = pl.read_csv(os.path.join(date_dir,f"df_parameters_expo_{Feature}_{StrDate}_conditional_class.csv"))
+                            _df_parameters_exp_conditional_on_class = pl.concat([_df_parameters_exp_conditional_on_class,df])
+                        # read params - class - fuzzy - pl
+                        if os.path.isfile(os.path.join(date_dir,f"df_parameters_pl_{Feature}_{StrDate}_conditional_class.csv")):
+                            df = pl.read_csv(os.path.join(date_dir,f"df_parameters_pl_{Feature}_{StrDate}_conditional_class.csv"))
+                            _df_parameters_pl_conditional_on_class = pl.concat([_df_parameters_pl_conditional_on_class,df])
+                        # read params - class - new - exp
+#                        if os.path.isfile(os.path.join(date_dir,f"df_parameters_expo_{Feature}_{StrDate}_conditional_class_new.csv")):
+#                            df = pl.read_csv(os.path.join(date_dir,f"df_parameters_expo_{Feature}_{StrDate}_conditional_class_new.csv"))
+#                            _df_parameters_exp_conditional_on_class_new = pl.concat([_df_parameters_exp_conditional_on_class_new,df])
+                        # read params - class - new - pl
+#                        if os.path.isfile(os.path.join(date_dir,f"df_parameters_pl_{Feature}_{StrDate}_conditional_class_new.csv")):
+#                            df = pl.read_csv(os.path.join(date_dir,f"df_parameters_pl_{Feature}_{StrDate}_conditional_class_new.csv"))
+#                            _df_parameters_pl_conditional_on_class_new = pl.concat([_df_parameters_pl_conditional_on_class_new,df])
+                        # read params - aggregated - fuzzy - exp
+                        if os.path.isfile(os.path.join(date_dir,f"df_parameters_expo_{Feature}_{StrDate}.csv")):
+                            df = pl.read_csv(os.path.join(date_dir,f"df_parameters_expo_{Feature}_{StrDate}.csv"))
+                            _df_parameters_exp = pl.concat([_df_parameters_exp,df])
+                        # read params - aggregated - fuzzy - pl
+                        if os.path.isfile(os.path.join(date_dir,f"df_parameters_pl_{Feature}_{StrDate}.csv")):
+                            df = pl.read_csv(os.path.join(date_dir,f"df_parameters_pl_{Feature}_{StrDate}.csv"))
+                            _df_parameters_pl = pl.concat([_df_parameters_pl,df])
+                        # read params - aggregated - new - exp
+#                        if os.path.isfile(os.path.join(date_dir,f"df_parameters_expo_{Feature}_{StrDate}_new.csv")):
+#                            df = pl.read_csv(os.path.join(date_dir,f"df_parameters_expo_{Feature}_{StrDate}_new.csv"))
+#                            _df_parameters_exp_new = pl.concat([_df_parameters_exp_new,df])
+                        # read params - aggregated - new - pl
+#                        if os.path.isfile(os.path.join(date_dir,f"df_parameters_pl_{Feature}_{StrDate}_new.csv")):
+#                            df = pl.read_csv(os.path.join(date_dir,f"df_parameters_pl_{Feature}_{StrDate}_new.csv"))
+#                            _df_parameters_pl_new = pl.concat([_df_parameters_pl_new,df])
+                        # read data and fit - class - fuzzy - exp
+                        if os.path.isfile(os.path.join(date_dir,f"df_fit_and_data_expo_{Feature}_{StrDate}_conditional_class.csv")):
+                            df = pl.read_csv(os.path.join(date_dir,f"df_fit_and_data_expo_{Feature}_{StrDate}_conditional_class.csv"))
+                            _df_fit_and_data_exp = pl.concat([_df_fit_and_data_exp,df])
+                        # read data and fit - class - fuzzy - pl
+                        if os.path.isfile(os.path.join(date_dir,f"df_fit_and_data_pl_{Feature}_{StrDate}_conditional_class.csv")):
+                            df = pl.read_csv(os.path.join(date_dir,f"df_fit_and_data_pl_{Feature}_{StrDate}_conditional_class.csv"))
+                            _df_fit_and_data_pl = pl.concat([_df_fit_and_data_pl,df])
+                        # read data and fit - class - new - exp
+ #                       if os.path.isfile(os.path.join(date_dir,f"df_fit_and_data_expo_{Feature}_{StrDate}_conditional_class_new.csv")):
+ #                           df = pl.read_csv(os.path.join(date_dir,f"df_fit_and_data_expo_{Feature}_{StrDate}_conditional_class_new.csv"))
+ #                           _df_fit_and_data_exp_new = pl.concat([_df_fit_and_data_exp_new,df])
+                        # read data and fit - class - new - pl
+  #                      if os.path.isfile(os.path.join(date_dir,f"df_fit_and_data_pl_{Feature}_{StrDate}_conditional_class_new.csv")):
+  #                          df = pl.read_csv(os.path.join(date_dir,f"df_fit_and_data_pl_{Feature}_{StrDate}_conditional_class_new.csv"))
+  #                          _df_fit_and_data_pl_new = pl.concat([_df_fit_and_data_pl_new,df])
+                        # read data and fit - aggregated - fuzzy - exp
+                        if os.path.isfile(os.path.join(date_dir,f"df_fit_and_data_expo_{Feature}_{StrDate}.csv")):
+                            df = pl.read_csv(os.path.join(date_dir,f"df_fit_and_data_expo_{Feature}_{StrDate}.csv"))
+                            _df_fit_and_data_exp = pl.concat([_df_fit_and_data_exp,df])
+                        # read data and fit - aggregated - fuzzy - pl
+                        if os.path.isfile(os.path.join(date_dir,f"df_fit_and_data_pl_{Feature}_{StrDate}.csv")):
+                            df = pl.read_csv(os.path.join(date_dir,f"df_fit_and_data_pl_{Feature}_{StrDate}.csv"))
+                            _df_fit_and_data_pl = pl.concat([_df_fit_and_data_pl,df])
+                        # read data and fit - aggregated - new - exp
+#                        if os.path.isfile(os.path.join(date_dir,f"df_fit_and_data_expo_{Feature}_{StrDate}_new.csv")):
+#                            df = pl.read_csv(os.path.join(date_dir,f"df_fit_and_data_expo_{Feature}_{StrDate}_new.csv"))
+#                            _df_fit_and_data_exp_new = pl.concat([_df_fit_and_data_exp_new,df])
+                        # read data and fit - aggregated - new - pl
+#                        if os.path.isfile(os.path.join(date_dir,f"df_fit_and_data_pl_{Feature}_{StrDate}_new.csv")):
+#                            df = pl.read_csv(os.path.join(date_dir,f"df_fit_and_data_pl_{Feature}_{StrDate}_new.csv"))
+#                            _df_fit_and_data_pl_new = pl.concat([_df_fit_and_data_pl_new,df])
+            # parameters - pl - class - fuzzy
+            if len(_df_parameters_pl_conditional_on_class) > 0:
+                _df_parameters_pl_conditional_on_class.write_csv(os.path.join(self.PlotDir,f"df_parameters_pl_{Feature}_conditional_class.csv"))
+            # parameters - exp - class - fuzzy
+            if len(_df_parameters_exp_conditional_on_class) > 0:
+                _df_parameters_exp_conditional_on_class.write_csv(os.path.join(self.PlotDir,f"df_parameters_expo_{Feature}_conditional_class.csv"))
+            # parameters - pl - class - new
+#            if len(_df_parameters_pl_conditional_on_class_new) > 0:
+#                _df_parameters_pl_conditional_on_class_new.write_csv(os.path.join(self.PlotDir,f"df_parameters_pl_{Feature}_conditional_class_new.csv"))
+            # parameters - exp - class - new
+#            if len(_df_parameters_exp_conditional_on_class_new) > 0:
+#                _df_parameters_exp_conditional_on_class_new.write_csv(os.path.join(self.PlotDir,f"df_parameters_expo_{Feature}_conditional_class_new.csv"))
+            # parameters - pl - aggregated - fuzzy
+            if len(_df_parameters_pl) > 0:
+                _df_parameters_pl.write_csv(os.path.join(self.PlotDir,f"df_parameters_pl_{Feature}.csv"))
+            # parameters - exp - aggregated - fuzzy
+            if len(_df_parameters_exp) > 0:
+                _df_parameters_exp.write_csv(os.path.join(self.PlotDir,f"df_parameters_expo_{Feature}.csv"))
+            # parameters - pl - aggregated - new
+#            if len(_df_parameters_pl_new) > 0:
+#                _df_parameters_pl_new.write_csv(os.path.join(self.PlotDir,f"df_parameters_pl_{Feature}_new.csv"))
+            # parameters - exp - aggregated - new
+#            if len(_df_parameters_exp_new) > 0:
+#                _df_parameters_exp_new.write_csv(os.path.join(self.PlotDir,f"df_parameters_expo_{Feature}_new.csv"))
+            # data and fit - pl - class - fuzzy
+#            if len(_df_fit_and_data_pl) > 0:
+#                _df_fit_and_data_pl.write_csv(os.path.join(self.PlotDir,f"df_fit_and_data_pl_{Feature}_conditional_class.csv"))
+            # data and fit - exp - class - fuzzy
+            if len(_df_fit_and_data_exp) > 0:
+                _df_fit_and_data_exp.write_csv(os.path.join(self.PlotDir,f"df_fit_and_data_expo_{Feature}_conditional_class.csv"))
+            # data and fit - pl - class - new
+#            if len(_df_fit_and_data_pl_new) > 0:
+#                _df_fit_and_data_pl_new.write_csv(os.path.join(self.PlotDir,f"df_fit_and_data_pl_{Feature}_conditional_class_new.csv"))
+            # data and fit - exp - class - new
+#            if len(_df_fit_and_data_exp_new) > 0:
+#                _df_fit_and_data_exp_new.write_csv(os.path.join(self.PlotDir,f"df_fit_and_data_expo_{Feature}_conditional_class_new.csv"))
+            # data and fit - pl - aggregated - fuzzy
+            if len(_df_fit_and_data_pl) > 0:
+                _df_fit_and_data_pl.write_csv(os.path.join(self.PlotDir,f"df_fit_and_data_pl_{Feature}.csv"))
+            # data and fit - exp - aggregated - fuzzy
+            if len(_df_fit_and_data_exp) > 0:
+                _df_fit_and_data_exp.write_csv(os.path.join(self.PlotDir,f"df_fit_and_data_expo_{Feature}.csv"))
+            # data and fit - pl - aggregated - new
+#            if len(_df_fit_and_data_pl_new) > 0:
+#                _df_fit_and_data_pl_new.write_csv(os.path.join(self.PlotDir,f"df_fit_and_data_pl_{Feature}_new.csv"))
+            # data and fit - exp - aggregated - new
+ #           if len(_df_fit_and_data_exp_new) > 0:
+  #              _df_fit_and_data_exp_new.write_csv(os.path.join(self.PlotDir,f"df_fit_and_data_expo_{Feature}_new.csv"))
+            
+
+    def Concatenate_gauss_max_speed_fit(self):
+        """
+            @Describe:
+                - Aggregate:
+                parameters_df:
+
+        """
+        # class - fuzzy
+        _df_parameters_gs_conditional_on_class = pl.DataFrame()
+        _df_parameters_mx_conditional_on_class = pl.DataFrame()
+        _df_fit_and_data_gs = pl.DataFrame()
+        _df_fit_and_data_mx = pl.DataFrame()
+        Feature = "speed_kmh"
+        for MobDate in self.ListDailyNetwork:
+            StrDate = MobDate.StrDate
+            for Aggregation in self.Aggregation2Class2Fcm.keys():
+                if StrDate in self.AggregationLevel2ListDays[Aggregation]:
+                    date_dir = os.path.join(self.PlotDir,StrDate)
+                    # read params - class - fuzzy - gaussian
+                    if os.path.isfile(os.path.join(date_dir,f"df_parameters_gs_{Feature}_{StrDate}_conditional_class.csv")):
+                        df = pl.read_csv(os.path.join(date_dir,f"df_parameters_gs_{Feature}_{StrDate}_conditional_class.csv"))
+                        _df_parameters_gs_conditional_on_class = pl.concat([_df_parameters_gs_conditional_on_class,df])
+                    # read params - class - fuzzy - maxwellian
+                    if os.path.isfile(os.path.join(date_dir,f"df_parameters_mx_{Feature}_{StrDate}_conditional_class.csv")):
+                        df = pl.read_csv(os.path.join(date_dir,f"df_parameters_mx_{Feature}_{StrDate}_conditional_class.csv"))
+                        _df_parameters_mx_conditional_on_class = pl.concat([_df_parameters_mx_conditional_on_class,df])
+                    # read data and fit - class - fuzzy - gaussian
+                    if os.path.isfile(os.path.join(date_dir,f"df_fit_and_data_gs_{Feature}_{StrDate}_conditional_class.csv")):
+                        df = pl.read_csv(os.path.join(date_dir,f"df_fit_and_data_gs_{Feature}_{StrDate}_conditional_class.csv"))
+                        _df_fit_and_data_gs = pl.concat([_df_fit_and_data_gs,df])
+                    # read data and fit - class - fuzzy - maxwellian
+                    if os.path.isfile(os.path.join(date_dir,f"df_fit_and_data_mx_{Feature}_{StrDate}_conditional_class.csv")):
+                        df = pl.read_csv(os.path.join(date_dir,f"df_fit_and_data_mx_{Feature}_{StrDate}_conditional_class.csv"))
+                        _df_fit_and_data_mx = pl.concat([_df_fit_and_data_mx,df])
+        # parameters - gs - class - fuzzy
+        if len(_df_parameters_gs_conditional_on_class) > 0:
+            _df_parameters_gs_conditional_on_class.write_csv(os.path.join(self.PlotDir,f"df_parameters_gs_{Feature}_conditional_class.csv"))
+        # parameters - mx - class - fuzzy
+        if len(_df_parameters_mx_conditional_on_class) > 0:
+            _df_parameters_mx_conditional_on_class.write_csv(os.path.join(self.PlotDir,f"df_parameters_mx_{Feature}_conditional_class.csv"))
+        # data and fit - gs - class - fuzzy
+        if len(_df_fit_and_data_gs) > 0:
+            _df_fit_and_data_gs.write_csv(os.path.join(self.PlotDir,f"df_fit_and_data_gs_{Feature}_conditional_class.csv"))
+        # data and fit - mx - class - fuzzy
+        if len(_df_fit_and_data_mx) > 0:
+            _df_fit_and_data_mx.write_csv(os.path.join(self.PlotDir,f"df_fit_and_data_mx_{Feature}_conditional_class.csv"))
+        
+                                      
             #########################################
     def ComputeAggregatedFitPerClass(self):
         # Save All the Tried Fit
@@ -288,68 +656,44 @@ class NetworkAllDays:
                 Plot the exponents of the fit for the different days.
         """
         MobDate = self.ListDailyNetwork[0]
-        Features = [Feature for Feature in MobDate.Feature2Class2AllFitTry.keys()]
         Features = ["time_hours","lenght_km"]
-        for Feature in Features:    
-            Class2Par = defaultdict()
-            Days = []
-            for MobDate in self.ListDailyNetwork:
-                for IntClass in MobDate.Feature2Class2AllFitTry[Feature].keys():
-                    if MobDate.Feature2Class2AllFitTry[Feature][IntClass]["best_fit"] == "exponential":
-                        Parameters = MobDate.Feature2Class2AllFitTry[Feature][IntClass]["exponential"]["parameters"]
-                        if IntClass not in Class2Par.keys():
-                            Class2Par[IntClass] = [-1/Parameters[1]]
-                        else:
-                            Class2Par[IntClass].append(-1/Parameters[1])
-                        if MobDate.StrDate not in Days:
-                            Days.append(MobDate.StrDate)
-                    else:
-                        if IntClass not in Class2Par.keys():
-                            Class2Par[IntClass] = [np.nan]
-                        else:
-                            Class2Par[IntClass].append(np.nan)
-                        if MobDate.StrDate not in Days:
-                            Days.append(MobDate.StrDate)
+        
+        for Feature in Features:        
+            Type_Fit = "expo"
+            if os.path.isfile(os.path.join(self.PlotDir,f"df_parameters_{Type_Fit}_{Feature}_conditional_class.csv")):
+                Class2Par = {"Day":[],"alpha":[],"-log_L_max":[]}
+                fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+                df_expo_params = pl.read_csv(os.path.join(self.PlotDir,f"df_parameters_{Type_Fit}_{Feature}_conditional_class.csv"))
+                for MobDate in self.ListDailyNetwork:
+                    StrDate = MobDate.StrDate
+                    av_x = np.array(df_expo_params.filter(pl.col("Day") == StrDate)["<x>"].to_numpy())
+                    Classes = np.array(df_expo_params.filter(pl.col("Day") == StrDate)["Class"].to_numpy()).astype(int) + 1
+                    fit = np.polyfit(np.log(Classes), np.log(av_x), 1)
+                    alpha = fit[0]
+                    minus_log_L_max = fit[1]
+                    Class2Par["Day"].append(StrDate)
+                    Class2Par["alpha"].append(alpha)
+                    Class2Par["-log_L_max"].append(minus_log_L_max)
+                    ax.scatter(np.log(Classes), np.log(av_x), marker= self.Day2Marker[StrDate],label=f'{StrDate}')    
+                    ax.plot(np.log(Classes), alpha * np.log(Classes) + fit[1],label = f'{StrDate}')
 
-            fig, ax = plt.subplots(1, 1, figsize=(10, 10))
-
-            # Plot each class with different colors and add a legend
-            ParamPerday = np.empty((len(Class2Par.keys()), len(Days)))
-            for Class in Class2Par.keys():
-                print("IntClass {} values:\n".format(Class),Class2Par[Class])                
-                ParamPerday[Class] = Class2Par[Class]
-            Params = np.array(ParamPerday).T
-            AvPar = []
-            for ClassIdx in range(len(ParamPerday)):
-                AvPar.append(np.nanmean(ParamPerday[ClassIdx]))
-            for Param in Params:
-                ax.scatter(list(Class2Par.keys()), Param, label=f'Class {IntClass}')
-            # Add legend
-            ax.legend(Days)
-            for Param in Params:
-                ax.scatter(list(Class2Par.keys()), AvPar, marker="*", s = 200,label = None)
-            if Feature == "time_hours":
-                fit,StdError,ConvergenceSuccess,FittedData,_,_ = FitAndStdErrorFromXY((np.arange(4) +1)[:-1], np.array(AvPar)[:-1],"powerlaw",[1,-1],maxfev = 50000,interval = [])
-            elif Feature == "lenght_km":
-                fit,StdError,ConvergenceSuccess,FittedData,_,_ = FitAndStdErrorFromXY((np.arange(4) +1), np.array(AvPar),"powerlaw",[1,1],maxfev = 50000,interval = [])
-            # Set labels and title
             ax.set_xlabel('Class')
-            ax.set_xticks(list(Class2Par.keys()))
-            ax.set_xticklabels(list(Class2Par.keys()))
-            if "time" in Feature:
-                ax.set_ylabel(r'$\overline{t} (h)$')
-            elif "lenght" in Feature:
-                ax.set_ylabel(r'$\overline{L} (km)$')
+            if Feature == "time_hours":
+                ax.set_ylabel(r'$\overline{t_k} (h)$',fontsize = 18)
+            elif Feature == "lenght_km":
+                ax.set_ylabel(r'$\overline{L_k} (km)$',fontsize = 18)
+            ax.set_xticks(np.log(Classes))
+            ax.set_xticklabels(Classes)
+            pl.DataFrame(Class2Par).write_csv(os.path.join(self.PlotDir,f"df_1_Lk_Lmax_{Feature}.csv"))
             plt.savefig(os.path.join(self.PlotDir,'ParameterDistributionDays_{0}.png'.format(Feature)),dpi = 200)
             # Show the plot
-            plt.close()
+            plt.close(fig)
     def PlotExponentsGaussianFit(self):
         """
             Description:
                 Plot the exponents of the fit for the different days.
         """
         MobDate = self.ListDailyNetwork[0]
-        Features = [Feature for Feature in MobDate.Feature2Class2AllFitTry.keys()]
         Features = ["speed_kmh"]
         for Feature in Features:    
             Class2Mu = defaultdict()
@@ -418,6 +762,7 @@ class NetworkAllDays:
             ax.set_ylabel(r'$\sigma$')
             plt.savefig(os.path.join(self.PlotDir,'SigmaDistributionDays_{0}.png'.format(Feature)),dpi = 200)
             plt.close()
+
             fig,ax = plt.subplots(1,1,figsize = (10,10))
             ax.scatter(AvMu,AvSigma)
             aq = np.polyfit(AvMu[:-1],AvSigma[:-1],1)
@@ -425,7 +770,9 @@ class NetworkAllDays:
             ax.set_xlabel(r'$\mu (km/h)$')
             ax.set_ylabel(r'$\sigma (km/h)$')
 #            ax.legend(["0","1","2","3"])
-            plt.savefig(os.path.join(self.PlotDir,'MuSigmaDistributionDays_{0}.png'.format(Feature)),dpi = 200)
+            pl.DataFrame({"a_<v>":aq[0],"b_<v>":aq[1]}).write_csv(os.path.join(self.PlotDir,f"df_linear_coeffs_mu_sigma_speed_{Feature}.csv"))
+            pl.DataFrame({"mu_v":AvMu,"sigma_v":AvSigma}).write_csv(os.path.join(self.PlotDir,f"df_mu_sigma_speed_{Feature}.csv"))
+            plt.savefig(os.path.join(self.PlotDir,'mu_sigma_speed_averaged.png'),dpi = 200)
             plt.close()
             # Show the plot
     # Plot of Distribution of Time, Lenght, Av_Speed, Speed_kmh, Lenght_km, Time_hours for all days
@@ -445,7 +792,7 @@ class NetworkAllDays:
                                                            for Aggregation in self.Aggregation2Class2Fcm.keys()
                                                            }
             for Aggregation in self.Aggregation2Class2Fcm.keys():
-                for Feature in self.Features2Fit:
+                for Feature in ["speed_kmh"]:#self.Features2Fit:
                     self.Aggregation2Feature2StrClass2FcmDistr = AggregatedFcmDistr(self.Aggregation2Class2Fcm,
                                                                              Aggregation,
                                                                              Feature,
@@ -469,19 +816,19 @@ class NetworkAllDays:
                                         self.Feature2SaveName,
                                         True)
 
-            PlotFeatureAggregatedWithoutFitRescaledByMean(self.Aggregation2Feature2StrClass2FcmDistr,
-                                        self.Aggregation2Feature2Class2AllFitTry,                   
-                                        self.Feature2Legend,
-                                        self.Feature2IntervalBin,
-                                        self.Feature2IntervalCount,
-                                        self.Feature2Label,
-                                        self.Feature2ShiftBin,
-                                        self.Feature2ShiftCount,
-                                        self.Feature2ScaleBins,
-                                        self.Feature2ScaleCount,
-                                        self.PlotDir,
-                                        self.Feature2SaveName,
-                                        True)            
+#            PlotFeatureAggregatedWithoutFitRescaledByMean(self.Aggregation2Feature2StrClass2FcmDistr,
+#                                        self.Aggregation2Feature2Class2AllFitTry,                   
+#                                        self.Feature2Legend,
+#                                        self.Feature2IntervalBin,
+#                                        self.Feature2IntervalCount,
+#                                        self.Feature2Label,
+#                                        self.Feature2ShiftBin,
+#                                        self.Feature2ShiftCount,
+#                                        self.Feature2ScaleBins,
+#                                        self.Feature2ScaleCount,
+#                                        self.PlotDir,
+#                                        self.Feature2SaveName,
+#                                        True)            
 
 
     def PlotAverageTij(self):
@@ -544,55 +891,31 @@ class NetworkAllDays:
         """
         self.Day2PopTime = ComputeDay2PopulationTime(self.ListDailyNetwork,self.IntClasses)
 
-    def ComputeAggregatedMFDVariablesObj(self):
-        """
-            Description:
-                Every Day I count for each hour, how many people and the speed of the 
-                1. Network -> MFDAggregated = {"population":[],"time":[],"speed_kmh":[]}
-                2. SubNetwork -> Class2MFDAggregated = {StrClass: {"population":[sum_i pop_{t0,dayi},...,sum_i pop_{iteration,dayi}],"time":[t0,...,iteration],"speed_kmh":[sum_i speed_{t0,dayi},...,sum_i speed_{iteration,dayi}]}}
-                NOTE: time is pl.DateTime
-            NOTE: Each Time interval has its own average speed and population. For 15 minutes,
-                since iteration in 1 Day Analysis is set in that way. 
-        """
-        MobDate = self.ListDailyNetwork[0]
-        for Class,_ in MobDate.Fcm.groupby("class"):
-            # Compute Average MFD per Class
-            self.MFDAggregated = ComputeAggregatedMFDVariables(self.ListDailyNetwork,self.MFDAggregated,Class,False)
-#            self.Aggregation2MFD = AggregateMFDByHolidays(self.ListDailyNetwork,self.AggregationLevel2ListDays)
-# NOTE: The line above in case you want to show the difference between holidays and not holidays.
-        self.ComputedMFDAggregatedVariablesBool = True
 
     def PlotComparisonPopulationTime(self):
         """
             Description:
                 Plot the population and time for each day.
         """
-        PlotDay2PopulationTime(self.Day2PopTime,self.PlotDir)
+        PlotDay2PopulationTime(self.Day2PopTime,self.CutIndexTime,self.PlotDir)
 
-    def ComputeMFD2PlotAggregation(self):
-        """
-            Compute the average MFD for all days.
-        """
-        self.MFDAggregated2Plot, self.MinMaxPlot,RelativeChange = GetMFDForPlot(MFD = self.MFDAggregated,
-                                                                    MFD2Plot = self.MFDAggregated2Plot,
-                                                                    MinMaxPlot = self.MinMaxPlot,
-                                                                    Class = None,
-                                                                    case = "no-classes",
-                                                                    NewClass = False,
-                                                                    bins_ = 20)
-        self.MFDAggregated2Plot, self.MinMaxPlot,RelativeChange = GetMFDForPlot(MFD = self.MFDAggregated,
-                                                                    MFD2Plot = self.MFDAggregated2Plot,
-                                                                    MinMaxPlot = self.MinMaxPlot,
-                                                                    Class = None,
-                                                                    case = "no-classes",
-                                                                    NewClass = False,
-                                                                    bins_ = 20)
 
 
     def PlotMFDPerClassCompared(self):
         """
             Plots the MFD for all the different days together in the same plot for each class .
         """
+        # linear coefficient fuzzy
+        ComputeLinearCoeeficientMFD(self.ListDailyNetwork,
+                                    self.IntClasses,
+                                    False,
+                                    self.PlotDir)
+        # linear coefficient hierarchical
+        ComputeLinearCoeeficientMFD(self.ListDailyNetwork,
+                                    self.IntClasses,
+                                    True,
+                                    self.PlotDir)
+
         for Class in self.IntClasses:
             PlotMFDComparison(self.ListDailyNetwork,Class,self.ListColors,True,self.PlotDir)
             PlotMFDComparison(self.ListDailyNetwork,Class,self.ListColors,False,self.PlotDir)
@@ -718,370 +1041,109 @@ class NetworkAllDays:
             print("No Subnetworks to Plot")
             return False            
 
-    def GenerateAndSaveTabAvSpeed(self):
-        # Initialize the code string with the start of the tab definition
-        Feature2Label = {"lenght_km":"length (km)","speed_kmh":"speed (km/h)","time_hours":"time (h)"}
-        self.AvFeat2Class2Day = InitAvFeat2Class2Day(self.StrDates,self.Day2StrClass2IntClass,Feature2Label)
-        for Feature in Feature2Label.keys():
-            for MobDate in self.ListDailyNetwork:
-                for StrClass in self.Day2StrClass2IntClass[MobDate.StrDate].keys():
-                    IntClass = self.Day2StrClass2IntClass[MobDate.StrDate][StrClass]
-                    if "var" in MobDate.Feature2IntClass2Feat2AvgVar[Feature][IntClass].keys() and "avg" in MobDate.Feature2IntClass2Feat2AvgVar[Feature][IntClass].keys():
-                        RoundAvg = round(MobDate.Feature2IntClass2Feat2AvgVar[Feature][IntClass]["avg"],3)
-                        RoundVar = round(MobDate.Feature2IntClass2Feat2AvgVar[Feature][IntClass]["var"],3)
-                        self.AvFeat2Class2Day[Feature][StrClass][MobDate.StrDate] =  str(RoundAvg) + " $\pm$ " + str(RoundVar)
-                    else:
-                        self.AvFeat2Class2Day[Feature][StrClass][MobDate.StrDate] =  " "
-            LatexTableAvFeat = TableFromDict(self.AvFeat2Class2Day[Feature])
-            with open(os.path.join(self.PlotDir,f"LatexTableAvFeat_{Feature}.txt"), "w") as file:
-                file.write(LatexTableAvFeat)
-            self.GenerateAndSaveTabFit()    
-
-    def GenerateAndSaveTabFit(self):
-        """
-            Description:
-                Generates the table for the fit parameters:
-                    Feature2Parameters2Class2Day
-                Generates the dictionary with parameters and best fit:
-                    Aggregation2Feature2Class2Day2Feature
-                NOTE: Used in the scatter plot whein the plane of the parameters.
-        """
-        Feature2Label = {"lenght_km":"length (km)","speed_kmh":"speed (km/h)","time_hours":"time (h)"}
-        self.Feature2Parameters2Class2Day = {Aggregation:{Feature: {StrClass: {StrDay: "" for StrDay in self.StrDates} for StrClass in self.ListStrClassReference} for Feature in Feature2Label.keys()} for Aggregation in self.AggregationLevel}
-        self.Aggregation2Feature2Class2Day2Feature = {Aggregation: {Feature: {StrClass: {StrDay: {"parameters":[],"best_fit":""} for StrDay in self.StrDates} for StrClass in self.ListStrClassReference} for Feature in Feature2Label.keys()} for Aggregation in self.AggregationLevel}
-        for Aggregation in self.AggregationLevel:
-            for Feature in Feature2Label.keys():
-                print("Feature: ",Feature)
-                for MobDate in self.ListDailyNetwork:
-                    print("Day: ",MobDate.StrDate)
-                    for StrClass in self.ListStrClassReference:
-                        IntClass = self.Day2StrClass2IntClass[MobDate.StrDate][StrClass]
-                        StrBestFit = MobDate.Feature2Class2AllFitTry[Feature][IntClass]["best_fit"]
-                        RoundedParam0 = round(MobDate.Feature2Class2AllFitTry[Feature][IntClass][StrBestFit]["parameters"][0],3)
-                        RoundedParam1 = round(MobDate.Feature2Class2AllFitTry[Feature][IntClass][StrBestFit]["parameters"][1],3)
-                        self.Aggregation2Feature2Class2Day2Feature[Aggregation][Feature][StrClass][MobDate.StrDate]["parameters"] =[RoundedParam0,RoundedParam1]
-                        self.Aggregation2Feature2Class2Day2Feature[Aggregation][Feature][StrClass][MobDate.StrDate]["best_fit"] =StrBestFit
-                        print("Class: ",StrClass," Best Fit: ",StrBestFit)
-                        if StrBestFit == "exponential":
-                            self.Feature2Parameters2Class2Day[Aggregation][Feature][StrClass][MobDate.StrDate] = "A = " + str(RoundedParam0) + " $\\beta$ = " + str(RoundedParam1)
-                        elif StrBestFit == "linear":
-                            self.Feature2Parameters2Class2Day[Aggregation][Feature][StrClass][MobDate.StrDate] = "A = " + str(RoundedParam0) + " $\\alpha$ = " + str(RoundedParam1)
-                        elif StrBestFit == "gaussian" or StrBestFit == "maxwellian":
-                            self.Feature2Parameters2Class2Day[Aggregation][Feature][StrClass][MobDate.StrDate] = "$\mu$ = " + str(RoundedParam0) + " $\sigma$ = " + str(RoundedParam1)                   
-                        else:
-                            self.Feature2Parameters2Class2Day[Aggregation][Feature][StrClass][MobDate.StrDate] = " "
-                LatexTableAvParameters = TableFromDict(self.Feature2Parameters2Class2Day[Aggregation][Feature])
-                with open(os.path.join(self.PlotDir,f"LatexTableParameters_{Feature}_{Aggregation}.txt"), "w") as file:
-                    file.write(LatexTableAvParameters)
         
 
                 
-    def PlotAveragesFeaturesDiscriminatingHolidays(self):
-        LocalFeature2AvgStdClass = self.PrepareAvg2StdClassFromAvgInputLatexTable()
-        LocalFeature2ParFitClass = self.PrepareParFitClassFromTabFitInput()
-        Types = ["holidays","not_holidays"]
-        Class2Types2Shape,Class2Types2Colors = GetClass2Type2ShapesAndColors(self.ListStrClassReference,Types)
-        for Feature in LocalFeature2AvgStdClass.keys():
-            Avg = np.array(LocalFeature2AvgStdClass[Feature]["avg"],dtype = np.float32)
-            Std = np.array(LocalFeature2AvgStdClass[Feature]["std"],dtype = np.float32)
-            Class = LocalFeature2AvgStdClass[Feature]["class"]
-            Types = LocalFeature2AvgStdClass[Feature]["type"]
-            Title = "Average and Standard Deviation  {} ".format(Feature)
-            print("Plot Comparison Avg and Std for Feature: ",Feature)
-            PlotIntervals(Avg,
-                          Std,
-                          Class,
-                          Types,
-                          Class2Types2Colors,
-                          Class2Types2Shape,
-                          Title,
-                          Feature,
-                          self.PlotDir,
-                          "Average_Std_{}".format(Feature))
-            if Feature == "speed_kmh" or Feature == "av_speed":
-                Xlabel = "mu"
-                Ylabel = "sigma"
-            elif Feature == "time_hours" or Feature == "lenght_km" or Feature == "time" or Feature == "lenght":
-                Xlabel = "A"
-                Ylabel = "beta"
-            A = LocalFeature2ParFitClass[Feature]["A"]
-            b = LocalFeature2ParFitClass[Feature]["b"]
-            Class = LocalFeature2ParFitClass[Feature]["class"]
-            Types = LocalFeature2ParFitClass[Feature]["type"]
-            print("Plot Comparison Fit Parameters for Feature: ",Feature)
             
-    def PrepareAvg2StdClassFromAvgInputLatexTable(self):
-        Types = ["holidays","not_holidays"]
-        LocalFeature2AvgStdClass = {Feature: {"avg": [], "std": [],"class":[],"type":[]} for Feature in self.Features2Fit}
-        print("Preparing Plot Averages")
-        for Feature in self.AvFeat2Class2Day.keys():
-            for StrClass in self.AvFeat2Class2Day[Feature].keys():
-                for Type in Types:
-                    for StrDay in self.AvFeat2Class2Day[Feature][StrClass].keys():
-                        StrAvgStd = self.AvFeat2Class2Day[Feature][StrClass][StrDay]
-                        if StrDay in self.AggregationLevel2ListDays[Type]:
-                            if isinstance(StrAvgStd,str):
-                                LocalFeature2AvgStdClass[Feature]["avg"].append(StrAvgStd.split(" $\pm$ ")[0])
-                                LocalFeature2AvgStdClass[Feature]["std"].append(StrAvgStd.split(" $\pm$ ")[1])
-                                LocalFeature2AvgStdClass[Feature]["class"].append(StrClass)
-                                LocalFeature2AvgStdClass[Feature]["type"].append(Type)
-                            else:
-                                print("List in:")
-                                print("Feature: ",Feature," StrClass: ",StrClass," StrDay: ",StrDay,"StrAvgStd: ",StrAvgStd," Type: ",Type)
-        return LocalFeature2AvgStdClass
+# PLOT FEATURES FOR ALL DAYS ----> 
 
-    def PrepareParFitClassFromTabFitInput(self):
-        """
-            Description:
-                Prepare the dictionary for the scatter plot of the parameters.
-                LocalFeature2ParFitClass = {Feature: {"A": [Aday0,...,Adayn],
-                                                      "b": [bDay0,...,bDayn],
-                                                      "class":[ClassDay0,...,ClassDayn],
-                                                      "type":[TypeDay0,...,TypeDayn]} for Feature in self.Features2Fit}
-        """
-        Types = ["holidays","not_holidays"]
-        LocalFeature2ParFitClass = {Feature: {"A": [], "b": [],"class":[],"type":[]} for Feature in self.Features2Fit}
-        for Feature in self.Aggregation2Feature2Class2AllFitTry.keys():
-            for StrClass in self.Aggregation2Feature2Class2AllFitTry[Feature].keys():
-                for Type in Types:
-                    for StrDay in self.Aggregation2Feature2Class2AllFitTry[Feature][StrClass].keys():
-                        if StrDay in self.AggregationLevel2ListDays[Type]:
-                            A = self.Aggregation2Feature2Class2Day2Feature[Type][Feature][StrClass][StrDay]["parameters"][0]
-                            b = self.Aggregation2Feature2Class2Day2Feature[Type][Feature][StrClass][StrDay]["parameters"][1]
-                            LocalFeature2ParFitClass[Feature]["A"].append(A)
-                            LocalFeature2ParFitClass[Feature]["b"].append(b)
-                            LocalFeature2ParFitClass[Feature]["class"].append(StrClass)
-                            LocalFeature2ParFitClass[Feature]["type"].append(Type)
-        return LocalFeature2ParFitClass
-    
-
-# PLOT FEATURES FOR ALL DAYS
-
-    def PlotComparisonDistributionEachFeatureAllDays(self):
-        """
-            Description:
-                Plot the distribution of each feature given the class for all days
-        """
-        Colors = ["blue","red","green","yellow","black","orange","purple","pink","brown","grey"]
-        Features = ["speed_kmh","lenght_km","time_hours"]
-        Feature2Label = {"lenght_km":"L (km)","speed_kmh":"v (kmh)","time_hours":"t (h)"}
-        if self.AddStrClassColumn2FcmBool:
-            if self.AssociateAvSpeed2StrClassBool:
-                for Aggregation in self.Aggregation2Class2Fcm.keys():
-                    fig1,ax1 = plt.subplots(1,1,figsize = (10,8))
-                    for StrClass in self.Aggregation2Class2Fcm[Aggregation]:
-                        for Feature in Features:
-                            fig,ax = plt.subplots(1,1,figsize = (10,8))                    
-                            legend = []
-                            CountDay = 0
-                            for MobDate in self.ListDailyNetwork:
-                                CountDay += 1
-                                if MobDate.StrDate in self.AggregationLevel2ListDays[Aggregation]:                                
-                                    y,x = np.histogram(MobDate.Fcm.filter(pl.col("str_class") == StrClass)[Feature],bins = 50)
-                                    P = y/np.sum(y)
-                                    x_mean = np.mean(x)
-                                    variance = np.var(x)/np.sqrt(len(x))
-#                                    legend.append(MobDate.StrDate)
-                                    ax.scatter(x[:-1],P,color = Colors[CountDay],label=MobDate.StrDate)
-                                    ax1.scatter(x[:-1],P,color = Colors[CountDay],label=MobDate.StrDate)
-#                                    ax.vlines(x_mean,0,max(P),color = Colors[CountDay],label=None)
-#                                    ax.vlines(x_mean - variance,0,1,color = Colors[CountDay])
-#                                    ax.vlines(x_mean + variance,0,1,color = Colors[CountDay])
-                            ax.set_xlabel(Feature2Label[Feature])
-                            ax.set_ylabel("P({})".format(Feature2Label[Feature]))
-#                            ax.set_title("Distribution of {} for {}".format(Feature2Label[Feature],StrClass))
-                            ax1.set_xlabel(Feature2Label[Feature])
-                            ax1.set_ylabel("P({})".format(Feature2Label[Feature]))
-#                            ax1.set_title("Distribution of {}".format(Feature2Label[Feature]))
-    #                       ax.legend(legend)
-                            if "speed" not in Feature:
-                                ax.set_yscale("log")
-                                ax.set_xscale("log")
-                                ax1.set_yscale("log")
-                                ax1.set_xscale("log")
-                            fig.savefig(os.path.join(self.PlotDir,"Distribution_{0}_{1}_{2}.png".format(Feature,Aggregation,StrClass)),dpi = 200)
-                            plt.close()
-                    fig1.savefig(os.path.join(self.PlotDir,"Distribution_{0}_{1}.png".format(Feature,Aggregation)),dpi = 200)
-            else:
-                Message = "Plot Classes"
 
     def PlotComparisonDistributionEachFeatureAllDaysRescaledByMean(self):
         """
             Description:
                 Plot the distribution of each feature given the class for all days
         """
-        Colors = ["blue","red","green","yellow","black","orange","purple","pink","brown","grey"]
-        Features = ["speed_kmh","lenght_km","time_hours"]
+        Features = ["lenght_km","time_hours"]
         Feature2Label = {"lenght_km":"L","speed_kmh":"v","time_hours":"t"}
-        Feature2AvgLabel = {"lenght_km":"<L>","speed_kmh":"<v>","time_hours":"<t>"}
-        if self.AddStrClassColumn2FcmBool:
-            if self.AssociateAvSpeed2StrClassBool:
-                for Aggregation in self.Aggregation2Class2Fcm.keys():
-                    if Aggregation == "aggregated":
-                        for StrClass in self.Aggregation2Class2Fcm[Aggregation]:
-                            for Feature in Features:
-                                fig,ax = plt.subplots(1,1,figsize = (10,8))                    
-                                legend = []
-                                CountDay = 0
-                                for MobDate in self.ListDailyNetwork:
-                                    CountDay += 1
-                                    if MobDate.StrDate in self.AggregationLevel2ListDays[Aggregation]:                                
-                                        y,x = np.histogram(MobDate.Fcm.filter(pl.col("str_class") == StrClass)[Feature],bins = 50)                                            
-                                        P = y/np.sum(y)
-                                        x_mean = np.mean(x)
-                                        variance = np.var(x)/np.sqrt(len(x))
-                                        if Feature == "speed_kmh":
-                                            x = x - x_mean
-                                            x = x/variance
-                                        else:
-                                            x = x/x_mean
-    #                                    legend.append(MobDate.StrDate)                                                
-                                        ax.scatter(x[:-1],P,color = Colors[CountDay],label=MobDate.StrDate)
-    #                                    ax.vlines(x_mean,0,max(P),color = Colors[CountDay],label=None)
-    #                                    ax.vlines(x_mean - variance,0,1,color = Colors[CountDay])
-    #                                    ax.vlines(x_mean + variance,0,1,color = Colors[CountDay])
-                                if Feature == "speed_kmh":
-                                    ax.set_xlabel(r"$\frac{v - \langle v \rangle}{\sigma}$")
-                                    ax.set_ylabel(r"P($\frac{v - \langle v \rangle}{\sigma}$)")
-                                else:
-                                    ax.set_xlabel("{0}/{1}".format(Feature2Label[Feature],Feature2AvgLabel[Feature]))
-                                    ax.set_ylabel("P({0}/{1})".format(Feature2Label[Feature],Feature2AvgLabel[Feature]))
-#                                ax.set_title("Distribution of {0} for {1} ".format(Feature,StrClass))
-                                ax.legend()
-                                if "speed" not in Feature:
-                                    ax.set_yscale("log")
-                                    ax.set_xscale("log")
-                                    ax.set_xlim(0.05)
-                                plt.savefig(os.path.join(self.PlotDir,"RescaledX_Distribution_{0}_{1}_{2}.png".format(Feature,Aggregation,StrClass)),dpi = 200)
-                                plt.close()
+        Days = [MobDate.StrDate for MobDate in self.ListDailyNetwork]
+        Class2ClassStr = {"0":"1 slowest","1":"2 slowest","2":"2 fastest","3":"1 fastest"}
+        Plot_distribution_length_time_daily_and_condtioned_to_classes(Days,
+                                                                    Features,
+                                                                    ["0","1","2","3"],
+                                                                    ["New"],
+                                                                    self.PlotDir,
+                                                                    Class2ClassStr,
+                                                                    Feature2Label,
+                                                                    self.PlotDir)
 
-            else:
-                Message = "Plot Classes"
+        Plot_distribution_length_time_not_conditional_class(["New"],
+                                                            Days,
+                                                            Features,
+                                                            Feature2Label,
+                                                            self.PlotDir)
 
 
-    def PlotComparisonDistributionInDays(self):
+    
+
+    def PlotInsetFitAggregated(self,DfParametersFit,Feature,ax_inset):
         """
-            Description:
-                Plot the distribution of each feature not conditioned on the class for all days
+            @param DfParametersFit: DataFrame with the parameters of the fit columns: ["Day","A","alpha"]
+            @param Feature: Feature to plot
+            @param ax_inset: Axes to plot the inset
+            @return ax_inset: Axes with the inset -> the plot of the fitting parameters:
+            - <x> for exponential
+            - alpha for power law
         """
-        Colors = ["blue","red","green","yellow","black","orange","purple","pink","brown","grey"]
-        Features = ["speed_kmh","lenght_km","time_hours"]
-        Feature2Label = {"lenght_km":"L (km)","speed_kmh":"v (km/h)","time_hours":"t (h)"}
-        Feature2AvgLabel = {"lenght_km":"<L> (km)","speed_kmh":"<v> (km/h)","time_hours":"<t> (h)"}        
-        if self.AddStrClassColumn2FcmBool:
-            if self.AssociateAvSpeed2StrClassBool:
-                for Aggregation in self.Aggregation2Class2Fcm.keys():
-                    for Feature in Features:
-                        fig,ax = plt.subplots(1,1,figsize = (10,8))                    
-                        legend = []
-                        CountDay = 0
-                        for MobDate in self.ListDailyNetwork:
-                            CountDay += 1
-                            if MobDate.StrDate in self.AggregationLevel2ListDays[Aggregation]:                                
-                                y,x = np.histogram(MobDate.Fcm[Feature],bins = 50)
-                                P = y/np.sum(y)
-                                x_mean = np.mean(x)
-                                variance = np.var(x)/np.sqrt(len(x))
-#                                legend.append(MobDate.StrDate)
-                                ax.scatter(x[:-1],P,color = Colors[CountDay],label=MobDate.StrDate)
-                                ax.vlines(x_mean,0,max(P),color = Colors[CountDay],linestyle = "--",label=None)
-                        ax.set_xlabel(Feature2Label[Feature])
-                        ax.set_ylabel("P({})".format(Feature2Label[Feature]))
-#                        ax.set_title("Distribution of {0} for {1}".format(Feature,Aggregation))
-                        ax.legend()
-                        if "speed" not in Feature:
-                            ax.set_yscale("log")
-                        plt.savefig(os.path.join(self.PlotDir,"Distribution_{0}_{1}.png".format(Feature,Aggregation)),dpi = 200)
-                        plt.close()
-
-            else:
-                Message = "Plot Classes"
-
-
-    def PlotDistrFeaturepowerLawComparisonAllDays(self):
-        """
-            Plots the compared distribution of lenght, time for all days,
-            With power law fit.
-        """
-        colors = ["blue","red","green","yellow","black","orange","purple","pink","brown","grey"]
-        Features = ["speed_kmh","lenght_km","time_hours"]
-        Feature2Label = {"lenght_km":"L (km)","speed_kmh":"v (km/h)","time_hours":"t (h)"}
-        Feature2AvgLabel = {"lenght_km":"<L>","speed_kmh":"<v>","time_hours":"<t>"}        
-        for Feature in ["lenght_km","time_hours"]:
-            for Aggregation in self.Aggregation2Class2Fcm.keys():
-                fig,ax = plt.subplots(1,1,figsize = (10,10))
-                if not "time" in Feature:
-                    fig1,ax1 = plt.subplots(1,1,figsize = (10,10))
-                CountDay = 0
-                legend = []
-                Day2Fit = defaultdict(list)
-                for MobDate in self.ListDailyNetwork:            
-                    CountDay += 1
-                    if MobDate.StrDate in self.AggregationLevel2ListDays[Aggregation]:    
-                        y,x = np.histogram(MobDate.Fcm[Feature],bins = 50)  
-                        y = y/np.sum(y)
-                        x_mean = np.mean(x)
-                        if "time" in Feature:
-                            fit = pwl.Fit(np.array(MobDate.Fcm[Feature]),
-                                        xmin = min(np.array(MobDate.Fcm[Feature])[2:]),
-                                        xmax = max(np.array(MobDate.Fcm[Feature])),
-                                        initial_guess = (-1,1))
-                            ax.scatter(x[:-1],y/np.sum(y),color=colors[CountDay],label=MobDate.StrDate)
-
-                        else:
-                            fit_truncated,Success,y_fit,x,y_measured = FitProbabilityFromData(np.array(MobDate.Fcm[Feature]),label = 'truncated_powerlaw',initial_guess = (1,-1,-1))
-                            fit = pwl.Fit(np.array(MobDate.Fcm[Feature]),
-                                        xmin = min(np.array(MobDate.Fcm[Feature])),
-                                        xmax = max(np.array(MobDate.Fcm[Feature])),
-                                        initial_guess = (-1,1))
-                            ax1.scatter(x,y_measured/np.sum(y_measured),color=colors[CountDay],label=MobDate.StrDate) 
-                            ax1.plot(x,y_fit/np.sum(y_fit),color=colors[CountDay],linestyle = "--",label=None)
-                            ax1.set_yscale("log")
-                            ax1.set_xlabel(Feature2Label[Feature])
-                            ax1.set_ylabel("P({})".format(Feature2Label[Feature]))
-                            with open(os.path.join(self.PlotDir,f"truncated_{Aggregation}_{Feature}.txt"),"w") as file:
-                                file.write(f"A: {fit_truncated[0][0]}, alpha: {fit_truncated[0][1]},beta: {fit_truncated[0][2]}")
-                            if len(x) > len(y):
-                                DeltaIndex = len(x) - len(y)
-                                x = x[:-DeltaIndex]
-                            if len(x) < len(y):
-                                DeltaIndex = len(y) - len(x)
-                                y = y[:-DeltaIndex]
-                            else:
-                                pass
-                            ax1.scatter(x,y,color=colors[CountDay],label=MobDate.StrDate)
-                        if "time" in Feature:
-                            y = x[2:-1]**(-fit.alpha)
-                            y = y/np.sum(y)
-                            ax.plot(x[2:-1],y,color=colors[CountDay],linestyle = "--",label=None)
-                        else:
-                            y = x[1:-1]**(-fit.alpha)
-                            y = y/np.sum(y)
-                            ax.plot(x[1:-1],y,color=colors[CountDay],linestyle = "--",label=None)
-#                        ax.vlines(x_mean,0,max(y),color=colors[CountDay],linestyles = "dashed",label=None)
-                        Day2Fit[MobDate.StrDate] = (fit.alpha)
-#                        print(f"Power Lae Truncated {MobDate.StrDate}: ",fit_[0][0],fit_[0][1],fit_[0][2])
-#                        ax.plot(x[:-1],fit_[0][0]*x[:-1]**(fit_[0][1])*np.exp(-x[:-1]*fit_[0][2]),color=colors[CountDay],linestyle = "--",label=None)
-
-#                        legend.append(MobDate.StrDate)
-                ax.legend()
-                ax.set_yscale("log")
-#                ax.set_xscale("log")
-                ax.set_xlabel(Feature2Label[Feature])
+        for Day,DfParDay in DfParametersFit.groupby("Day"):
+            # Exp
+            if "1/<x>" in DfParDay.columns:
+                T = - DfParDay["1/<x>"].to_numpy()[0]
                 if "time" in Feature:
-                    ax.set_xlim(0.04,25)
+                    ax_inset.set_ylabel(r"$\langle t \rangle (hours)$")
                 if "lenght" in Feature:
-                    ax.set_xlim(0.04,50)
-                    ax.set_ylim(1e-5,1)
-                    fig1.savefig(os.path.join(self.PlotDir,"TruncatedPowerLawFit_{0}_{1}.png".format(Aggregation,Feature)),dpi = 200)
-                    plt.close()
+                    ax_inset.set_ylabel(r"$\langle L \rangle (km)$")
+            # Pl 
+            elif "alpha" in DfParDay.columns:
+                T = DfParDay["alpha"].to_numpy()[0]
+                ax_inset.set_ylabel(r"$\alpha$")
+            ax_inset.set_xlabel("Day")
+            ax_inset.set_xticklabels([])
+            ax_inset.set_yticklabels([])
+            ax_inset.scatter([Day],[T],label = Day,marker=self.Day2Marker[Day],color = self.StrDay2Color[Day])
+        return ax_inset
 
-                ax.set_ylabel("P({})".format(Feature2Label[Feature]))
-#                ax.set_title(Feature)
-                fig.savefig(os.path.join(self.PlotDir,"PowerLawFit_{0}_{1}.png".format(Aggregation,Feature)),dpi = 200)
-                plt.close()
-                with open(os.path.join(self.PlotDir,f"PowerLawFit_{Aggregation}_{Feature}.json"),"w") as file:
-                    json.dump(Day2Fit,file)
+    def PlotParametersAggregatedFit(self):
+        """
+            Reading from:
+              - ExponentialFit_{Aggregation}_{Feature}.csv
+              - PowerLawFit_{Aggregation}_{Feature}.csv
+
+
+        """
+        Features = ["lenght_km","time_hours"]
+        Feature2Label = {"lenght_km":"L (km)","time_hours":"t (h)"}
+        for Feature in Features:
+            for Aggregation in self.Aggregation2Class2Fcm.keys():
+                if os.path.exists(os.path.join(self.PlotDir,f"ExponentialFit_{Aggregation}_{Feature}.csv")):
+                    Day2ExpFit = pl.read_csv(os.path.join(self.PlotDir,f"ExponentialFit_{Aggregation}_{Feature}.csv"))
+                    fig,ax = plt.subplots(1,1,figsize = (10,8))
+                    for Day in Day2ExpFit["Day"]:
+                        T = -Day2ExpFit.filter(pl.col("Day") == Day)["1/<x>"].to_numpy()[0]
+                        ax.scatter([Day],[T],label = Day,marker=self.Day2Marker[Day],color = self.StrDay2Color[Day])
+                    ax.set_xlabel("Day")
+                    if "time" in Feature:
+                        ax.set_ylabel(r"$\langle t \rangle (hours)$")
+                    if "lenght" in Feature:
+                        ax.set_ylabel(r"$\langle L \rangle (km)$")
+                    ax.set_title("Exponential Fit Parameters")
+                    ax.set_xticklabels(Day2ExpFit["Day"],rotation = 90)
+                    ax.legend()
+                    fig.savefig(os.path.join(self.PlotDir,f"ParameterExponentialFit_{Aggregation}_{Feature}.png"),dpi = 200)
+                    plt.close()
+                if os.path.exists(os.path.join(self.PlotDir,f"PowerLawFit_{Aggregation}_{Feature}.csv")):
+                    Day2PlFit = pl.read_csv(os.path.join(self.PlotDir,f"PowerLawFit_{Aggregation}_{Feature}.csv"))
+                    
+                    fig,ax = plt.subplots(1,1,figsize = (10,8))
+                    for Day in Day2PlFit["Day"]:
+                        alpha = Day2PlFit.filter(pl.col("Day") == Day)["alpha"].to_numpy()[0]
+                        ax.scatter([Day],[alpha],label = Day,marker=self.Day2Marker[Day],color = self.StrDay2Color[Day])
+                    ax.set_xlabel("A")
+                    ax.set_ylabel(r"$\alpha$")
+                    ax.set_xticklabels(Day2PlFit["Day"],rotation = 90)
+                    ax.set_title("Power Law Fit Parameters")
+                    ax.legend()
+                    fig.savefig(os.path.join(self.PlotDir,f"ParameterPowerLawFit_{Aggregation}_{Feature}.png"),dpi = 200)
+                    plt.close()
     def PlotDistributionTotalNumberPeople(self):
         """
             x: Days
@@ -1101,9 +1163,13 @@ class NetworkAllDays:
 
 # NUMBER OF TRAJECTORIES GIVEN THE CLASS
     def PlotNPeopleOverNRoads(self):
+        """
+            @description:
+                For each road in the network, plot the number of people over the number of roads according to the classification
+        """
         MobDate = self.ListDailyNetwork[0]
         ks = sorted(list(MobDate.OrderedClass2TimeDeparture2UserId.keys()))
-        fig,ax = plt.subplot_mosaic([[ks[0],ks[1]],[ks[2],ks[3]]],figsize = (20,20))        
+        fig,ax = plt.subplot_mosaic([[ks[0],ks[1]],[ks[2],ks[3]]],figsize = (20,20),sharex=True,sharey=True)        
         for MobDate in self.ListDailyNetwork:
             for Class in ks:
                 TimeIntervals = list(MobDate.OrderedClass2TimeDeparture2UserId[Class].keys())
@@ -1115,15 +1181,15 @@ class NetworkAllDays:
                 Npeop = []
                 for TimeDeparture in MobDate.OrderedClass2TimeDeparture2UserId[Class].keys():
                     Npeop.append(len(MobDate.OrderedClass2TimeDeparture2UserId[Class][TimeDeparture])/len(MobDate.IntClass2RoadsIncreasinglyIncludedIntersection[Class]))
-                ax[Class].scatter(TimeIntervalsDt,Npeop,label = f"{MobDate.StrDate}")
-                ax[Class].hlines(1,TimeIntervalsDt[0],TimeIntervalsDt[-1])
+                ax[Class].scatter(TimeIntervalsDt[self.CutIndexTime:],Npeop[self.CutIndexTime:],label = f"{MobDate.StrDate}")
+#                ax[Class].hlines(1,TimeIntervalsDt[self.CutIndexTime],TimeIntervalsDt[-1])
 #                ax[Class].text(TimeIntervalsDt[0],0.5,f"Number of Roads {len(MobDate.IntClass2RoadsIncreasinglyIncludedIntersection[Class])}")
 #                ax[Class].set_xlabel("Time")
                 ax[Class].set_ylabel(r"$\frac{N_p}{N_r}$")
-                ax[Class].set_xticks(range(len(TimeIntervalsDt))[::8])  # Set the ticks to correspond to the labels
-                ax[Class].set_xticklabels(TimeIntervalsDt[::8], rotation=90)  # Set the labels with rotation    ax.set_title("Time Percorrence Distribution")
-                ax[Class].set_title(f"Evolution Number People Class {Class}")
+                ax[Class].set_xticks(range(len(TimeIntervalsDt[self.CutIndexTime:]))[::8])  # Set the ticks to correspond to the labels
+                ax[Class].set_xticklabels(TimeIntervalsDt[self.CutIndexTime::8], rotation=90)  # Set the labels with rotation    ax.set_title("Time Percorrence Distribution")
                 ax[Class].legend()
+                ax[Class].set_yscale("log")
         plt.savefig(os.path.join(self.PlotDir,f"EvolutionNumberPeople.png"),dpi = 200)
         plt.close()
 
@@ -1135,7 +1201,7 @@ class NetworkAllDays:
         """
         MobDate = self.ListDailyNetwork[0]
         ks = sorted(list(MobDate.OrderedClass2TimeDeparture2UserId.keys()))
-        fig,ax = plt.subplot_mosaic([[ks[0],ks[1]],[ks[2],ks[3]]],figsize = (20,20))        
+        fig,ax = plt.subplot_mosaic([[ks[0],ks[1]],[ks[2],ks[3]]],figsize = (20,20),sharex=True,sharey=True)        
         for MobDate in self.ListDailyNetwork:
             for Class in ks:
                 TimeIntervals = list(MobDate.OrderedClass2TimeDeparture2UserId[Class].keys())
@@ -1145,17 +1211,24 @@ class NetworkAllDays:
                     TimeIntervalsDt = TimeIntervals
                     pass
                 Npeop = []
+                print("Plot Density Class: ",Class)
                 for TimeDeparture in MobDate.OrderedClass2TimeDeparture2UserId[Class].keys():
+                    print("Time Departure: ",TimeDeparture)
+                    print("Number of People: ",len(MobDate.OrderedClass2TimeDeparture2UserId[Class][TimeDeparture]),"Total Length: ",(len(MobDate.IntClass2RoadsIncreasinglyIncludedIntersection[Class])*MobDate.Class2TotalLengthOrderedSubnet[Class]))
                     Npeop.append(len(MobDate.OrderedClass2TimeDeparture2UserId[Class][TimeDeparture])/(len(MobDate.IntClass2RoadsIncreasinglyIncludedIntersection[Class])*MobDate.Class2TotalLengthOrderedSubnet[Class]))
-                ax[Class].scatter(TimeIntervalsDt,Npeop,label = f"{MobDate.StrDate}")
-                ax[Class].hlines(1,TimeIntervalsDt[0],TimeIntervalsDt[-1])
+                if Class == 3 or Class == "3":
+                    ax[Class].scatter(TimeIntervalsDt[self.CutIndexTime:],Npeop[self.CutIndexTime:],label = f"{MobDate.StrDate}")
+                else:
+                    ax[Class].scatter(TimeIntervalsDt[self.CutIndexTime:],Npeop[self.CutIndexTime:],label = "")
+#                ax[Class].hlines(1,TimeIntervalsDt[0],TimeIntervalsDt[-1])
 #                ax[Class].text(TimeIntervalsDt[0],0.5,f"Number of Roads {len(MobDate.IntClass2RoadsIncreasinglyIncludedIntersection[Class])}")
 #                ax[Class].set_xlabel("Time")
                 ax[Class].set_ylabel(r"$\frac{N_p}{L_{r}^{tot}}$")
-                ax[Class].set_xticks(range(len(TimeIntervalsDt))[::8])  # Set the ticks to correspond to the labels
-                ax[Class].set_xticklabels(TimeIntervalsDt[::8], rotation=90)  # Set the labels with rotation    ax.set_title("Time Percorrence Distribution")
-                ax[Class].set_title(f"Evolution Number People Class {Class}")
-                ax[Class].legend()
+                ax[Class].set_xticks(range(len(TimeIntervalsDt[self.CutIndexTime:]))[::8])  # Set the ticks to correspond to the labels
+                ax[Class].set_xticklabels(TimeIntervalsDt[self.CutIndexTime::8], rotation=90)  # Set the labels with rotation    ax.set_title("Time Percorrence Distribution")
+                ax[Class].set_yscale("log")
+                if Class == 3:
+                    ax[Class].legend()
         plt.savefig(os.path.join(self.PlotDir,f"EvolutionDensitySubnetwork.png"),dpi = 200)
         plt.close()
 # TRAFFIC
@@ -1170,8 +1243,13 @@ class NetworkAllDays:
         Class2TrafficIndex = {Class: None for Class in ks}  
         Class2CriticalTraffic = {Class: 0 for Class in ks}
         CountDays = 0
-        fig,ax = plt.subplots(2,2,figsize = (20,20))
+        fig,ax = plt.subplots(2,2,figsize = (20,20),sharey = True)
         Class2Idx = {0:(0,0),1:(0,1),2:(1,0),3:(1,1)}
+        TrafficIdx = {str(int(Class)): [] for Class in ks}
+        TrafficIdx["Day"] = [] 
+        TrafficIdx["Time"] = []
+        Day2TrafficIndex = {MobDate.StrDate + "_" + str(Class): [] for Class in ks  for MobDate in self.ListDailyNetwork}
+        
         for MobDate in self.ListDailyNetwork:
             CountDays += 1
             for Class in ks:
@@ -1181,6 +1259,7 @@ class NetworkAllDays:
                 else:
                     TimeIntervalsDt = TimeIntervals
                     pass
+
                 # Critical Value Traffic Index
                 if Class2CriticalTraffic[Class] is None: 
                     Class2CriticalTraffic[Class] = np.array(MobDate.Class2traffickIndex[Class])
@@ -1188,32 +1267,51 @@ class NetworkAllDays:
                     Class2CriticalTraffic[Class] += np.array(MobDate.Class2traffickIndex[Class])
                 ax0 = Class2Idx[Class][0]
                 ax1 = Class2Idx[Class][1]
-#                TrafficIndex2Plot = [MobDate.Class2traffickIndex[Class][i] if MobDate.Class2IsSignalPTest[Class][i] == 1 else 0 for i in range(len(MobDate.Class2IsSignalPTest[Class]))]
-                ax[ax0,ax1].plot(TimeIntervalsDt,MobDate.Class2traffickIndex[Class],label = "{}".format(MobDate.StrDate))
+                if Class == 3:
+                    ax[ax0,ax1].plot(TimeIntervalsDt[self.CutIndexTime:],MobDate.Class2traffickIndex[Class][self.CutIndexTime:],label = "{}".format(MobDate.StrDate))
+                else:
+                    ax[ax0,ax1].plot(TimeIntervalsDt[self.CutIndexTime:],MobDate.Class2traffickIndex[Class][self.CutIndexTime:],label = "")
+                Day2TrafficIndex["Time"] = TimeIntervalsDt
+                Day2TrafficIndex[MobDate.StrDate + "_" + str(Class)] = list(MobDate.Class2traffickIndex[Class])
+                if Class == 0 or Class == "0":
+                    TrafficIdx["Day"].extend(list(np.full(len(TimeIntervalsDt[self.CutIndexTime:]),MobDate.StrDate)))
+                    TrafficIdx["Time"].extend(TimeIntervalsDt[self.CutIndexTime:])
+                
+                TrafficIdx[str(int(Class))].extend(list(MobDate.Class2traffickIndex[Class][self.CutIndexTime:]))
                 ax[ax0,ax1].set_xlabel("Time")
-                ax[ax0,ax1].set_ylabel(r"$\langle \frac{(v_o(t) - v_h(t))}{\langle v_h \rangle_t}\frac{N_{class}}{N_{max}} \rangle_{days}$")
-                tick_locations = np.arange(0, len(TimeIntervalsDt), 8)
-                tick_labels = MobDate.BinStringHour[::8]
+#                ax[ax0,ax1].set_ylabel(r"$\langle \frac{(v_o(t) - v_h(t))}{\langle v_h \rangle_t}\frac{N_{class}}{N_{max}} \rangle_{days}$")
+                ax[ax0,ax1].set_ylabel(r"$\langle \Gamma_{k} (t) \rangle_{days}$",fontsize = 18)
+
+                tick_locations = np.arange(0, len(TimeIntervalsDt[self.CutIndexTime:]), 8)
+                tick_labels = MobDate.BinStringHour[self.CutIndexTime::8]
                 ax[ax0,ax1].set_xticks(tick_locations)
                 ax[ax0,ax1].set_xticklabels(tick_labels, rotation=90)
-                ax[ax0,ax1].legend()
+                if Class == 3:
+                    ax[ax0,ax1].legend()
 
         plt.savefig(os.path.join(self.PlotDir,"TrafficIndicatorAllDays.png"))
         plt.close()
+        with open(os.path.join(self.PlotDir,"TrafficIndexAllDays.json"),"w") as f:
+            json.dump(Day2TrafficIndex,f,indent=2)
+        # Ad Hoc, somehow I inserted numpy.float
+        for key in TrafficIdx:
+            TrafficIdx[key] = [float(x) if isinstance(x, np.float64) else x for x in TrafficIdx[key]]
+        pl.DataFrame(TrafficIdx).write_csv(os.path.join(self.PlotDir,"TrafficIndexAllDays.csv"))
         for Class in Class2CriticalTraffic.keys():     
             Class2CriticalTraffic[Class] = Class2CriticalTraffic[Class]/CountDays
         # NOTE: Compute the average speed and the difference speed
-        fig,ax = plt.subplots(2,2,figsize = (20,20))
+        fig,ax = plt.subplots(2,2,figsize = (20,20),sharey = True)
         Class2Idx = {0:(0,0),1:(0,1),2:(1,0),3:(1,1)}
         for Class in Class2CriticalTraffic.keys():
             ax0 = Class2Idx[Class][0]
             ax1 = Class2Idx[Class][1]
-            ax[ax0,ax1].plot(TimeIntervalsDt,Class2CriticalTraffic[Class],label = "Class {}".format(Class))
+            ax[ax0,ax1].plot(TimeIntervalsDt[self.CutIndexTime:],Class2CriticalTraffic[Class][self.CutIndexTime:],label = "Class {}".format(Class))
 #            ax[ax0,ax1].hlines(Class2CriticalTraffic[Class],TimeIntervalsDt[0],TimeIntervalsDt[-1],linestyles = "--",label = "Critical Traffic")
             ax[ax0,ax1].set_xlabel("Time")
-            ax[ax0,ax1].set_ylabel(r"$\langle \frac{(v_o(t) - v_h(t))}{\langle v_h \rangle_t}\frac{N_{class}}{N_{max}} \rangle_{days}$")
-            tick_locations = np.arange(0, len(TimeIntervalsDt), 8)
-            tick_labels = MobDate.BinStringHour[::8]
+            ax[ax0,ax1].set_ylabel(r"$\langle \Gamma_{k} (t) \rangle_{days}$")
+#            ax[ax0,ax1].set_ylabel(r"$\langle \frac{(v_o(t) - v_h(t))}{\langle v_h \rangle_t}\frac{N_{class}}{N_{max}} \rangle_{days}$")
+            tick_locations = np.arange(0, len(TimeIntervalsDt[self.CutIndexTime:]), 8)
+            tick_labels = MobDate.BinStringHour[self.CutIndexTime::8]
             ax[ax0,ax1].set_xticks(tick_locations)
             ax[ax0,ax1].set_xticklabels(tick_labels, rotation=90)
 
@@ -1221,156 +1319,27 @@ class NetworkAllDays:
 #        with open(os.path.join(self.PlotDir,"Class2traffickIndex.json"),'w') as f:
 #            json.dump(Class2TraffickIndex,f,indent=2)
         plt.close()
+        Classes = ["0","1","2","3"]
+        Days = [MobDate.StrDate for MobDate in self.ListDailyNetwork]
+        PlotTrafficIForEachDay(Classes,Days,self.PlotDir)
     
-# CFAR
-    def PlotCFAR(self):
-        MobDate = self.ListDailyNetwork[0]
-        fig,axs = plt.subplots(2,2,figsize = (20,20)) 
-        for Class in MobDate.Class2Signal.keys():
-            if int(Class) == 0:
-                i = 0
-                j = 0
-            elif int(Class) == 1:
-                i = 0
-                j = 1
-            elif int(Class) == 2:
-                i = 1
-                j = 0
-            else:
-                i = 1
-                j = 1
-            legend = []
-            for MobDate in self.ListDailyNetwork:
-#                    ax.scatter(MobDate.TimeIntervalsDt,MobDate.Class2Signal[Class],label = "Signal ")
-#                    ax.plot(MobDate.TimeIntervalsDt,MobDate.Class2Cut[Class],label = "Cut")
-                MobDate.Class2CFARClassification[Class] = [0 if MobDate.Class2CFARClassification[Class][i] < 0 else MobDate.Class2CFARClassification[Class][i] for i in range(len(MobDate.Class2CFARClassification[Class]))]
-                axs[i,j].scatter(MobDate.TimeIntervalsDt,MobDate.Class2Signal[Class])
-                axs[i,j].set_xlabel("Time")
-                axs[i,j].set_ylabel("Signal")
-                axs[i,j].set_title("CFAR Classification Class {}".format(Class))
-                legend.append(f"Signal: {MobDate.StrDate}")
-                axs[i,j].set_xticks(range(len(MobDate.TimeIntervalsDt))[::8])
-                axs[i,j].set_xticklabels(MobDate.TimeIntervalsDt[::8], rotation=90)
-                axs[i,j].legend(legend)
-        plt.savefig(os.path.join(self.PlotDir,"CFARClassificationClass.png"),dpi = 200)
-        plt.close()
-
-    def PlotPtestComparison(self):
-        """
-            Description:
-                Plots the comparison of the ptest for all days.
-        """
-        MobDate = self.ListDailyNetwork[0]
-        fig,axs = plt.subplots(2,2,figsize = (20,20)) 
-        for Class in range(len(MobDate.Class2IsSignalPTest)):
-            if int(Class) == 0:
-                i = 0
-                j = 0
-            elif int(Class) == 1:
-                i = 0
-                j = 1
-            elif int(Class) == 2:
-                i = 1
-                j = 0
-            else:
-                i = 1
-                j = 1
-            legend = []
-            # Count the number of days an outlier is repeated 
-            Day2CountOutliers = {MobDate.StrDate: np.zeros(len(MobDate.TimeIntervalsDt)) for MobDate in self.ListDailyNetwork}
-            for MobDate in self.ListDailyNetwork:
-                for t in range(len(MobDate.TimeIntervalsDt)):
-                    if MobDate.Class2IsSignalPTest[Class][t]!=0:
-                        Day2CountOutliers[MobDate.StrDate][t] += 1 
-            # Consider just those that are not outliers in more than half of the daysy
-            for MobDate in self.ListDailyNetwork:
-                for t in range(len(MobDate.TimeIntervalsDt)):
-                    if Day2CountOutliers[MobDate.StrDate][t]>len(self.ListDailyNetwork)/2:
-                        pass
-                    else:
-                        MobDate.Class2IsSignalPTest[Class][t] = 0 
-            for MobDate in self.ListDailyNetwork:
-                axs[i,j].scatter(MobDate.TimeIntervalsDt,MobDate.Class2IsSignalPTest[Class],label = "Signal")
-                axs[i,j].set_xlabel("Time")
-                axs[i,j].set_ylabel("Signal")
-                axs[i,j].set_title("PTest {}".format(Class))
-                legend.append(f"Signal: {MobDate.StrDate}")
-                axs[i,j].set_xticks(range(len(MobDate.TimeIntervalsDt))[::8])
-                axs[i,j].set_xticklabels(MobDate.TimeIntervalsDt[::8], rotation=90)
-                axs[i,j].legend(legend)
-        plt.savefig(os.path.join(self.PlotDir,"PTestClassification.png"),dpi = 200)
-        plt.close()
-
-
 
     def PlotNumberTrajectoriesGivenClass(self):
         """
-            Description:
-                Plots the number of trajectories given the class for all days.
+            @brief: Plot the number of trajectories given the class
+            This function is the application of heterogenous analysis.
+            @requirements:
+                df_fit_and_data_expo_{Feature}_conditional_class_new.csv -> contain
+                df_1_Lk_Lmax_{Feature}.csv
         """
+        from scipy.ndimage import gaussian_filter1d
         from mpl_toolkits.axes_grid1.inset_locator import inset_axes
         colors = ["blue","red","green","yellow","black","orange","purple","pink","brown","grey"]
+        
         Feature2Label = {"lenght_km":"L","time_hours":"t"}
-        for Aggregation in ["aggregated"]:
+        for Aggregation in ["aggregated"]:            
+            DayHeterogeneity = {"Class":[],"Day":[],"y_contribution":[],"x":[]}
             for Feature in ["lenght_km","time_hours"]:
-                # Compute the alphas that define for a given day fraction of trajectories that are to a class (RhoK)
-                RhoKGivenDay = []
-                RhoxGivenKGivenDay = []
-                RhoxGivenDay = []
-                fig,ax = plt.subplots(1,1,figsize = (10,8))
-                for MobDate in self.ListDailyNetwork:
-                    ParametersExpoFitDay = []
-                    for StrClass in self.ListStrClassReference:
-                        IntClass = self.Day2StrClass2IntClass[MobDate.StrDate][StrClass]
-                        StrBestFit = MobDate.Feature2Class2AllFitTry[Feature][IntClass]["best_fit"]
-                        yClass,xClass = np.histogram(MobDate.Fcm.filter(pl.col("str_class")==StrClass)[Feature],bins = 50)  
-                        RhoxGivenKGivenDay.append(yClass/np.sum(yClass)) 
-                        if StrBestFit == "exponential":
-#                            RoundedParam0 = round(MobDate.Feature2Class2AllFitTry[Feature][IntClass][StrBestFit]["parameters"][0],3)
-                            Inversexk = round(MobDate.Feature2Class2AllFitTry[Feature][IntClass][StrBestFit]["parameters"][1],3)
-                            ParametersExpoFitDay.append(Inversexk)
-                            if IntClass == 0:
-                                xmax = 1/Inversexk
-                        else:
-                            ParametersExpoFitDay.append(np.nan)
-                            xmax = 1
-                    xk = [-(Inversexk_) for Inversexk_ in ParametersExpoFitDay if (not np.isnan(Inversexk_) and Inversexk!=0)]
-                    k = np.arange(len(xk)) + 1
-                    logk = np.log(k) 
-                    fit,StdError,ConvergenceSuccess,FittedData,x_windowed,y_measured = FitAndStdErrorFromXY(x = logk,
-                                                                        y_measured = np.log(xk),
-                                                                        label = "linear",
-                                                                        initial_guess = (1,-xmax)
-                                                                        )
-                    # Extract Distribution Feature For Day
-                    y,x = np.histogram(MobDate.Fcm[Feature],bins = 50) 
-                    if len(k)!=4:
-                        k = np.insert(k,0,2) 
-                    RhoxGivenDay.append(y/np.sum(y))    # Shape (Day,50)
-                    RhoKGivenDay.append(k[:4]**(-fit[0][0])/xmax)  # Shape (Day,4)
-                    ax.scatter(logk,np.log(xk),label = None)
-#                    ax.plot(np.log(k),np.log(k)*(-fit[0][0]) + fit[0][1],label=MobDate.StrDate + r" $\alpha$: {}".format(round(fit[0][0],2)))
-#                ax.set_xticks(np.arange(len(k)))
-                xlabels = [round(k,2) for k in np.log(k)]  
-                ax.set_xticklabels(xlabels)
-                ax.set_xlabel("log(k)")
-                if Feature == "lenght_km":
-                    ax.set_ylabel(r"$log(L_k)$")
-                    ax.text(0.1,0.1,r"$\alpha$: {}".format(round(fit[0][0],2)))
-                    ax.text(0.1,0.2,r"$L_m$: {}".format(round(fit[0][1],2)))
-                    plt.savefig(os.path.join(self.PlotDir,"ScalingClass_L.png"),dpi = 200)
-                    plt.close()
-#                    sub_ax.set_title(r"$L_k = \frac{k^{\alpha}}{L_{max}}$")
-                elif Feature == "time_hours":
-                    ax.set_ylabel(r"$log(t_k)$")
-                    ax.text(0.1,0.1,r"$\alpha$: {}".format(round(fit[0][0],2)))
-                    ax.text(0.1,0.2,r"$t_m$: {}".format(round(fit[0][1],2)))
-                    plt.savefig(os.path.join(self.PlotDir,"ScalingClass_t.png"),dpi = 200)
-                    plt.close()
-
-#                    ax.set_title(r"$t_k = \frac{k^{\alpha}}{t_{max}}$")
-#                ax.legend()
-                # Show that Rhox = \int_k Rho_k RhoXGivenK dK
                 fig,ax = plt.subplots(1,1,figsize = (10,10))
                 sub_ax = inset_axes(
                     parent_axes=ax,
@@ -1380,49 +1349,83 @@ class NetworkAllDays:
                     bbox_to_anchor=(0.05, 0.95, 0.4, 0.3),  # position of the inset axes
                     bbox_transform=ax.figure.transFigure  # transform for the bounding box                
                     )                
-
-                legend = []
+                df_fit_feature = pl.read_csv(os.path.join(self.PlotDir,f"df_fit_and_data_expo_{Feature}_conditional_class_new.csv"))
+                df_1_lk = pl.read_csv(os.path.join(self.PlotDir,f"df_1_Lk_Lmax_{Feature}.csv"))
+                Classes = np.unique(df_fit_feature["Class"].to_numpy()) + 1
+                bin_size = 50
                 CountDay = 0
-                CountDayPlusClass = 0
-                DayHeterogeneity = defaultdict(list)
                 for MobDate in self.ListDailyNetwork:
-                    ReconstructedClass = np.zeros(50)
-                    for Class in range(len(RhoKGivenDay[CountDay])-1):
-                        ReconstructedClass += RhoKGivenDay[CountDay][Class]*RhoxGivenKGivenDay[CountDayPlusClass]
-                        CountDayPlusClass += 1
-                    ReconstructedClass = ReconstructedClass/len(RhoKGivenDay[CountDay])
-                    ax.plot(x[:-1],ReconstructedClass,color=colors[CountDay],linestyle = "--",label=None)
-                    ax.scatter(x[:-1],RhoxGivenDay[CountDay],color=colors[CountDay],label=MobDate.StrDate)
-                    DayHeterogeneity[f"ReconstructedClass_{MobDate.StrDate}"] = ReconstructedClass
-                    DayHeterogeneity[f"RhoxGivenDay_{MobDate.StrDate}"] = RhoxGivenDay[CountDay]
-
+                    df_fit_feature_day = df_fit_feature.filter(pl.col("Day") == MobDate.StrDate)
+                    x_classes = []
+                    y_classes = [] 
+                    P_reconstructed_from_classes = np.zeros(bin_size)              
+                    matrix_class_bins = []
+                    matrix_class_distribution = []
+                    # parameters heterogeneity
+                    alpha = df_1_lk.filter(pl.col("Day") == MobDate.StrDate)["alpha"].to_numpy()[0]
+                    x_max = np.exp(- df_1_lk.filter(pl.col("Day") == MobDate.StrDate)["-log_L_max"].to_numpy()[0])
+                    # daily distribution
+                    y_day = df_fit_feature.filter(pl.col("Day") == MobDate.StrDate,
+                                                  pl.col("Class") == 10)["y"].to_numpy()
+                    x_day = df_fit_feature.filter(pl.col("Day") == MobDate.StrDate,
+                                                  pl.col("Class") == 10)["x"].to_numpy()
+                    Fraction_people_classes_vector = Classes**(alpha)/x_max
+                    DayHeterogeneity["y_contribution"].extend(y_day)
+                    DayHeterogeneity["x"].extend(x_day)
+                    DayHeterogeneity["Class"].extend([10]*len(x_day))
+                    DayHeterogeneity["Day"].extend([MobDate.StrDate]*len(x_day))                    
+                    # Prepare the matrix [class_idx,<distribution_class>], [class_idx,<x_bin_class>]     
+                    for Class, df_fit_feature_day_class in df_fit_feature_day.group_by("Class"):
+                        if Class != 10:
+                            x_class = df_fit_feature_day_class["x"].to_numpy()
+                            y_class = df_fit_feature_day_class["y"].to_numpy()
+                            x_tmp, y_tmp = map_distributions_of_different_binnings_to_same_bin(x_class,
+                                                                                                y_class,
+                                                                                                bin_size = bin_size)
+                            matrix_class_bins.append(x_tmp)
+                            matrix_class_distribution.append(y_tmp)                    
+                        # weight parameters
+    #                    for class_idx in range(len(matrix_class_bins)):
+                            contribution_class_idx2P = Fraction_people_classes_vector[Class]*y_tmp
+                            DayHeterogeneity["y_contribution"].extend(contribution_class_idx2P)
+                            DayHeterogeneity["x"].extend(x_tmp)
+                            DayHeterogeneity["Class"].extend([Class]*len(x_tmp))
+                            DayHeterogeneity["Day"].extend([MobDate.StrDate]*len(x_tmp))
+                            P_reconstructed_from_classes += contribution_class_idx2P
+                    P_reconstructed_from_classes/=len(P_reconstructed_from_classes)
+                    P_reconstructed_from_classes = P_reconstructed_from_classes/np.sum(P_reconstructed_from_classes)
+                    y_day = enrich_vector_to_length(y_day, bin_size)
+                    P_reconstructed_from_classes = gaussian_filter1d(P_reconstructed_from_classes,sigma = 3)
+                    ax.plot(x_tmp,P_reconstructed_from_classes,color=colors[CountDay],linestyle = "--",label=None)
+                    ax.scatter(x_tmp,y_day,color=colors[CountDay],label=MobDate.StrDate)
                     CountDay += 1
-                    
-                    sub_ax.scatter(logk,np.log(xk),color=colors[CountDay],label = None)
-                    sub_ax.plot(np.log(k),np.log(k)*(-fit[0][0]) + fit[0][1],color=colors[CountDay])
-                sub_ax.set_xticks(np.arange(len(k)))
-                xlabels = [round(k,2) for k in np.log(k)]
-                sub_ax.set_xticklabels(xlabels)
-                sub_ax.set_xlabel("log(k)")
                 if Feature == "lenght_km":
-                    sub_ax.set_ylabel(r"$log(L_k)$")
                     pl.DataFrame(DayHeterogeneity).write_csv(os.path.join(self.PlotDir,"HeterogeneityL.csv"))
 #                    sub_ax.set_title(r"$L_k = \frac{k^{\alpha}}{L_{max}}$")
                 elif Feature == "time_hours":
-                    sub_ax.set_ylabel(r"$log(t_k)$")
                     pl.DataFrame(DayHeterogeneity).write_csv(os.path.join(self.PlotDir,"HeterogeneityT.csv"))
-
                 ax.legend(fontsize = 'small')
                 ax.set_yscale("log")
-                ax.set_xscale("log")
+#                ax.set_xscale("log")
                 if Feature == "lenght_km":
                     ax.set_xlabel(Feature2Label[Feature] + " (km)")
+                    ax.set_xlim(0.2)
+                    ax.set_ylim(1e-3,1)
                 elif Feature == "time_hours":
                     ax.set_xlabel(Feature2Label[Feature] + " (h)")
+                    ax.set_xlim(0.2,2.5)
+                    ax.set_ylim(1e-4,1)
                 ax.set_ylabel("P({})".format(Feature2Label[Feature]))
-#                ax.set_title(r"$\rho(x) = \int_k \rho(k) \rho(x|k) dk$")
+                from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+                ax_inset = inset_axes(ax, width="20%", height="20%", loc="upper left")
+                ax_inset.scatter(df_1_lk["Day"],df_1_lk["alpha"],label = r"$\alpha$",s = 25)
+                ax_inset.set_xlabel("Day",fontsize = 12)
+                ax_inset.set_ylabel(r"$\alpha$",fontsize = 12)
+                ax_inset.set_xticklabels([])
                 plt.savefig(os.path.join(self.PlotDir,"ComparisonHeterogeneityHpRealDistr_{0}_{1}.png".format(Aggregation,Feature)),dpi = 200)
-                plt.close()
+                plt.close(fig)
+
+
 
 
     def PlotAveragePerturbationDistributionSpeed(self):
@@ -1491,14 +1494,15 @@ class NetworkAllDays:
                         VarianceVec.append(np.std(np.array(MobDate.Class2Time2Distr[IntClass][t])))
                     if IntClass in MobDate.Class2AvgTimePercorrence.keys():
                         AvgTimePercorrence = MobDate.Class2AvgTimePercorrence[IntClass]
-                        ax.plot(StrTimesLabel, AvgTimePercorrence, color = colors[IDay], label = MobDate.StrDate)
-                        ax.errorbar(StrTimesLabel, AvgTimePercorrence, yerr=VarianceVec, color = colors[IDay],fmt='o',label=None)
+                        ax.plot(StrTimesLabel[self.CutIndexTime:], AvgTimePercorrence[self.CutIndexTime:], color = colors[IDay], label = MobDate.StrDate)
+                        ax.errorbar(StrTimesLabel[self.CutIndexTime:], AvgTimePercorrence[self.CutIndexTime:], yerr=VarianceVec[self.CutIndexTime:], color = colors[IDay],fmt='o',label=None)
                 IDay += 1
             ax.set_title("Time Percorrence Distribution for Class {}".format(MobDate.IntClass2StrClass[IntClass]))
-            ax.set_xticks(range(len(StrTimesLabel))[::Slicing])  # Set the ticks to correspond to the labels
-            ax.set_xticklabels(StrTimesLabel[::Slicing], rotation=90)  # Set the labels with rotation    ax.set_title("Time Percorrence Distribution")
-            ax.set_xlabel("Time")
-            ax.set_ylabel("Time Percorrence")
+            ax.set_xticks(range(len(StrTimesLabel[self.CutIndexTime:]))[::Slicing])  # Set the ticks to correspond to the labels
+            Labels = StrTimesLabel[self.CutIndexTime:]
+            ax.set_xticklabels(Labels[::Slicing], rotation=90)  # Set the labels with rotation    ax.set_title("Time Percorrence Distribution")
+            ax.set_xlabel("time")
+            ax.set_ylabel("time Percorrence")
             ax.legend()
             plt.savefig(os.path.join(self.PlotDir,"ComparisonTimePercorrence_{}".format(IntClass)),dpi = 200)
             plt.close()
@@ -1508,6 +1512,7 @@ class NetworkAllDays:
         """
             Description:
                 Plot the subnetworks for all days
+            Taakes a lot of time to compute
         """
         NewClasses = [0,1,2,3]
         GeoJson = gpd.read_file("/home/aamad/codice/city-pro/output/bologna_mdt_detailed/BolognaMDTClassInfo.geojson")
@@ -1551,7 +1556,7 @@ class NetworkAllDays:
         UniqueClasses = [0,1,2,3]
         Colors = ["red","green","purple","orange","yellow","pink","brown","grey"]
         StrUnion = "OrderedUnion_"
-        GeoJson = gpd.read_file("/home/aamad/codice/city-pro/output/bologna_mdt_center/BolognaMDTClassInfo.geojson")
+        GeoJson = gpd.read_file(os.path.join(os.environ["WORKSPACE"],"city-pro","output","bologna_mdt_center","BolognaMDTClassInfo.geojson"))
         fig, ax = plt.subplots(2, 2, figsize=(15, 10))
         Class2Ax = {0:(0,0),1:(0,1),2:(1,0),3:(1,1)}
         IntClass2StrClass = {0:"1 slowest",1:"2 slowest",2:"middle velocity class",3:"1 quickest"}
@@ -1579,7 +1584,7 @@ class NetworkAllDays:
         Colors = ["red","green","purple","orange","yellow","pink","brown","grey"]
         StrUnion = "OrderedIntersection_"
         IntClass2StrClass = {0:"1 slowest",1:"2 slowest",2:"middle velocity class",3:"1 quickest"}
-        GeoJson = gpd.read_file("/home/aamad/codice/city-pro/output/bologna_mdt_detailed/BolognaMDTClassInfo.geojson")
+        GeoJson = gpd.read_file(os.environ["WORKSPACE"],"city-pro","output","bologna_mdt_detailed","BolognaMDTClassInfo.geojson")
         fig, ax = plt.subplots(2, 2, figsize=(15, 10))
         Class2Ax = {0:(0,0),1:(0,1),2:(1,0),3:(1,1)}
         for Class in UniqueClasses:
@@ -1605,39 +1610,56 @@ class NetworkAllDays:
                 Obtain the union and intersection of the subnetworks for all days.
         """
         logger.info("Unify GeoJson for all days...")
+        FirstDay = True
+        for MobDate in self.ListDailyNetwork:
+            if FirstDay:
+                self.GpdClasses = MobDate.GeoJson
+                FirstDay = False
+            else:
+                invariant_columns = ["poly_lid", "poly_cid", "poly_length", "poly_nF", "poly_nT", "geometry"]
+                self.GpdClasses = self.GpdClasses.merge(MobDate.GeoJson, on=invariant_columns, how='outer',suffixes=('', ''))
         if not os.path.exists(os.path.join(self.ListDailyNetwork[0].InputBaseDir,"BolognaMDTClassInfo.geojson")):
-            FirstDay = True
-            for MobDate in self.ListDailyNetwork:
-                if FirstDay:
-                    GeoJson = MobDate.GeoJson
-                    FirstDay = False
-                else:
-                    invariant_columns = ["poly_lid", "poly_cid", "poly_length", "poly_nF", "poly_nT", "geometry"]
-                    GeoJson = GeoJson.merge(MobDate.GeoJson, on=invariant_columns, how='outer',suffixes=('', ''))
-            GeoJson.to_file(os.path.join(MobDate.InputBaseDir,"BolognaMDTClassInfo.geojson"))
+            self.GpdClasses.to_file(os.path.join(MobDate.InputBaseDir,"BolognaMDTClassInfo.geojson"))
         
     def ComputeOrderedIntersectionsAllDays(self):
+        """
+            @brief: Compute the ordered intersections for all days.
+            Adds a column for the ordered intersection.
+            If all the days ordered classification contain a road, then the class is associated
+            to the column OrderedIntersection_{Class}. 
+        """
+        logger.info("Plot Aggregated Intersection SubNetworks...")
         MobDate = self.ListDailyNetwork[0]
-        GpdClasses =  gpd.read_file(os.path.join(MobDate.InputBaseDir,"BolognaMDTClassInfo.geojson"))
-        StrClassesOrderedColsDate = {Col: Col.split("_")[1] for Col in GpdClasses.columns if Col.startswith("StrClassOrdered_")}
-        self.UniqueClassesOrdered = np.unique(GpdClasses[list(StrClassesOrderedColsDate.keys())[1]].values)
-        self.OrderedClass2Road2Intersection,self.OrderedClass2Road2Union = GetIncrementalIntersectionAllDaysClasses(GpdClasses,StrClassesOrderedColsDate,self.UniqueClassesOrdered)
+        if self.GpdClasses is None:
+            logger.info("GpdClasses is None, reading {}".format(os.path.join(MobDate.InputBaseDir,"BolognaMDTClassInfo.geojson")))                
+            self.GpdClasses =  gpd.read_file(os.path.join(MobDate.InputBaseDir,"BolognaMDTClassInfo.geojson"))
+        StrClassesOrderedColsDate = {Col: Col.split("_")[1] for Col in self.GpdClasses.columns if Col.startswith("StrClassOrdered_")}
+        self.UniqueClassesOrdered = np.unique(self.GpdClasses[list(StrClassesOrderedColsDate.keys())[1]].astype(str).values)
+        self.OrderedClass2Road2Intersection,self.OrderedClass2Road2Union = GetIncrementalIntersectionAllDaysClasses(self.GpdClasses,StrClassesOrderedColsDate,self.UniqueClassesOrdered)
         #Class2Road2Intersection,Class2Road2Union = GetIncrementalIntersectionAllDaysClasses(GpdClasses,StrClassesOrderedColsDate,UniqueClasses)
-        self.GpdClasses = UpdateGeoJsonWithUnionAndIntersectionColumns(GpdClasses,self.OrderedClass2Road2Intersection,self.OrderedClass2Road2Union,StrUnion = "OrderedUnion_",StrIntersection = "OrderedIntersection_")
+        self.GpdClasses = UpdateGeoJsonWithUnionAndIntersectionColumns(self.GpdClasses,self.OrderedClass2Road2Intersection,self.OrderedClass2Road2Union,StrUnion = "OrderedUnion_",StrIntersection = "OrderedIntersection_")
 
     def PlotAggregatedSubNetworks(self):
         """
-            Plot Union Sub-Networks all days.
+            @brief: Compute the ordered intersections for all days.
+            Adds a column for the ordered intersection.
+            If all the days ordered classification contain a road, then the class is associated
+            to the column OrderedUnion_{Class}.
         """
+        logger.info("Plot Aggregated Union SubNetworks...")
+        MobDate = self.ListDailyNetwork[0]
+        if self.GpdClasses is None:
+            logger.info("GpdClasses is None, reading {}".format(os.path.join(MobDate.InputBaseDir,"BolognaMDTClassInfo.geojson")))
+            self.GpdClasses =  gpd.read_file(os.path.join(MobDate.InputBaseDir,"BolognaMDTClassInfo.geojson"))
         Colors = ['red','blue','green','orange','purple','yellow','cyan','magenta','lime','pink','teal','lavender','brown','beige','maroon','mint','coral','navy','olive','grey']
         # Ordered Case
         StrClassesOrderedColsDate = {Col: Col.split("_")[1] for Col in self.GpdClasses.columns if Col.startswith("StrClassOrdered_")}
         UniqueClassesOrdered = np.unique(self.GpdClasses[list(StrClassesOrderedColsDate.keys())[1]].values)
         self.StrClassesOrdered2Color = {StrClass: Colors[i] for i, StrClass in enumerate(UniqueClassesOrdered)}
                 # Unordered Case
-        OrderedClass2Road2Intersection,OrderedClass2Road2Union = GetIncrementalIntersectionAllDaysClasses(GpdClasses,StrClassesOrderedColsDate,UniqueClassesOrdered)
+        OrderedClass2Road2Intersection,OrderedClass2Road2Union = GetIncrementalIntersectionAllDaysClasses(self.GpdClasses,StrClassesOrderedColsDate,UniqueClassesOrdered)
         #Class2Road2Intersection,Class2Road2Union = GetIncrementalIntersectionAllDaysClasses(GpdClasses,StrClassesOrderedColsDate,UniqueClasses)
-        GpdClasses = UpdateGeoJsonWithUnionAndIntersectionColumns(GpdClasses,OrderedClass2Road2Intersection,OrderedClass2Road2Union,StrUnion = "OrderedUnion_",StrIntersection = "OrderedIntersection_")
+        self.GpdClasses = UpdateGeoJsonWithUnionAndIntersectionColumns(self.GpdClasses,OrderedClass2Road2Intersection,OrderedClass2Road2Union,StrUnion = "OrderedUnion_",StrIntersection = "OrderedIntersection_")
         m1 = PlotUnion(self.GpdClasses,OrderedClass2Road2Union,self.StrClassesOrdered2Color,"OrderedUnion_")
         m1.save(os.path.join(self.PlotDir,"OrderedUnionAllDays.html"))
 
@@ -1645,9 +1667,13 @@ class NetworkAllDays:
         """
             Description:
         """
+        logger.info("Plot Penetration")
         from EstimatePenetration import EstimatePenetrationAndPlot
         self.DirTimedFluxes = []
+        self.DaysPenetration = []
         for MobDate in self.ListDailyNetwork:
-            self.DirTimedFluxes.append(os.path.join(MobDate.DictDirInput["timed_fluxes"]))
-        DfTrafficOpenData = pl.read_csv(os.path.join(os.getenviron["WORKSPACE"],"city-pro","vars","data","rilevazione-flusso-veicoli-tramite-spire-anno-2022.csv"))
-        EstimatePenetrationAndPlot(self.GpdClasses,DfTrafficOpenData,self.bounding_box,self.StrDates,self.DirTimedFluxes,self.PlotDir)
+            if "2023" not in MobDate.DictDirInput["timed_fluxes"]:
+                self.DirTimedFluxes.append(os.path.join(MobDate.DictDirInput["timed_fluxes"]))
+                self.DaysPenetration.append(MobDate.StrDate)
+        DfTrafficOpenData = pl.read_csv(os.path.join(os.environ["WORKSPACE"],"city-pro","vars","data","rilevazione-flusso-veicoli-tramite-spire-anno-2022.csv"),separator = ";",truncate_ragged_lines=True)
+        EstimatePenetrationAndPlot(self.GpdClasses,DfTrafficOpenData,self.bounding_box,self.DaysPenetration,self.DirTimedFluxes,self.CutIndexTime,self.PlotDir)

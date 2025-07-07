@@ -57,7 +57,7 @@ def ComputeTimeInterval2UserId(OrderedClass2TimeDeparture2UserId):
                 pass
                 TimeInterval2UserId[TimeDeparture].extend(OrderedClass2TimeDeparture2UserId[Class][TimeDeparture])
     return TimeInterval2UserId
-def ComputeSpeedRoadsPerTimeIntervalByRoadsTravelledByAllUsers(Fcm,DfPathOnRoad,OrderedClass2TimeDeparture2UserId,IntClass2RoadsIncreasinglyIncludedIntersection):
+def ComputeSpeedRoadsPerTimeIntervalByRoadsTravelledByAllUsers(Fcm,DfPathOnRoad,OrderedClass2TimeDeparture2UserId,IntClass2RoadsIncreasinglyIncludedIntersection,case = "mean"):
     """
     @param GeoJson: GeoDataFrame
     @param Fcm: DataFrame with the Fcm
@@ -97,10 +97,18 @@ def ComputeSpeedRoadsPerTimeIntervalByRoadsTravelledByAllUsers(Fcm,DfPathOnRoad,
             UsersSubnet = RoadsInClass.filter(MaskPath)            # Pick Roads Used by People in Class in Time Interval
             MaskFcm = Fcm["id_act"].is_in(UsersSubnet["user_id"])            
             TmpFcm = Fcm.filter(MaskFcm)
+            if case == "mean":
+                min_size_TmpFcm = 0
+            elif case == "std":
+                min_size_TmpFcm = 1
             # Compute Speed
-            if len(TmpFcm) > 0:
+            if len(TmpFcm) > min_size_TmpFcm:
+                if case == "mean":
                 # Scalar Speed Associated to the Subnet
-                AvSpeedSubnet = TmpFcm["speed_kmh"].mean()
+                    AvSpeedSubnet = TmpFcm["speed_kmh"].mean()
+                elif case == "std":
+                # Scalar Speed Associated to the Subnet
+                    AvSpeedSubnet = TmpFcm["speed_kmh"].std()
                 # Associate Speed to the Roads
                 for Road in RoadsPerClass:
                     Class2TimeInterval2Road2SpeedNew[Class][TimeDeparture][Road] = AvSpeedSubnet
@@ -108,7 +116,10 @@ def ComputeSpeedRoadsPerTimeIntervalByRoadsTravelledByAllUsers(Fcm,DfPathOnRoad,
                 pass
     return Class2TimeInterval2Road2SpeedNew
 
-def ComputeSpeedRoadsPerTimeInterval(Fcm,OrderedClass2TimeDeparture2UserId,IntClass2RoadsIncreasinglyIncludedIntersection):
+
+
+
+def ComputeSpeedRoadsPerTimeInterval(Fcm,OrderedClass2TimeDeparture2UserId,IntClass2RoadsIncreasinglyIncludedIntersection,case = "mean"):
     """
     @param GeoJson: GeoDataFrame
     @param Fcm: DataFrame with the Fcm
@@ -140,16 +151,28 @@ def ComputeSpeedRoadsPerTimeInterval(Fcm,OrderedClass2TimeDeparture2UserId,IntCl
             # Take the absolute value of the 'poly_id' column in DfPathOnRoad
             MaskFcm = Fcm["id_act"].is_in(Users)            
             TmpFcm = Fcm.filter(MaskFcm)
+            if case == "mean":
+                min_size_TmpFcm = 0
+            elif case == "std":
+                min_size_TmpFcm = 1
             # Compute Speed
-            if len(TmpFcm) > 0:
-                # Scalar Speed Associated to the Subnet
-                AvSpeedSubnet = TmpFcm["speed_kmh"].mean()
+            if len(TmpFcm) > min_size_TmpFcm:
+                if case == "mean":
+                    # Scalar Speed Associated to the Subnet
+                    AvSpeedSubnet = TmpFcm["speed_kmh"].mean()
                 # Associate Speed to the Roads
+                elif case == "std":
+                    # Scalar Speed Associated to the Subnet
+                    AvSpeedSubnet = TmpFcm["speed_kmh"].std()
+                else:
+                    raise ValueError("Invalid case. Choose 'mean' or 'std'.")
                 for Road in Roads:
                     Class2TimeInterval2Road2SpeedNew[Class][TimeDeparture][Road] = AvSpeedSubnet
             else:
                 pass
     return Class2TimeInterval2Road2SpeedNew
+
+
 
 def ComputeSpeedRoadPerTimePeopleChangedClass(Fcm,OrderedClass2TimeDeparture2UserId,Class2TimeDeparture2UserId,IntClass2RoadsIncreasinglyIncludedIntersection):
     """
@@ -203,7 +226,8 @@ def ComputeSpeedRoadPerTimePeopleChangedClass(Fcm,OrderedClass2TimeDeparture2Use
                         
 def ComputeAvSpeedPerClass(GeoJson,PlotColumn):
     """
-    NOTE: ColumnName = "{0}_Speed_{1}_{2}".format(Type,StrDate,TimeDeparture)
+    NOTE: 
+    ColumnName = "{0}_Speed_{1}_{2}".format(Type,StrDate,TimeDeparture)
     @param GeoJson: GeoDataFrame
     @param PlotColumn: List [Column]
     @param StrDate: String (Day of Interest)
@@ -271,6 +295,8 @@ def AddColumnAverageSpeedGeoJson(GeoJson,Class2TimeInterval2Speed,StrDate,Type):
                 ColumnPlot.append(ColumnName)
 
     return GeoJson,ColumnPlot
+
+
 
 def ReturnColumnPlot(Class2TimeInterval2Speed,Type,StrDate):
     """
@@ -408,3 +434,5 @@ def FilterGeoDataFrameWithBoundingBox(gdf,Bbox):
     elif isinstance(gdf.geometry[0],Polygon):
         filtered_gdf = gdf.cx[minx:maxx, miny:maxy]
     return filtered_gdf
+
+

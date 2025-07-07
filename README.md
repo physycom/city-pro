@@ -22,8 +22,23 @@ git clone https://github.com/microsoft/vcpkg
 #### Build
 ```
 cd WORKSPACE/city-pro  
-git submodule update  
+git submodule update  --init --recursive
 ./ccm/build.ps1 -UseVCPKG -DisableInteractive -DoNotUpdateTOOL -DoNotDeleteBuildFolder
+```    
+NOTE:
+Cmake >=3.19
+
+
+#### Build (if the terminal is opened with conda already activated)
+```
+rm -rf /home/aamad/codice/city-pro/vcpkg/buildtrees/*   
+rm -rf $WORKSPACE/city-pro/vcpkg/packages/*   
+rm -rf $WORKSPACE/city-pro/build_release   
+rm -rf $WORKSPACE/city-pro/vcpkg_installed   
+rm -rf ~/.cache/vcpkg/archives/*    
+conda deactivate   
+unset CONDA_PREFIX CONDA_DEFAULT_ENV CONDA_EXE CONDA_PYTHON_EXE CONDA_SHLVL _CONDA_ROOT _CONDA_EXE LD_LIBRARY_PATH C_INCLUDE_PATH CPLUS_INCLUDE_PATH CC CXX CFLAGS CXXFLAGS LDFLAGS CPPFLAGS CMAKE_PREFIX_PATH   
+./ccm/build.ps1 -UseVCPKG -DisableInteractive -DoNotUpdateTOOL -DoNotDeleteBuildFolder    
 ```
 
 ## MacOs
@@ -83,6 +98,10 @@ The script automatically will set the configuration files for each day by callin
 
 3) `python3 ./python/work_mdt/AnalysisPaper.py -c ./vars/config`: Launches the python analysis for traffic patterns, and behavioral patterns.
 
+## Complete Analysis (supplement .ipynb)
+`FittingProcedures.ipynb`: is the script used for the fit of time, length, speed distribution. Is messy and not completely standardized with parameters added by hand. This is due to the variability of what you look for.    
+`Trajectories.ipynb`: Explore trajectories. Launch just after the simulations of the days are run. It is not in the pipeline as it is conceived as exploratory analysis (Visualizations mainly, speed evolution for single traj) and not completely standardized. This could be expanded to study variance effects.    
+`EstimatePenetration.ipynb`: Responsible for penetration.png 
 # Input:     
 REQUIRED:  
     1Ca `/path/to/configfileCpp/config.json`    
@@ -104,6 +123,8 @@ REQUIRED:
     1) `/path/to/configfilePython/AnalysisPython.json`    
 NOTE: `AnalysisPython.json` is required to be it as it is hardcoded in the complete analysis.
 
+
+# Description
 
 ## Description Input:
 ##    1C 
@@ -267,26 +288,84 @@ Columns:
 
 
 ## PYTHON (To be done)
-For each day we measure
-Class2TimeDeparture2UserId.json
+The Output of Python is stored in `../output/plots` and it is composed of `single_day` and `aggregated` output.
+The `single_day` output consists of quantities computed on the single day and put in the relative `../output/plots/day` directory, while the aggregated files will be held on `../output/plots` directory and will have either averaged or with all the aggregated days.
+### single_day   
+Found in `../output/plots/day`    
+#### Trajectories    
+1. `BinTime.csv`:    
+Description:    
+    Contains the time variables in intervals of `bin_time`    
+Columns:     
+    `timestamp`,`day_hour`,`hour`    
+2. `Class2TimeDeparture2UserId.json`:    
+Description:    
+    Dictionary {`Class`:{`timestamp`:[`id_act`]}}, for each mobility `Class` computed via Fuzzy algorithm, and each
+    `timestamp` separated by `bin_time` contains the list of `id_act` of the trajectories. It is useful to compute
+    the fundamental diagram and keep knowledge about fluxes and presences in a road network in some interval of time.
 
-# Structure Program (To be done)
-## Cpp
-    1. READING:  
-        1a.   
-            Trajectory information:
-            Reads .csv files containing information about mobilephone data containing the following columns:
-            [iD,lat,lon,time]
-            NOTE: Usually, we need to create this dataset. TIM gives another format of data that we need to preprocess and create these columns.
-            Further informations about preprocessing needed...  
-        1b.   
-            Cartography information:
-            It creates a graph of the city from cartography.pnt and .pro. Essentially these are used to create objects that are contained
-            in carto.h. Whose attributes and functions are initialized in carto.cpp
-    2. EXTRACT TRAJECTORIES:
+ 
 
-## Python   
+#### Network     
+1. `Class2TimeInterval2Road2Speed.json`:
+Description:    
+    Dictionary {`Class`:{`timestamp`:{`poly_id`:`speed`}}}, for each mobility `Class` computed via **Fuzzy** algorithm, and each `timestamp` separated by `bin_time` contains the list of `poly_id` and their respective speeds in km/h. It is useful to compute the speed evolution of the road network over time.        
+Goal:   
+    Assign speed to each road with `Criterion_1`: average speed of all users that are classified with **Fuzzy** classification.     
+2. `Class2TimeInterval2Road2SpeedNew.json`:
+Description:    
+    Dictionary {`Class`:{`timestamp`:{`poly_id`:`speed`}}}, for each mobility `Class` computed via **Hierarchical** reassignment algorithm, and each `timestamp` separated by `bin_time` contains the list of `poly_id` and their respective speeds in km/h. It is useful to compute the speed evolution of the road network over time.         
+Goal:   
+    Assign speed to each road with `Criterion_2`: average speed of all users that are classified with **Hierarchical** classification.    
 
+3. `ClassNew2TimeInterval2Road2SpeedActualRoads.json`:   
+Description:
+    Dictionary {`ClassNew`:{`TimeInt`:{`RoadInClassNew`:`SpeedAllUsers`}} }, for each mobility `ClassNew` computed via  **Hierarchical** reassignment algorithm.    
+    for each bin of size `bin_time` we associate all the roads `RoadInClassNew` and the speed computed as the average speed over all the user that have passed in that time interval in that road.    
+Goal:   
+    Assign speed to each road with `Criterion_3`: average speed of all users that have passed there.    
+
+
+4. `Class2TotalLengthOrderedSubnet.json`:
+Description:    
+    Dictionary {`Class`: lenght }, for each mobility `Class` computed via **Hierarchical** reassignment algorithm, `length` of the sub-network as the sum of the length of the roads that form it.
+
+5. `Class2TraffickIndex.json`:
+Description:    
+    Dictionary {`Class`: [`TraffickIndex`] }, for each mobility `Class` computed via  **Hierarchical** reassignment algorithm.    
+    `TraffickIndex` is a vector for each bin of size `bin_time`, and it represents the number of people in the sub-network over the maximum measured there times the difference in speed at that time measured in the  **Fuzzy** -**Hierarchical** over **Fuzzy**
+
+6. `HisteresisInfo_{Day}.csv`:    
+Description:    
+    pl.DataFrame -> Columns:
+     `time`,`population_3`,`speed_kmh_{Class}`,`population_{Class}`,`new_speed_kmh_{Class}`.    
+    For each mobility `Class` each column is a vector such that each entrance is separated by `bin_time`, the speed are computed on the subsets generated by **Hierarchical**(new) and **Fuzzy** partitions on trajectories. The population the same.
+
+7. `DfSpeed.parquet`:
+    pl.DataFrame -> Columns:
+    `Class`,`Day`,`av_speed_kmh_fuzzy`,`av_speed_kmh_hierarchical`,`av_speed_kmh_all`
+    For each class I compute the speed of the road.
+    0 if not there.
+### aggregated    
+Found in `../output/plots/`    
+#### Trajectories    
+1. `aggregated_fit_parameters_`**length_km**`_exponential_new.csv`    
+    Description:    
+        Contains the parameters of the exponential fit for the trajectories belonging to **Class** of a given **Day**.
+    Columns:
+        `Day,A,1/x0,<x>,class`
+1. `aggregated_fit_parameters_`**length_km**`_powerlaw_new.csv`    
+    Description:    
+        Contains the parameters of the powerlaw fit for the trajectories belonging to **Class** of a given **Day**.
+    Columns:
+        `Day,A,alpha,class`
+     
+#### Network        
+1. `LinearCoeff_NewClass.csv`:    
+    Description:
+        Contains the linear coefficient of the MFD (x = number people in **Class**, y = average speed **Hierarchical** sub-network). They are computed by making the histogram of the vector of speed of the sub-network of a given day aggregated with granularity = `bin_time` (15 min).    
+    Columns:    
+        `Days,LinearCoeff`
 
 
 

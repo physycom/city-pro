@@ -62,6 +62,12 @@ def MarchenkoPasturLimits(N,T,sigma):
             \lambda_min = sigma^2 * (1 + 1/Q - sqrt(1/Q))
             \lambda_max = sigma^2 * (1 + 1/Q + sqrt(1/Q))
         Where Q = T/N if N > T, Q = N/T if T > N in [0,1]
+        Source:
+            https://arxiv.org/pdf/cond-mat/9810255
+            Title:
+                Noise Dressing of Financial Correlation Matrices:
+                (Laloux,Cizeau,Bouchaud,Potters)
+
 
     """
     if N > T:

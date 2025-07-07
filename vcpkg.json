@@ -5,7 +5,7 @@
   "homepage": "https://github.com/physycom/city-pro",
   "description": "City-pro",
   "dependencies":
-  [
+  [ 
     "boost-algorithm",
     "boost-filesystem",
     "boost-graph",

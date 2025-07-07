@@ -95,12 +95,11 @@ import matplotlib as mpl
 def setup_mpl():
     mpl.rc('font', size=20)
     mpl.rcParams['legend.fontsize'] = 'small'
-    mpl.rcParams['legend.fontsize'] = 'small'
-    mpl.rcParams['xtick.labelsize'] = 'small'
-    mpl.rcParams['ytick.labelsize'] = 'small'
+    mpl.rcParams['xtick.labelsize'] = 12
+    mpl.rcParams['ytick.labelsize'] = 12
     mpl.rcParams['font.family']='DejaVu Math TeX Gyre'#'Helvetica 45 Light'
-    mpl.rcParams['xtick.major.pad']='12'
-    mpl.rcParams['ytick.major.pad']='12'
+    mpl.rcParams['xtick.major.pad']='18'
+    mpl.rcParams['ytick.major.pad']='18'
     mpl.rcParams['lines.linewidth'] = 2
     mpl.rcParams['xtick.major.width'] = 2
     mpl.rcParams['ytick.major.width'] = 2
@@ -119,6 +118,7 @@ def setup_mpl():
     mpl.rcParams['xtick.major.pad']='4'
     mpl.rcParams['ytick.major.pad']='4'
     mpl.rcParams['axes.labelpad']= 2
+    mpl.rcParams['axes.labelsize'] = 20  # Set the font size of the axis labels
     alpha = 0.6
     to_rgba = mpl.colors.ColorConverter().to_rgba
 
@@ -127,58 +127,64 @@ def Main(config,StrDate):
     # Initialize Network
     Network = DailyNetworkStats(config,StrDate)
 ## +++++++++++++++++ INITIALIZE CLASSES +++++++++++++++++++++++++++
-    # Read
-    # People
-    Network.ReadFcmCenters()
-    Network.ReadFcm()
-    Network.ReadFcmNew()
-    Network.GetPathFile()
-    Network.GetTrajDataFrame()
-    Network.ReadStats()
-    Network.ReadTimedFluxes()
+############ READ #############
+    # NOTE: read info about people & clusering
+    Network.ReadFcmCenters()                            # NOTE: Read centers from Fuzzy algorithm (coordinates of fcm centers in the feature space)     
+    Network.ReadFcm()                                   # NOTE: read classification Fuzzy each user
+    Network.ReadFcmNew()                                # NOTE: read hierarchical classification each user
+    Network.GetPathFile()                               # NOTE: get the path in terms of roads for each user (succession of cluster_base.path.time, from .cpp)
+    Network.GetTrajDataFrame()                          # NOTE: get the path in terms of coordinates for each user (succession of coordinates of cluster_base.lat,cluster_base.lon from .cpp)
+    Network.ReadStats()                                 # NOTE: DEPRECATED -> informations present in Fcm already
+    Network.ReadTimedFluxes()                           # NOTE: read the fluxes per road of people in the network in time.
 
     # GeoJson
-    Network.ReadGeoJson()
-    Network.BoundGeoJsonWithBbox()
+    Network.ReadGeoJson()                               # NOTE: Read GeoJson -> contains road network
+    Network.BoundGeoJsonWithBbox()                      # NOTE: Bound GeoJson with Bounding Box decided already at the .cpp level       
     # Network
-    Network.ReadFluxesSub()
-    Network.CreateDictionaryIntClass2StrClass()
-    Network.GetIncreasinglyIncludedSubnets()
-    Network.ReadVelocitySubnet()
+    Network.ReadFluxesSub()                             # NOTE: Read fluxes.sub -> contains the list of roads in the sub-network identified by the fuzzy algorithm
+    Network.CreateDictionaryIntClass2StrClass()         # NOTE: Create Dictionary IntClass2StrClass
+    Network.GetIncreasinglyIncludedSubnets()            # NOTE: Get Increasingly Included Subnets -> hierarchical
+    Network.ReadVelocitySubnet()                        # NOTE: Read Velocity Subnet -> contains the velocity of the roads in the sub-network identified by the fuzzy algorithm
     # TIME OBJECTS
-    Network.BinTime()
-    # Create Useful Variables for Partition by Class
-    Network.AddFcmNew2Fcm()
-
+    Network.BinTime()                                   # NOTE: Bin Time -> create bins for the time (standard for all plots)
+    # Partition by Class
+    Network.AddFcmNew2Fcm()                             # NOTE: Add FcmNew2Fcm -> add the new classification to the old one as a column "class_new" to Fcm
+############# COMPUTE ###############    
     # MFD
-    Network.ComputeMFDVariablesClass()
-    Network.ComputeVariablesForMFDPlot()
+    Network.ComputeHisteresisClass()                    # NOTE: Compute Histeresis Cycle
+    Network.ComputeMFD()                                # NOTE: Compute MFD -> Fundamental Diagram
     # GEOJSON 
-    Network.CompleteGeoJsonWithClassInfo()
-    Network.ComputeTotalLengthSubnet()
+    Network.CompleteGeoJsonWithClassInfo()              # NOTE: Complete GeoJson With Class Info -> add the class of the road to the GeoJson in the hierarchical case where we compute a real partition of the network
+    Network.ComputeTotalLengthSubnet()                  # NOTE: Compute Total Length Subnet -> compute the total length of the roads in the sub-network -> init: Class2TotalLengthOrderedSubnet
     # COMPARE OLD TO NEW CLASS
-    Network.CompareOld2NewClass()
+    Network.CompareOld2NewClass()                       
     Network.SplitPeopleInClasses()
     Network.GetAverageSpeedGeoJson()
+#    Network.PlotTrafficVideo() #-> plots the video of the speed
+    Network.ComputeDfSpeed()
     # FIT
-    Network.CreateDictClass2FitInit()
-    Network.ComputeFitAggregated()
-    Network.ComputeFitPerClass()
-    Network.ComputeFitDataFrame()
+    Network.CreateDictClass2FitInit()                                   # Create Dictionary Class2FitInit
+    Network.CutFcmForFit()                                              # choose trajectories shorter then 2 hours
+    # space-time
+    Network.ComputeFitPerClassLengthTime()
+    Network.ComputeFitLengthTime()
+    # speed
+    Network.ComputeFitPerClassSpeed()
+    Network.ComputeFitDataFrame()                                           # NOTE: not elegant -> but works
+    # speed
+#    Network.ComputeFitAggregated()
     # EVOLUTION SPEED PER CLASS
     Network.PrepareSpeedEvolutionNewClassConsideringRoadClassification()
     # Detection Traffic Signal
     Network.ComputeCFAR()
-    Network.PlotCFAR()
     Network.PTestForTraffic()
-    Network.PlotPtest()
     Network.ComputeAndPlotDailyTrafficIndicator()
-    # Plot 
+    Network.ComputeAndPlotDailyVarianceTrafficIndicator()
+############ PLOT ############### 
     Network.PlotNPeopNRoadsClass()
     Network.PlotTransitionMatrix()
-    Network.PlotDistrPerClass()
     # Plot Speed Subnets
-    Network.PlotSpeedEvolutionTransitionClasses()
+    #Network.PlotSpeedEvolutionTransitionClasses()
 #    Network.PlotTransitionClassesInTime()
     # NOTE: Network.FcmCenters -> DataFrame ["class","av_speed","vmin","vmax","sinuosity","count"]
     # PLOT SUBNETS
@@ -189,8 +195,7 @@ def Main(config,StrDate):
 #    Network.PlotTimePercorrenceDistributionAllClasses()
 #    Network.PlotDistributionLengthRoadPerClass()    # PROBLEMS WITH keys in self.IntClass2StrCLass
     # FIT ALL CLASSES
-    Network.PlotDistrFeature()
-    Network.PlotSpeedEvolutionAllSubnets()
+#    Network.PlotSpeedEvolutionAllSubnets()
     Network.PlotMFD()
     # VIDEO TIME PERCORRENCE (Problems) ValueError: The data range provided to the 'scale' variable is too small for the default scaling function. Normalize your data or provide a custom 'scale_func'.
 #    Network.GenerateVideoEvolutionTimePercorrence()
@@ -201,34 +206,39 @@ def Main(config,StrDate):
 ## +++++++++++++++ FITTING PROCEDURES +++++++++++++++++++++++++++++
     return Network
 def MainComparison(ListNetworkDays,PlotDirAggregated,config,verbose):
-    NetAllDays = NetworkAllDays(ListNetworkDays,PlotDirAggregated,config,verbose)
-    # Save the Fits of All Days in a unique file
-    NetAllDays.ComputeDay2PopulationTime()
+    """
+        @param ListNetworkDays: List of Network Objects
+        @param PlotDirAggregated: Directory where to save the plots
+        @param config: Configuration File
+        @param verbose: Verbosity
+        @brief: Responsible for the pipeline of all days.
+    """
+    NetAllDays = NetworkAllDays(ListNetworkDays,PlotDirAggregated,config,verbose)               # NOTE: initialize all days object
+    # 
+    NetAllDays.ComputeDay2PopulationTime()                                                      # 
     # Create Fcm for All -> Distribution lenght and time (Power law )
     NetAllDays.ConcatenateFcm()
-    NetAllDays.PlotExponentsFit()
+######### CONCATENATION #############
+    # MFD
+    NetAllDays.PlotMFDPerClassCompared()
+    # GeoJson
+    NetAllDays.UnifyGeoJsonAllDays()
+    NetAllDays.PlotPenetration()
+    NetAllDays.CreateClass2SubNetAllDays()
+    # FIT
+    NetAllDays.ConcatenateplExpFits()                                   # concatenate df_parameters_{fit_type}, df_data_and_fit_{fit_type}
+    NetAllDays.Concatenate_gauss_max_speed_fit()                        # concatenate df_parameters_{fit_type}, df_data_and_fit_{fit_type}
+    #
     NetAllDays.PlotExponentsGaussianFit()
     NetAllDays.PlotAverageTij()
     NetAllDays.PlotNPeopleOverNRoads()
-    # Latex Functions
-    NetAllDays.GenerateAndSaveTabAvSpeed()
-
     # Prepare Fit
     NetAllDays.ComputeAggregatedFit()
-#    NetAllDays.ComputeAggregatedFit()
     NetAllDays.ComputeAggregatedFitPerClass()
-    # GeoJson
-    NetAllDays.UnifyGeoJsonAllDays()
-    NetAllDays.CreateClass2SubNetAllDays()
     # People over Roads
      # All Days Plot Distribution Velocity Aggregated
-    # MFD Computations
 #    NetAllDays.ComputeAggregatedMFDVariablesObj()
-#    NetAllDays.ComputeMFD2PlotAggregation()
-
     # SIGNAL DETECTION
-    NetAllDays.PlotCFAR()
-    NetAllDays.PlotPtestComparison()
     NetAllDays.PlotTrafficIndicator()
     NetAllDays.PlotDensity()
     # Plot Distribution Features
@@ -236,32 +246,27 @@ def MainComparison(ListNetworkDays,PlotDirAggregated,config,verbose):
     NetAllDays.PlotDistrAggregatedAllDays()
     NetAllDays.PlotAveragePerturbationDistributionSpeed()
     # Plot Comparison among distributions of different days: Will be in the common folder
-    NetAllDays.PlotComparisonDistributionEachFeatureAllDays()
-    NetAllDays.PlotComparisonDistributionEachFeatureAllDaysRescaledByMean() 
+#    NetAllDays.PlotComparisonDistributionEachFeatureAllDaysRescaledByMean() 
     # Comparison Distribution Features not By class
-    NetAllDays.PlotComparisonDistributionInDays()
-    NetAllDays.PlotDistrFeaturepowerLawComparisonAllDays()
 #    NetAllDays.PlotClass2SubNetAllDays()
 #    NetAllDays.PlotClass2SubnetsComparisonAllDays()
     # MFD All Days
-    NetAllDays.PlotMFDPerClassCompared()
     NetAllDays.PlotComparisonPopulationTime()
 
     # Number Of People Per Day
     NetAllDays.PlotDistributionTotalNumberPeople()
     # Test Heteorgeneity Hp
-    NetAllDays.PlotNumberTrajectoriesGivenClass()
+#    NetAllDays.PlotExponentsFit()
+#    NetAllDays.PlotNumberTrajectoriesGivenClass()
     # Compare The Time Percorrence
 #    NetAllDays.CompareTimePercorrenceAllDays()
     # Compare sub-nets
-    NetAllDays.PlotComparisonSubnets()
+#    NetAllDays.PlotComparisonSubnets()
     # Compare sub-nets
-#    NetAllDays.PlotAveragesFeaturesDiscriminatingHolidays()
     # Aggregated Sub-Networks
     NetAllDays.ComputeOrderedIntersectionsAllDays()
-    NetAllDays.PlotAggregatedSubNetworks()
-    NetAllDays.PlotIntersectionSubnets()
-    NetAllDays.PlotPenetration()
+#    NetAllDays.PlotAggregatedSubNetworks()
+    NetAllDays.PlotUnionSubnets()
 
 if __name__ == "__main__":
     setup_mpl()

@@ -57,6 +57,7 @@ struct cluster_base {
   bool visited = false;
   polyaffpro_base pap;
   void add_point(record_base rec);
+  int out_polygon_count = 0; // 0 if inside, 1 if outside, -1 if not checked
   cluster_base() {};
   void replace(const cluster_base &other) {
     centroid = other.centroid;
@@ -101,7 +102,8 @@ struct traj_base {
   int means_new_class;
   double means_p;
   std::map<int,int> class_countpoly;
-  
+  bool is_cut = false;  // true if the trajectory is cut by the polygon in make_traj
+  double fraction_cut = 0;
 };
 //----------------------------------------------------------------------------------------
 double distance_record(record_base r1, record_base r2);

@@ -26,6 +26,11 @@
             config["lat_min"] =  44.485637
             config["lat_max"] = 44.518693
                         , 
+        bologna_mdt_center_2:
+            config["lon_min"] = 11.254601
+            config["lon_max"] = 11.396050
+            config["lat_min"] = 44.479459
+            config["lat_max"] = 44.536751
 
 
 
@@ -191,10 +196,14 @@ Carto = "bologna_mdt_cleaned"
 # NOTE: Base Name DataSet -> If change project, change this name. Do not change it, you really do not care.
 BaseName = "bologna_mdt"
 # NOTE: Bounding Box, filters both the trajectories (in the cpp) and the sub-network in python
-lat_min = 44.487106
-lat_max = 44.528131
-lon_min = 11.293156
-lon_max = 11.378143
+#lat_min = 44.487106
+#lat_max = 44.528131
+#lon_min = 11.293156
+#lon_max = 11.378143
+lon_min = 11.254601
+lon_max = 11.396050
+lat_min = 44.479459
+lat_max = 44.536751
 
 # ------------------ CONFIG .cpp ------------------ #
 NameCaseAnalysis = "bologna_mdt_center"

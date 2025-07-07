@@ -7,6 +7,7 @@ from collections import defaultdict
 import logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.getLogger('matplotlib').setLevel(logging.ERROR)
 
 def Dict2PolarsDF(Dict,schema):
     return pl.DataFrame(Dict,schema=schema)
@@ -283,10 +284,15 @@ def PlotMFD(binsPop,binsAvSpeed,binsSqrt,RelativeChange,SaveDir,Title = "Fondame
     ax.set_title(Title)
     ax.set_xlabel("number people")
     ax.set_ylabel("speed (km/h)")
+    ax.set_ylim(0,max(np.array(binsAvSpeed) + np.array(binsSqrt)))
     plt.savefig(os.path.join(SaveDir,NameFile),dpi = 200)
     plt.close()
 
 def PlotHysteresis(MFD,ColSpeed,ColPop,Title,SaveDir,NameFile):
+    """
+        Plots the histeresys cycl for each class.
+        MFD: pl.DataFrame: {"population":[],"time":[],"speed_kmh":[],"new_population":[],"new_speed_kmh":[]}_{class}
+    """
     logger.info("Plot Hysteresis: {}".format(NameFile))
     if isinstance(MFD,pl.DataFrame):
         x = MFD[ColPop].to_list()
@@ -307,8 +313,56 @@ def PlotHysteresis(MFD,ColSpeed,ColPop,Title,SaveDir,NameFile):
         plt.close()
     else:
         print("No Data for: ",os.path.join(SaveDir,NameFile))
+
+def ComputeLinearCoeeficientMFD(ListDailyNetwork,Classes,NewClass,PlotDir):
+    """
+        @ListDailyNetwork: List of DailyNetwork objects.
+        @PopulationColumn: str -> Column name for the population
+        @SpeedColumn: str -> Column name for the speed
+        @Classes: list -> List of Classes
+        @description:
+            Computes the linear coefficient for each day in List
+        
+    """
+    LinearCoeffPerDay = []
+    Days = []
+    Classes_Df = []    
+    for Class in Classes:
+        for MobDate in ListDailyNetwork:
+            if NewClass:
+                PopulationColumn = "new_population_{}".format(Class)
+                SpeedColumn = "new_speed_kmh_{}".format(Class)
+            else:
+                PopulationColumn = "population_{}".format(Class)
+                SpeedColumn = "speed_kmh_{}".format(Class)            
+            StrDate = MobDate.StrDate
+            MFD2Plot = MobDate.MFD2Plot
+            MFD2PlotBinSpeed = np.array(fill_zeros_with_average(MFD2Plot[f'bin_{SpeedColumn}']))
+            MFD2PlotBinSpeed = np.array(fill_zeros_with_average(MFD2PlotBinSpeed))
+            MFD2PlotBinSquareErr = np.array(fill_zeros_with_average(MFD2Plot[f'binned_sqrt_err_{SpeedColumn}']))
+            MFD2PlotBinSquareErr = fill_zeros_with_average(MFD2PlotBinSquareErr)
+            aq = np.polyfit(MFD2Plot[f'bins_{PopulationColumn}'],MFD2PlotBinSpeed,1)
+            LinearCoeffPerDay.append(aq[0])
+            Days.append(StrDate)
+            Classes_Df.append(Class)
+    if NewClass:
+        pl.DataFrame({"Days":Days,"LinearCoeff":LinearCoeffPerDay,"Class":Classes_Df}).write_csv(os.path.join(PlotDir,"LinearCoeff_NewClass.csv"))            
+    else:
+        pl.DataFrame({"Days":Days,"LinearCoeff":LinearCoeffPerDay,"Class":Classes_Df}).write_csv(os.path.join(PlotDir,"LinearCoeff.csv"))            
+
+
+
 # END MFD RELATED FUNCTIONS
 def PlotMFDComparison(ListDailyNetwork,Class,Colors,NewClass,PlotDir):
+    """
+        @ListDailyNetwork: List of DailyNetwork objects.
+        @Class: str -> Class to compare
+        @Colors: list -> List of Colors
+        @NewClass: bool -> If True, New Class
+        @PlotDir: str -> Directory to save the plot
+        @description:
+            Plots the MFD for each day in ListDailyNetwork
+    """
     if NewClass:
         PopulationColumn = "new_population_{}".format(Class)
         SpeedColumn = "new_speed_kmh_{}".format(Class)
@@ -328,14 +382,40 @@ def PlotMFDComparison(ListDailyNetwork,Class,Colors,NewClass,PlotDir):
         MFD2PlotBinSquareErr = fill_zeros_with_average(MFD2PlotBinSquareErr)
         aq = np.polyfit(MFD2Plot[f'bins_{PopulationColumn}'],MFD2PlotBinSpeed,1)
         LinearCoeffPerDay.append(aq[0])
-        ax.plot(MFD2Plot[f'bins_{PopulationColumn}'],MFD2PlotBinSpeed,color = Colors[CountDate],label=f"{MobDate.StrDate}")
-        ax.fill_between(MFD2Plot[f'bins_{PopulationColumn}'],
-                        np.array(MFD2PlotBinSpeed) - np.array(MFD2PlotBinSquareErr), 
-                        np.array(MFD2PlotBinSpeed) + np.array(MFD2PlotBinSquareErr), color='gray', alpha=0.2, label=None)
-        ax.plot(MFD2Plot[f'bins_{PopulationColumn}'],aq[0]*np.array(MFD2Plot[f'bins_{PopulationColumn}'])+aq[1],color = Colors[CountDate],linestyle = "--")
-        Days.append(MobDate.StrDate)
+        if Class == 3 or Class == "3":
+            ax.plot(MFD2Plot[f'bins_{PopulationColumn}'],MFD2PlotBinSpeed,color = Colors[CountDate],label=f"{MobDate.StrDate}")
+            ax.fill_between(MFD2Plot[f'bins_{PopulationColumn}'],
+                            np.array(MFD2PlotBinSpeed) - np.array(MFD2PlotBinSquareErr), 
+                            np.array(MFD2PlotBinSpeed) + np.array(MFD2PlotBinSquareErr), color='gray', alpha=0.2, label=None)
+            ax.plot(MFD2Plot[f'bins_{PopulationColumn}'],aq[0]*np.array(MFD2Plot[f'bins_{PopulationColumn}'])+aq[1],color = Colors[CountDate],linestyle = "--")
+            ax.set_ylim(35,105)
+        else:
+            if Class == "0" or Class == 0:
+                ax.set_ylim(0,30)
+            if Class == "1" or Class == 1:
+                ax.set_ylim(5,35)
+            if Class == "2" or Class == 2:
+                ax.set_ylim(20,55)
+
+            ax.plot(MFD2Plot[f'bins_{PopulationColumn}'],MFD2PlotBinSpeed,color = Colors[CountDate],label="")
+            ax.fill_between(MFD2Plot[f'bins_{PopulationColumn}'],
+                            np.array(MFD2PlotBinSpeed) - np.array(MFD2PlotBinSquareErr), 
+                            np.array(MFD2PlotBinSpeed) + np.array(MFD2PlotBinSquareErr), color='gray', alpha=0.2, label=None)
+            ax.plot(MFD2Plot[f'bins_{PopulationColumn}'],aq[0]*np.array(MFD2Plot[f'bins_{PopulationColumn}'])+aq[1],color = Colors[CountDate],linestyle = "--")
+
         CountDate += 1
-    ax.set_title("Fondamental Diagram All Days {}".format(Class))
+    from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+#    ax_inset = inset_axes(ax, width="20%", height="20%", bbox_to_anchor=(0.1, 0.7), bbox_transform=ax.transAxes)
+    if Class == "0" or Class == "1" or Class == 0 or Class == 1:
+        ax_inset = inset_axes(ax, width="20%", height="20%")
+# , bbox_to_anchor = (0.1,0.9,0.2,0.2)    
+    else:
+        ax_inset = inset_axes(ax, width="20%", height="20%")
+#        bbox_to_anchor = (0.1,0.1,0.2,0.2)
+    ax_inset.tick_params(axis='both', which='major', labelsize=8)  # Set major tick size
+    ax_inset.tick_params(axis='both', which='minor', labelsize=4)  # Set minor tick size        
+    ax_inset = PlotCoeffClassificationInset(PlotDir,Class,Colors,ax_inset)
+#    ax.set_title("Fondamental Diagram All Days {}".format(Class))
     ax.set_xlabel("number people")
     ax.set_ylabel("v (km/h)")
     ax.legend(fontsize = "small")
@@ -343,17 +423,6 @@ def PlotMFDComparison(ListDailyNetwork,Class,Colors,NewClass,PlotDir):
         plt.savefig(os.path.join(PlotDir,f"ComparisonMFD_{Class}_NewClass"),dpi = 200)
     else:
         plt.savefig(os.path.join(PlotDir,f"ComparisonMFD_{Class}"),dpi = 200)
-    plt.close()
-    fig, ax = plt.subplots(1,1,figsize = (10,8))
-    ax.scatter(Days,LinearCoeffPerDay)
-    ax.set_xticks(np.arange(0,len(Days),1))
-    ax.set_xticklabels(Days,rotation = 90)
-    if NewClass:
-        plt.savefig(os.path.join(PlotDir,f"LinearCoeff_{Class}_NewClass"),dpi = 200)
-        pl.DataFrame({"Days":Days,"LinearCoeff":LinearCoeffPerDay}).write_csv(os.path.join(PlotDir,f"LinearCoeff_{Class}_NewClass.csv"))            
-    else:
-        plt.savefig(os.path.join(PlotDir,f"LinearCoeff_{Class}"),dpi = 200)
-        pl.DataFrame({"Days":Days,"LinearCoeff":LinearCoeffPerDay}).write_csv(os.path.join(PlotDir,f"LinearCoeff_{Class}.csv"))            
     plt.close()
 
 
@@ -375,9 +444,11 @@ def PlotCoeffClassification(PlotDir,Classes):
         ClassCoord = []
         OldCoeff = []
         NewCoeff = []
-        DfOld = pl.read_csv(os.path.join(PlotDir,f"LinearCoeff_{Class}.csv"))
+        DfOld = pl.read_csv(os.path.join(PlotDir,f"LinearCoeff.csv"))
+        DfOld = DfOld.filter(pl.col("Class") == Class)
         LinearCoeffPerDay = DfOld.to_pandas()["LinearCoeff"].to_numpy()
-        DfNew = pl.read_csv(os.path.join(PlotDir,f"LinearCoeff_{Class}_NewClass.csv"))
+        DfNew = pl.read_csv(os.path.join(PlotDir,f"LinearCoeff_NewClass.csv"))
+        DfNew = DfNew.filter(pl.col("Class") == Class)
         Days = DfNew["Days"].to_numpy()
         Day2Marker = {Days[i]:Markers[i] for i in range(len(Days))}
         Day2Color = {Days[i]:Colors[i] for i in range(len(Days))}
@@ -400,3 +471,31 @@ def PlotCoeffClassification(PlotDir,Classes):
     ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(1.05, 1), borderaxespad=0.)
     fig.savefig(os.path.join(PlotDir,"CoeffClassification3D.png"),dpi = 200)
     plt.close()    
+
+def PlotCoeffClassificationInset(PlotDir,Class,Colors,ax_inset):
+    """
+        @Classes: list -> List of Classes
+        Plots the linear coefficient of the fundamental diagram for each class
+        Add to the inset of the fondamental diagram
+    """
+    Markers = ["o","s","^","v","<",">","1","2","3","4"]
+    ClassCoord = []
+    OldCoeff = []
+    NewCoeff = []
+    DfOld = pl.read_csv(os.path.join(PlotDir,f"LinearCoeff.csv"))
+    DfOld = DfOld.filter(pl.col("Class") == Class)
+    LinearCoeffPerDay = DfOld.to_pandas()["LinearCoeff"].to_numpy()
+    DfNew = pl.read_csv(os.path.join(PlotDir,f"LinearCoeff_NewClass.csv"))
+    DfNew = DfNew.filter(pl.col("Class") == Class)
+    Days = DfNew["Days"].to_numpy()
+    Day2Marker = {Days[i]:Markers[i] for i in range(len(Days))}
+    Day2Color = {Days[i]:Colors[i] for i in range(len(Days))}
+    LinearCoeffPerDayNew = DfNew.to_pandas()["LinearCoeff"].to_numpy()
+    for Day in range(len(LinearCoeffPerDay)):
+        OldCoeff.append(LinearCoeffPerDay[Day])
+        NewCoeff.append(LinearCoeffPerDayNew[Day])
+        ClassCoord.append(Class)
+        ax_inset.scatter(NewCoeff[Day], OldCoeff[Day], c=Day2Color[Days[Day]], marker=Day2Marker[Days[Day]])
+    ax_inset.set_xlabel(r'$\alpha_k^{f}$',fontsize = 12)
+    ax_inset.set_ylabel(r'$\alpha_k^{h}$',fontsize = 12)
+    return ax_inset

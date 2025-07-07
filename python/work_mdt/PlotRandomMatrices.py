@@ -32,6 +32,7 @@ def PlotDistributionEigenvalues(Eigenvalues, FunctionName , Q,Lmin, Lmax,sigma,b
     plt.close()
 
 
+
 def PlotDyadicExpansion(DyadicExpansion,NumberEigenvalues,PlotDir):
     """
         @params: DyadicExpansion: Matrix N x N

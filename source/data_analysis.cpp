@@ -156,10 +156,10 @@ presence: filled*/
     int cnt_tot_data = 0;
     int cnt_tot_sp = 0;
     for (auto &t : traj_temp)
-    {                                         // per ogni traiettoria mi  dichiaro un cluster_base
-        cnt_tot_data += int(t.record.size()); // conto il numero totale di dati in entrata dalle activity
+    {                                                                                   // per ogni traiettoria mi  dichiaro un cluster_base
+        cnt_tot_data += int(t.record.size());                                           // conto il numero totale di dati in entrata dalle activity
         cluster_base C;
-        C.add_point(t.record.front()); // aggiungo il primo elemento dei record,inizializzo il centroide(lat,lon, no time,no indx)
+        C.add_point(t.record.front());                                                  // aggiungo il primo elemento dei record,inizializzo il centroide(lat,lon, no time,no indx)
         for (int n = 1; n < t.record.size(); ++n)
         { // per gli altri record calcolo la distanza dal  centroide che è di default quel record oppure quello successivo distante almeno min_data_distance+0.01
             if (distance_record(C.centroid, t.record[n]) < config_.min_data_distance)
@@ -194,6 +194,7 @@ presence: filled*/
     // ofstream out_nogeoref(config_.cartout_basename + config_.name_pro + "_nogeoref.csv");
     // out_nogeoref << "id_act;lat;lon;time" << std::endl;
 
+
     // filter stops on carto geolocalization
     for (auto &t : traj_temp)
     {
@@ -203,8 +204,12 @@ presence: filled*/
             sp.on_carto = find_polyaff(sp.centroid.lon, sp.centroid.lat, sp.pap);
             if (sp.on_carto && sp.pap.d > config_.min_poly_distance)
                 sp.on_carto = false;
+                sp.out_polygon_count += 1;
             if (!sp.on_carto)
-                data_notoncarto.push_back(sp);
+                {data_notoncarto.push_back(sp);
+                t.is_cut = true;
+                t.fraction_cut += 1.0 / double(t.stop_point.size());
+                }
             if (sp.on_carto)
                 sp_oncarto.push_back(sp);
             // temporarly added for duration analysis
@@ -214,7 +219,26 @@ presence: filled*/
     }
     dataloss.n_data_outcarto = int(data_notoncarto.size());
     std::cout << "Georeferencing filter out carto: " << double(dataloss.n_data_outcarto) / cnt_tot_sp * 100. << "%" << std::endl;
-
+    // Count the number of trajectories cut by the polygon
+    int cnt_cut_traj = 0;                                                               // number of trajectories cut by the polygon
+    int cnt_traj = 0;                                                                   // number of trajectories
+    for (auto &t : traj_temp)
+    {
+        cnt_traj++;
+        if (t.is_cut)
+        {
+            cnt_cut_traj++;
+        }
+    }
+    std::cout << "Fraction of trajectories cut by the polygon: " << cnt_cut_traj/cnt_traj << std::endl;
+    // Saving the number of trajectories cut by the polygon
+    ofstream out_cut(config_.cartout_basename + config_.name_pro + "_cut_traj.csv");
+    out_cut << "id_act;fraction_cut;size_traj" << std::endl;
+    for (auto &t : traj_temp)
+    {
+        if (t.is_cut)
+            out_cut << t.id_act << ";" << t.fraction_cut << ";" << t.stop_point.size() << std::endl;
+    }
     // temporarly added
     // ofstream out_nothresh(config_.cartout_basename + config_.name_pro + "_nothresh.csv");
     // out_nothresh << "lenght;time;av_speed" << std::endl;
@@ -2996,7 +3020,7 @@ double measure_representativity(const string &label,std::vector<poly_base> &poly
 void make_traj_dataframe(std::vector<traj_base> &traj,std::vector<poly_base> &poly){
     // Trajectories DataFrame
     ofstream OutTraj(config_.cartout_basename + "/" + config_.name_pro + "_traj_dataframe.csv");
-    OutTraj << "user_id;latitude;longitude;timestamp;speed" << std::endl;
+    OutTraj << "user_id;latitude;longitude;timestamp;speed;out_polygon_count" << std::endl;
     // Trajectories At Road Level
     ofstream PathOnRoad(config_.cartout_basename + "/" + config_.name_pro + "_paths_on_road.csv");
     PathOnRoad << "user_id;poly_id;timestamp" << std::endl;
@@ -3006,7 +3030,7 @@ void make_traj_dataframe(std::vector<traj_base> &traj,std::vector<poly_base> &po
             {
             for (int sp = 1; sp < t.stop_point.size(); ++sp)
                 {
-                    OutTraj << t.id_act << ";" << t.stop_point[sp].centroid.lat << ";" << t.stop_point[sp].centroid.lon << ";" << t.stop_point[sp].points.front().itime << ";" << t.stop_point[sp].inst_speed << std::endl;
+                    OutTraj << t.id_act << ";" << t.stop_point[sp].centroid.lat << ";" << t.stop_point[sp].centroid.lon << ";" << t.stop_point[sp].points.front().itime << ";" << t.stop_point[sp].inst_speed << ";" << t.stop_point[sp].out_polygon_count<< std::endl;
                 }
             }
         if (t.path.size() != 0)

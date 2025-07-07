@@ -1,3 +1,7 @@
 [submodule "ccm"]
 	path = ccm
 	url = https://github.com/cenit/ccm
+
+[submodule "work_mdt"]
+	path = python/work_mdt
+	url = https://github.com/albertoamaduzzi/congestion_from_trajectories.git

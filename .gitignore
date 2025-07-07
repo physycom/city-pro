@@ -63,3 +63,9 @@ sysconfig/
 vars/data/
 vars/carto/bologna_mdt.pnt
 vars/carto/bologna_mdt.pro
+python/work_mdt/__pycache__/*
+python/work_mdt/cache/*
+*_build_release
+bologna_mdt/*
+*bologna_mdt_detailed
+*bologna_mdt_detailed_old_config

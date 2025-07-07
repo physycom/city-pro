@@ -3,6 +3,7 @@
     "2022-12-30",
     "2022-12-31",
     "2023-01-01",
+    "2022-05-12",
     "2022-11-11",
     "2022-07-01",
     "2022-08-05",
@@ -24,10 +25,10 @@
   "base_name": "bologna_mdt",
   "InputBaseDir": "/home/aamad/codice/city-pro/output/bologna_mdt_center",
   "bounding_box": {
-    "lat_min": 44.487106,
-    "lat_max": 44.528131,
-    "lon_min": 11.293156,
-    "lon_max": 11.378143
+    "lat_min": 44.479459,
+    "lat_max": 44.536751,
+    "lon_min": 11.254601,
+    "lon_max": 11.39605
   },
   "geojson": "/home/aamad/codice/city-pro/bologna-provincia.geojson",
   "verbose": true,
@@ -79,10 +80,10 @@
   "scale_bins": {
     "av_speed": "linear",
     "speed_kmh": "linear",
-    "lenght": "log",
-    "lenght_km": "log",
-    "time": "log",
-    "time_hours": "log",
+    "lenght": "linear",
+    "lenght_km": "linear",
+    "time": "linear",
+    "time_hours": "linear",
     "av_accel": "linear"
   },
   "info_fit": {

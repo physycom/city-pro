@@ -17,7 +17,7 @@ from FittingFunctions import *
 import logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
+from Distributions import *
 VERBOSE = False
 # FUCNTIONS FOR FITTING
 
@@ -546,8 +546,18 @@ def ComputeAndChooseBestFit(ObservedData,Function2InitialGuess,FitAllTry,NormBoo
     bexp = fit.exponential.parameter2
     if R>0:
         BestFit = "powerlaw"
+        # Retrieve power-law parameters
     else:
         BestFit = "exponential"
+    # Check if Aexp and bexp are not None
+    alpha = fit.power_law.alpha
+    # Compute the power-law fitted curve
+    y_powerlaw = x  ** (-alpha)
+    if Aexp is not None and bexp is not None:
+        # Compute the exponential fitted curve
+        y_exponential = Aexp * np.exp(bexp * x)
+    else:
+        y_exponential = y
     print("Best Fit: ",BestFit)
     print("R: ",R)
     print("p: ",round(p,3))
@@ -571,12 +581,13 @@ def ComputeAndChooseBestFit(ObservedData,Function2InitialGuess,FitAllTry,NormBoo
         if Function2Fit == "powerlaw":
             A = 1
             b = fit.power_law.parameter1
-            FitAllTry[Function2Fit]["fitted_data_windowed"] = list(Name2Function[Function2Fit](np.array(x_windowed),A,b))
+            FitAllTry[Function2Fit]["fitted_data_windowed"] = list(y_powerlaw)
             FitAllTry[Function2Fit]["parameters"] = (A,b)
         elif Function2Fit == "exponential":
             A = 1
-            b = -Aexp
-            FitAllTry[Function2Fit]["fitted_data_windowed"] = list(Name2Function[Function2Fit](np.array(x_windowed),A,b))
+            # Just Taken Away - 
+            b = - Aexp # -Aexp
+            FitAllTry[Function2Fit]["fitted_data_windowed"] = list(y_exponential)
             FitAllTry[Function2Fit]["parameters"] = (A,b)
         elif Function2Fit == "truncated_powerlaw":
             fit_,StdError,ConvergenceSuccess,FittedData,x_windowed,y_measured = FitAndStdErrorFromXY(x = x[1:],
@@ -710,4 +721,195 @@ def Ptest(x,vector_signal,mu,sigma,percentile = 0.95):
     is_signal = [True if vector_signal[i] > idces_percentile[0] else False for i in range(len(vector_signal))]
     return is_signal,idces_percentile
 
+### NEW WAY
 
+
+
+#    if len(Day2PowerLaw["Day"]) > 0:
+#        DfPowerLaw = pl.DataFrame(Day2PowerLaw)
+#        DfPowerLaw.to_csv(os.path.join(InputDir,f"aggregated_fit_parameters_{Feature}_powerlaw_new.csv"))
+#    if len(Day2Exponential["Day"]) > 0:
+#        DfExponential = pl.DataFrame(Day2Exponential)
+#        DfExponential.write_csv(os.path.join(InputDir,f"aggregated_fit_parameters_{Feature}_exponential_new.csv"))
+
+################################################################################
+############################# expo vs pl #######################################
+################################################################################
+def compare_exponential_power_law_from_data(data,
+                                            bins = 50):
+    """
+        @params data: np.array 1D contains observations
+    """
+    from pandas import Series
+    if isinstance(data,Series):
+        data = data.to_numpy()
+    elif isinstance(data,np.ndarray):
+        pass
+    from polars import Series
+    if isinstance(data,Series):
+        data = data.to_numpy()
+    distr = Distribution(data,name= "")
+    x = distr._x 
+    y = distr._y_norm    
+    exp_,error_exp,R2_exp,pl_,error_pl,R2_pl = compare_exponential_power_law_from_xy(x,y)
+    return exp_,error_exp,R2_exp,pl_,error_pl,R2_pl
+
+
+def compare_exponential_power_law_from_xy(bins,n):
+    """
+        @params bins: np.array 1D
+        @params n: np.array 1D
+        @describe: Compare the exponential and power law fits for the distribution of the features
+        @
+    """
+    if len(bins) == len(n) + 1:
+        bins_compute = bins[1:]
+        # Avoid 0s
+        bins_plot = bins[:-1]
+    else:
+        bins_compute = bins
+        bins_plot = bins
+        pass
+    # Compute Fit Parameters
+    logn = np.log(n)
+    logbins = np.log(bins_compute)
+    fit_exp = np.polyfit(bins_plot,logn,1)
+    fit_pl = np.polyfit(logbins,logn,1)
+    # Compute Fitted Curve
+    A_exp = np.exp(fit_exp[1])
+    A_pl = np.exp(fit_pl[1])
+    beta_exp = fit_exp[0]
+    alpha_pl = fit_pl[0] 
+    exp_ = A_exp*np.exp(bins_plot*beta_exp)
+    pl_ = A_pl*bins_plot**alpha_pl
+    # Compute Chi^2
+    error_pl = np.sqrt(np.sum((n[1:] - pl_[1:])**2)/len(n))
+    error_exp = np.sqrt(np.sum((n[1:] - exp_[1:])**2)/len(n))
+    # Compute R^2
+    n_mean = np.nanmean(n)
+    S_tot = np.sum((n - n_mean)**2)
+    R2_pl = 1 - error_pl/S_tot
+    R2_exp = 1 - error_exp/S_tot
+
+    return A_exp,beta_exp,exp_,error_exp,R2_exp,A_pl,alpha_pl,pl_,error_pl,R2_pl,bins_plot
+
+def fit_expo(bins,n):
+    """
+        @params bins: np.array 1D
+        @params n: np.array 1D
+        @describe: Compute the exponential fits for the distribution of the features
+        @
+    """
+    if len(bins) == len(n) + 1:
+        bins_compute = bins[1:]
+        # Avoid 0s
+        bins_plot = bins[:-1]
+    else:
+        bins_compute = bins
+        bins_plot = bins
+        pass
+    # Compute Fit Parameters
+    logn = np.log(n)
+    fit_exp = np.polyfit(bins_plot,logn,1)
+    # Compute Fitted Curve
+    A_exp = np.exp(fit_exp[1])
+    beta_exp = fit_exp[0]
+    exp_ = A_exp*np.exp(bins_plot*beta_exp)
+    # Compute Chi^2
+    error_exp = np.sqrt(np.sum((n[1:] - exp_[1:])**2)/len(n))
+    # Compute R^2
+    n_mean = np.nanmean(n)
+    S_tot = np.sum((n - n_mean)**2)
+    R2_exp = 1 - error_exp/S_tot
+
+    return A_exp,beta_exp,exp_,error_exp,R2_exp,bins_plot
+
+def fit_pl(bins,n):
+    """
+        @params bins: np.array 1D
+        @params n: np.array 1D
+        @describe: Compute power law fits for the distribution of the features
+    """
+    if len(bins) == len(n) + 1:
+        bins_compute = bins[1:]
+        # Avoid 0s
+        bins_plot = bins[:-1]
+    else:
+        bins_compute = bins
+        bins_plot = bins
+        pass
+    # Compute Fit Parameters
+    logn = np.log(n)
+    fit_pl = np.polyfit(np.log(bins_plot),logn,1)
+    # Compute Fitted Curve
+    A_pl = np.exp(fit_pl[1])
+    alpha_pl = fit_pl[0]
+    pl_ = A_pl*bins_plot**alpha_pl
+    # Compute Chi^2
+    error_pl = np.sqrt(np.sum((n[1:] - pl_[1:])**2)/len(n))
+    # Compute R^2
+    n_mean = np.nanmean(n)
+    S_tot = np.sum((n - n_mean)**2)
+    R2_pl = 1 - error_pl/S_tot
+
+    return A_pl,alpha_pl,pl_,error_pl,R2_pl,bins_plot
+
+### SINGLE DAY: FITTING ###
+
+def comparison_pl_exp_single_class(ObservedData,
+                                   Feature,
+                                   dict_parameters_expo_fit,
+                                   dict_parameters_pl_fit,
+                                   dict_expo_data_and_fit,
+                                   dict_pl_data_and_fit,
+                                   StrDate,
+                                   IntClass,
+                                   N_people_class):
+    """
+        NOTE: This function is used in ComputeFitPerClassTimeLenght in AnalysisNetwork1Day.py
+        @params    
+    """
+    distr_feature = Distribution(data = np.array(ObservedData),
+                        name = Feature,
+                        bins = 50,
+                        filter_name = "gaussian",
+                        params=1,
+                        choose_bins_without_0=True)
+    A_exp,beta_exp,exp_,error_exp,R2_exp,A_pl,alpha_pl,pl_,error_pl,R2_pl,x = compare_exponential_power_law_from_xy(distr_feature._x,distr_feature._y_norm)
+    if error_exp < error_pl:
+        # Fill Parameters Output
+        dict_parameters_expo_fit["R2"].append(R2_exp)
+        dict_parameters_expo_fit["error"].append(error_exp)
+        dict_parameters_expo_fit["A"].append(A_exp)
+        dict_parameters_expo_fit["beta"].append(beta_exp)
+        dict_parameters_expo_fit["<x>"].append(-1/beta_exp)
+        dict_parameters_expo_fit["Day"].append(StrDate)
+        dict_parameters_expo_fit["Class"].append(IntClass)
+        dict_parameters_expo_fit["n_people"].append(N_people_class)
+        # Fill Data Output
+        dict_expo_data_and_fit["x"].extend(x)
+        dict_expo_data_and_fit["y"].extend(distr_feature._y_norm)
+        dict_expo_data_and_fit["y_fit"].extend(exp_)
+        dict_expo_data_and_fit["Class"].extend(np.full(len(x),IntClass))
+        dict_expo_data_and_fit["Day"].extend(np.full(len(x),StrDate))
+    else:
+        # Fill Parameters Output
+        dict_parameters_pl_fit["R2"].append(R2_pl)
+        dict_parameters_pl_fit["error"].append(error_pl)
+        dict_parameters_pl_fit["A"].append(A_pl)
+        dict_parameters_pl_fit["alpha"].append(alpha_pl)
+        dict_parameters_pl_fit["<x>"].append(-1/alpha_pl)
+        dict_parameters_pl_fit["Day"].append(StrDate)
+        dict_parameters_pl_fit["Class"].append(IntClass)
+        dict_parameters_pl_fit["n_people"].append(N_people_class)
+        # Fill Data Output
+        dict_pl_data_and_fit["x"].extend(x)
+        dict_pl_data_and_fit["y"].extend(distr_feature._y_norm)
+        dict_pl_data_and_fit["y_fit"].extend(pl_)
+        dict_pl_data_and_fit["Class"].extend(np.full(len(x),IntClass))
+        dict_pl_data_and_fit["Day"].extend(np.full(len(x),StrDate))
+    return dict_parameters_expo_fit,dict_parameters_pl_fit,dict_expo_data_and_fit,dict_pl_data_and_fit
+
+#######################################################################################################
+############################### max vs gaussian ######################################################
+#######################################################################################################
