@@ -72,7 +72,7 @@ NOTE:
 1b) Alternatively it is available a bash script to run all the days according to the days at hand:    
 
 ```
-python3 ./python/work_mdt/SetRightDirectoriesConfiguration.py   
+python3 ./python/work_mdt/SetRightDirectoriesConfiguration.py -c /path/to/config_days_bbox   
 
 ./vars/config/RunRimini.sh
 ```
@@ -87,7 +87,7 @@ NOTE: `/path/to/configfile/` is usually in a different folder.
 NOTE: The logic for storing and initialize configuration files is not homogeneous 
 ## Complete Analysis
 ```
-python3 ./python/LaunchParallelCpp.py
+python3 ./python/LaunchParallelCpp.py -cs ./vars/config/config_days_bbox.json -ca ./vars/config
 ```   
 The script automatically will set the configuration files for each day by calling:    
 1) `SetRightDirectoriesConfiguration.py`: This script has hardcoded data that define where the input is and where the output of both the cpp and python will be:     
@@ -102,6 +102,7 @@ The script automatically will set the configuration files for each day by callin
 `FittingProcedures.ipynb`: is the script used for the fit of time, length, speed distribution. Is messy and not completely standardized with parameters added by hand. This is due to the variability of what you look for.    
 `Trajectories.ipynb`: Explore trajectories. Launch just after the simulations of the days are run. It is not in the pipeline as it is conceived as exploratory analysis (Visualizations mainly, speed evolution for single traj) and not completely standardized. This could be expanded to study variance effects.    
 `EstimatePenetration.ipynb`: Responsible for penetration.png 
+
 # Input:     
 REQUIRED:  
     1Ca `/path/to/configfileCpp/config.json`    
@@ -122,6 +123,7 @@ REQUIRED:
 `postprocessing` needs in input:  
     1) `/path/to/configfilePython/AnalysisPython.json`    
 NOTE: `AnalysisPython.json` is required to be it as it is hardcoded in the complete analysis.
+
 
 
 # Description

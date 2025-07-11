@@ -220,6 +220,7 @@ class NetworkAllDays:
                 self.StrClass2MFDNewAggregated2Plot = defaultdict()
                 #
                 self.bounding_box = MobDate.BoxNumeric
+                self.Classes = MobDate.Classes
                 #
                 for StrClass in self.ListStrClassReference:
                     self.StrClass2MFDAggregated[StrClass] = {Key: [] for Key in MobDate.MFD.columns}
@@ -1514,7 +1515,7 @@ class NetworkAllDays:
                 Plot the subnetworks for all days
             Taakes a lot of time to compute
         """
-        NewClasses = [0,1,2,3]
+        NewClasses = self.Classes
         GeoJson = gpd.read_file("/home/aamad/codice/city-pro/output/bologna_mdt_detailed/BolognaMDTClassInfo.geojson")
         Colors = ["red","green","purple","orange","yellow","pink","brown","grey"]
         Index2IJ = {0:(0,0),1:(0,1),2:(0,2),3:(1,0),4:(1,1),5:(1,2),6:(2,0),7:(2,1),8:(2,2)}
@@ -1553,7 +1554,7 @@ class NetworkAllDays:
             This snippet works just if I consider 4 classes.
 
         """
-        UniqueClasses = [0,1,2,3]
+        UniqueClasses = self.Classes
         Colors = ["red","green","purple","orange","yellow","pink","brown","grey"]
         StrUnion = "OrderedUnion_"
         GeoJson = gpd.read_file(os.path.join(os.environ["WORKSPACE"],"city-pro","output","bologna_mdt_center","BolognaMDTClassInfo.geojson"))
@@ -1580,7 +1581,7 @@ class NetworkAllDays:
             This snippet works just if I consider 4 classes.
 
         """
-        UniqueClasses = [0,1,2,3]
+        UniqueClasses = self.Classes
         Colors = ["red","green","purple","orange","yellow","pink","brown","grey"]
         StrUnion = "OrderedIntersection_"
         IntClass2StrClass = {0:"1 slowest",1:"2 slowest",2:"middle velocity class",3:"1 quickest"}

@@ -301,7 +301,10 @@ def get_graph_from_gdf_roads(roads_gdf_projected):
     return G, coords_node
 
 
-def from_gdf_2_path_geometries(trajectory_gdf_projected,G,coords_node,col_geometry_road_in_traj_gdf="nearest_road_geometry"):
+def from_gdf_2_path_geometries(trajectory_gdf_projected,
+                               G,
+                               coords_node,
+                               col_geometry_road_in_traj_gdf="nearest_road_geometry"):
     # Build a KD-Tree for efficient nearest node lookup
     nodes_array = np.array(list(coords_node.values()))
     tree = cKDTree(nodes_array)

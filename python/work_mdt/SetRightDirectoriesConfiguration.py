@@ -39,6 +39,8 @@
 import json
 import os
 import logging
+import argparse
+
 logger = logging.getLogger(__name__)
 
 def ModifyConfigCpp(WORKSPACE,
@@ -173,82 +175,91 @@ def InitialSettingProject(FolderCarto,NameCarto,StrDates,BaseFolderData,DirConfi
 
     # Control Configuration
 
-# ------------------ INPUT ------------------ #
-# NOTE: WORKSPACE is the path to the ./codice 
-WORKSPACE = os.environ["WORKSPACE"]
-# NOTE: Vars is the common folder for configuration, data and carto
-VarsDir = os.path.join(WORKSPACE,"city-pro","vars")
-# NOTE: Where you find .pnt,.pro 
-FolderCarto = os.path.join(VarsDir,"carto")
-# NOTE: Folder where you find the folders of the DataSet (this folder contains a folder for each day in the dataset) NOTE: If you want to divide the dataset into multiple datasets, here it must be changed, adding a name for each sub-dataset. NOTE: It is not automatically handled this case even though it could be useful. NOTE: When analyzed, move the data away not to repeat the analysis.
-BaseFolderData = os.path.join(VarsDir,"data")
-# NOTE: Dates for which we have DataSet
-StrDates = ['2022-12-30','2022-12-31','2023-01-01','2022-05-12','2022-11-11','2022-07-01','2022-08-05','2022-01-31','2023-03-18']
-# NOTE: We copy the configuration file from an "original" folder, NOTE: The structure is the same of the DataSet, therefore there is one config_file for each day.
-DirConfig2Copy = os.path.join(VarsDir,"config_example")
-NameSeedConfig = "config_bologna.json"
-NameConfigFile = "config_bologna.json"
-# NOTE: Configuration Folder for Python. NOTE: It does not allow to divde your dataset. If the dataset is in VarsDir, it will be considered as a single dataset. Same as BaseFolderData
-DirConfigPython = os.path.join(VarsDir,"config")
+if __name__=="__main__":
+    ## ----------- PARAMETERS INPUT TO CHANGE ---------------##
+    parser = argparse.ArgumentParser(description="configuration bounded to bbox")
+    parser.add_argument("--config","-c",type=str,default="./vars/config/config_days_bbox.json",help="Path to the configuration project with days and bounding box")
+    args = parser.parse_args()
+    with open(args.config,"r") as f:
+        config_dict = json.load(f)
+    # NOTE: Bounding Box, filters both the trajectories (in the cpp) and the sub-network in python
+    lon_min = config_dict["lon_min"]
+    lon_max = config_dict["lon_max"]
+    lat_min = config_dict["lat_min"]
+    lat_max = config_dict["lat_max"]
+    NameCaseAnalysis = config_dict["name_project"]
+    # NOTE: Dates for which we have DataSet
+    StrDates = config_dict["str_dates"]
+    if "num_tm" in config_dict.keys():
+        num_tm = config_dict["num_tm"]
+    else:
+        num_tm = 3
 
-# NOTE: Name Carotgraphy -> If Download new cartography, change this name
-Carto = "bologna_mdt_cleaned"
-# NOTE: Base Name DataSet -> If change project, change this name. Do not change it, you really do not care.
-BaseName = "bologna_mdt"
-# NOTE: Bounding Box, filters both the trajectories (in the cpp) and the sub-network in python
-#lat_min = 44.487106
-#lat_max = 44.528131
-#lon_min = 11.293156
-#lon_max = 11.378143
-lon_min = 11.254601
-lon_max = 11.396050
-lat_min = 44.479459
-lat_max = 44.536751
 
-# ------------------ CONFIG .cpp ------------------ #
-NameCaseAnalysis = "bologna_mdt_center"
-# NOTE: Output Directory
-OutputDir = os.path.join(WORKSPACE,"city-pro","output",NameCaseAnalysis)
-# NOTE: Output Weight Directory
-OutputDirWeights = os.path.join(WORKSPACE,"city-pro","output",NameCaseAnalysis,"weights")
+    # ------------------ INPUT CONSTANTS ------------------ #
+    # NOTE: WORKSPACE is the path to the ./codice 
+    WORKSPACE = os.environ["WORKSPACE"]
+    # NOTE: Vars is the common folder for configuration, data and carto
+    VarsDir = os.path.join(WORKSPACE,"city-pro","vars")
+    # NOTE: Where you find .pnt,.pro 
+    FolderCarto = os.path.join(VarsDir,"carto")
+    # NOTE: Folder where you find the folders of the DataSet (this folder contains a folder for each day in the dataset) NOTE: If you want to divide the dataset into multiple datasets, here it must be changed, adding a name for each sub-dataset. NOTE: It is not automatically handled this case even though it could be useful. NOTE: When analyzed, move the data away not to repeat the analysis.
+    BaseFolderData = os.path.join(VarsDir,"data")
+    # NOTE: We copy the configuration file from an "original" folder, NOTE: The structure is the same of the DataSet, therefore there is one config_file for each day.
+    DirConfig2Copy = os.path.join(VarsDir,"config_example")
+    NameSeedConfig = "config_bologna.json"
+    NameConfigFile = "config_bologna.json"
+    # NOTE: Configuration Folder for Python. NOTE: It does not allow to divde your dataset. If the dataset is in VarsDir, it will be considered as a single dataset. Same as BaseFolderData
+    DirConfigPython = os.path.join(VarsDir,"config")
 
-# ---------- CONFIG .py ------------------ #
+    # NOTE: Name Carotgraphy -> If Download new cartography, change this name
+    Carto = "bologna_mdt_cleaned"
+    # NOTE: Base Name DataSet -> If change project, change this name. Do not change it, you really do not care.
+    BaseName = "bologna_mdt"
 
-InitialSettingProject(FolderCarto,
-                      Carto,
-                      StrDates,
-                      BaseFolderData,
-                      DirConfig2Copy,
-                      NameSeedConfig,
-                      NameConfigFile,
-                      OutputDir,
-                      OutputDirWeights)
+    # ------------------ CONFIG .cpp ------------------ #
+    # NOTE: Output Directory
+    OutputDir = os.path.join(WORKSPACE,"city-pro","output",NameCaseAnalysis)
+    # NOTE: Output Weight Directory
+    OutputDirWeights = os.path.join(WORKSPACE,"city-pro","output",NameCaseAnalysis,"weights")
 
-# Modify the configuration for the .cpp
+    # ---------- CONFIG .py ------------------ #
 
-ModifyConfigCpp(WORKSPACE = WORKSPACE,
-                FolderCarto = FolderCarto,
-                BaseFolderData = BaseFolderData,
-                StrDates = StrDates,
-                DirConfig2Copy = DirConfig2Copy,
-                Carto = Carto,
-                BaseName = BaseName,
-                NewCaseName = NameCaseAnalysis,
-                lat_min = lat_min,
-                lat_max = lat_max,
-                lon_min = lon_min,
-                lon_max = lon_max,
-                enable_subnet = True,
-                jump2subnet_analysis = False,
-                max_poly_length = 6000,
-                num_tm = 3)
-# Modify the configuration for the Python Script
+    InitialSettingProject(FolderCarto,
+                        Carto,
+                        StrDates,
+                        BaseFolderData,
+                        DirConfig2Copy,
+                        NameSeedConfig,
+                        NameConfigFile,
+                        OutputDir,
+                        OutputDirWeights)
 
-ModifyConfigPy(WORKSPACE = WORKSPACE,
-                NewCaseName = NameCaseAnalysis,
-                DirConfig = DirConfigPython,
-                StrDates = StrDates,
-                lat_min = lat_min,
-                lat_max = lat_max,
-                lon_min = lon_min,
-                lon_max = lon_max)
+    # Modify the configuration for the .cpp
+
+    ModifyConfigCpp(WORKSPACE = WORKSPACE,
+                    FolderCarto = FolderCarto,
+                    BaseFolderData = BaseFolderData,
+                    StrDates = StrDates,
+                    DirConfig2Copy = DirConfig2Copy,
+                    Carto = Carto,
+                    BaseName = BaseName,
+                    NewCaseName = NameCaseAnalysis,
+                    lat_min = lat_min,
+                    lat_max = lat_max,
+                    lon_min = lon_min,
+                    lon_max = lon_max,
+                    enable_subnet = True,
+                    jump2subnet_analysis = False,
+                    max_poly_length = 6000,
+                    num_tm = num_tm)
+    # Modify the configuration for the Python Script
+
+    ModifyConfigPy(WORKSPACE = WORKSPACE,
+                    NewCaseName = NameCaseAnalysis,
+                    DirConfig = DirConfigPython,
+                    StrDates = StrDates,
+                    lat_min = lat_min,
+                    lat_max = lat_max,
+                    lon_min = lon_min,
+                    lon_max = lon_max)

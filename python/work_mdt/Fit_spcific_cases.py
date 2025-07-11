@@ -3,6 +3,7 @@ from fit_dictionaries import *
 from fit_tricks_to_compare_different_conditions import *
 from FittingProcedures import *
 import polars as pl
+from typing import Dict,List,Any
 
 ### ----------- FILTER FUNCTIONS ON DAtAFRAME ----------- ###
 def extract_class_data(dataframe: pl.DataFrame, class_idx: int, feature: str) -> list:
@@ -406,3 +407,88 @@ def aggregate_results_across_dates(feature, dates, classes, results, enriched_le
         aggregated["variance"][cls] = np.sqrt(np.sum(normalized_y * (x - aggregated["mean"][cls])**2))
     
     return aggregated
+
+
+
+### AVERAGE OVER ALL DAYS
+
+def extract_result_fit_from_x_y(feature: str,
+                        x: np.ndarray, 
+                        average_y_over_day: np.ndarray,
+                        average_x_mean_over_day: float,
+                        cut_length: float = 4) -> Dict[str, Any]:
+    """
+    Process a feature and determine the best fit (exponential or power law).
+    
+    Args:
+        feature: Feature name ('time_hours' or 'lenght_km')
+        x: x values
+        average_y_over_day: y values averaged over all days
+        average_x_mean_over_day: Mean value averaged over all days
+        cut_length: Maximum length to consider for length distributions
+        
+    Returns:
+        Dictionary containing fit results
+    """
+    try:
+        # Make sure x and y have the same dimensions
+        if len(x) != len(average_y_over_day):
+            print(f"Warning: x and y dimensions don't match. x: {len(x)}, y: {len(average_y_over_day)}")
+            # Match the lengths by truncating to the shorter one
+            max_len = max(len(x), len(average_y_over_day))
+            x = enrich_vector_to_length(x, max_len)
+            average_y_over_day = enrich_vector_to_length(average_y_over_day)
+            print(f"Adjusted to length {max_len} for both x and y.")
+        
+        if "leng" in feature:
+            # Apply length cutoff for length feature
+            mask = np.array(x) <= cut_length
+            x_masked = np.array(x)[mask]
+            average_y_masked = np.array(average_y_over_day)[mask]
+            
+            print(f"Feature: {feature}, size x: {len(x_masked)}, size average_y_over_day: {len(average_y_masked)}")
+            
+            # Fit exponential only for length
+            A_exp, beta_exp, exp_, error_exp, R2_exp, bins_plot = fit_expo(x_masked, average_y_masked)
+            error_pl = 1e10  # Force exponential fit for length
+            pl_ = None
+            alpha_pl = None
+        else:
+            # Compare exponential and power law fits for time
+            A_exp, beta_exp, exp_, error_exp, R2_exp, A_pl, alpha_pl, pl_, error_pl, R2_pl, bins_plot = compare_exponential_power_law_from_xy(np.array(x), np.array(average_y_over_day))
+        
+        # Determine the best fit
+        if error_exp < error_pl:
+            # Exponential is better
+            fit_result = {
+                "fit_type": "exponential",
+                "y_fit": exp_,
+                "parameter": beta_exp,
+                "parameter_name": "β",
+                "fit_param": {"expo": beta_exp, "pl": None}
+            }
+        else:
+            # Power law is better
+            fit_result = {
+                "fit_type": "power law",
+                "y_fit": pl_,
+                "parameter": alpha_pl,
+                "parameter_name": "α",
+                "fit_param": {"expo": None, "pl": alpha_pl}
+            }
+        
+        # Add common attributes
+        fit_result.update({
+            "average_y": average_y_over_day,
+            "x_mean": average_x_mean_over_day,
+            "A_exp": A_exp,
+            "exp_": exp_,
+            "A_pl": A_pl if "A_pl" in locals() else None,
+            "pl_": pl_
+        })
+        
+        return fit_result
+        
+    except Exception as e:
+        print(f"Error processing feature fit for {feature}: {e}")
+        return {"fit_type": None, "error": str(e)}

@@ -196,26 +196,44 @@ presence: filled*/
 
 
     // filter stops on carto geolocalization
+    // vector<traj_base> new_traj_out_carto; 
+    // max(traj_temp).id;
+    // vector<traj_base> traj_temp_temp = traj_temp;
     for (auto &t : traj_temp)
     {
+        // int n_out_polygon_traj = 0;
+        // map <int,vector<cluster_base>> n_traj_2_sp_oncarto;
         vector<cluster_base> sp_oncarto;
         for (auto &sp : t.stop_point)
         {
             sp.on_carto = find_polyaff(sp.centroid.lon, sp.centroid.lat, sp.pap);
             if (sp.on_carto && sp.pap.d > config_.min_poly_distance)
                 sp.on_carto = false;
-                sp.out_polygon_count += 1;
             if (!sp.on_carto)
                 {data_notoncarto.push_back(sp);
                 t.is_cut = true;
                 t.fraction_cut += 1.0 / double(t.stop_point.size());
-                }
-            if (sp.on_carto)
-                sp_oncarto.push_back(sp);
+                sp.out_polygon_count += 1;
+                // n_out_polygon_traj += 1;
+                // traj_base t_new;
+                // t_new.add_cluster(sp, 0);
+                // vector<cluster_base> sp_new_traj_oncarto;
+                // sp_new_traj_oncarto.push_back(sp)
+                // pair = make_pair(n_out_polygon_traj, sp_new_traj_oncarto)
+                // n_traj_2_sp_oncarto += pair;
+            }
+            if (sp.on_carto){
+                // if n_out_polygon_traj > 0 {n_traj_2_sp_oncarto[n_out_polygon_traj].push_back(sp);
+                // t_new.add_cluster(sp, 0)};
+                // else
+                sp_oncarto.push_back(sp);}
+                
+                // 
             // temporarly added for duration analysis
             // if (sp.on_carto == false) out_nogeoref << t.id_act << ";" << sp.points.front().lat<<";"<<sp.points.front().lon<<";"<<sp.points.front().itime << std::endl;
         }
         t.stop_point = sp_oncarto; // filter stop points and consider just tthose that are pn cartp
+        // for 
     }
     dataloss.n_data_outcarto = int(data_notoncarto.size());
     std::cout << "Georeferencing filter out carto: " << double(dataloss.n_data_outcarto) / cnt_tot_sp * 100. << "%" << std::endl;
@@ -3030,7 +3048,7 @@ void make_traj_dataframe(std::vector<traj_base> &traj,std::vector<poly_base> &po
             {
             for (int sp = 1; sp < t.stop_point.size(); ++sp)
                 {
-                    OutTraj << t.id_act << ";" << t.stop_point[sp].centroid.lat << ";" << t.stop_point[sp].centroid.lon << ";" << t.stop_point[sp].points.front().itime << ";" << t.stop_point[sp].inst_speed << ";" << t.stop_point[sp].out_polygon_count<< std::endl;
+                    OutTraj << t.id_act << ";" << t.stop_point[sp].centroid.lat << ";" << t.stop_point[sp].centroid.lon << ";" << t.stop_point[sp].points.front().itime << ";" << t.stop_point[sp].inst_speed << ";" << t.stop_point[sp].out_polygon_count << std::endl;
                 }
             }
         if (t.path.size() != 0)
