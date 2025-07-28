@@ -73,18 +73,23 @@ def Plot_road_network_colored_by_hierarchical_class_when_considered_union_over_a
 
 ## ---------------- FUZZY CLASSIFICATION PLOTTING FUNCTIONS ---------------- ##
 
-def Plot_road_network_colored_by_hierarchical_class_all_days(GdfSimplified, path_save_plot, Classes, Days):
+def Plot_road_network_colored_by_hierarchical_class_all_days(GdfSimplified, path_save_plot, Classes, Days,Columns):
     """
         Plot the road network colored by fuzzy class.
         - GdfSimplified: GeoDataFrame with the roads and the Union column.
         - path_save_plot: Path to save the plot.
         Separate plots for each day.
     """
+    if GdfSimplified.crs.to_string() != "EPSG:3857":
+        # Reproject to EPSG:3857 if not already in that CRS
+        GdfSimplified = GdfSimplified.to_crs(epsg=3857)
+    else:
+        pass
     # Define custom colors for each category
     custom_colors = {Classes[i]:LIST_COLORS[i] for i in range(len(Classes))}    
     # Plot the GdfSimplified with custom colors
     count_days = 0
-    for class_column_day in Classes:
+    for class_column_day in Columns:
         fig, ax = plt.subplots(figsize=(10, 10))
         for category, color in custom_colors.items():
             GdfSimplified[GdfSimplified[class_column_day] == category].plot(
