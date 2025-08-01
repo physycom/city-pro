@@ -305,6 +305,10 @@ def from_gdf_2_path_geometries(trajectory_gdf_projected,
                                G,
                                coords_node,
                                col_geometry_road_in_traj_gdf="nearest_road_geometry"):
+    """
+        Associate to each trajectory of the trajectory_gdf_projected the shortest path in the graph G coming from the road network.
+    """
+    
     # Build a KD-Tree for efficient nearest node lookup
     nodes_array = np.array(list(coords_node.values()))
     tree = cKDTree(nodes_array)
